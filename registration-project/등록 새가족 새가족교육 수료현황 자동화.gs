@@ -1,570 +1,595 @@
 /**
- * 새가족 데이터 동기화 및 군별 심층 통계 시스템 (최종_리포트_개선)
- * 작성자: 김홍민 부장님을 위한 AI 비서
+ * 등록 명단과 교육 출석을 결합해 수료현황과 주간 통계를 생성합니다.
+ * 등록 시트의 군/팀/전화번호는 자동으로 덮어쓰지 않고 불일치 보고만 합니다.
  */
-
-// ================= [설 정] =================
-const CONFIG = {
-  // 1. 스프레드시트 ID
-  REG_SPREADSHEET_ID: '1dBO4rhCCadxO-KVBX_Jmg4aDcV9zim_sqM95JKd4Snk',
-  EDU_SPREADSHEET_ID: '1EEIAL39SgRtO1JTe8zpZ4qDMCf_qF-bfrtxn6jfpLgg',
-
-  // 2. 이메일 수신자 설정 (분기 처리)
-  DISCREPANCY_RECIPIENT: 'ksj747172@gmail.com', // 불일치/자동업데이트 알림 받는 사람 (1명)
-  ADMIN_EMAILS: ['ksj747172@gmail.com', 'rayo072@naver.com' , 'rnrnwkddn@naver.com', 'wnehdrms123@naver.com', 'whduswn94@naver.com'], // 전체 통계 받는 사람
-
-  // 3. 조회 시작 기준일 (이 날짜 이전 데이터는 통계 기간에서 제외)
-  START_CUTOFF_DATE: '2025-12-28',
-
-  // 4. [유지보수용 설정] 방문자 조회 시트명 및 기간설정 (상반기 <-> 하반기 전환용)
-  USE_VISITOR_REPORT: false,  // 💡 true면 방문자 명단 포함, false면 제외 (카운팅 기간에만 true로 변경)
-  VISITOR_SHEET_NAME: '상반기 방문 새가족',
-  VISITOR_START_DATE: '2026-03-01',
-  VISITOR_END_DATE: '2026-06-30'
-};
-
-// 5. 각 군별 대표 이메일 매핑
-
-/*
-const GROUP_EMAIL_MAP = {
-  '신': 'ksj747172@gmail.com',
-  '조': 'ksj747172@gmail.com',
-  '총': 'ksj747172@gmail.com',
-  '석': 'ksj747172@gmail.com',
-  '전': 'ksj747172@gmail.com',
-  '명': 'ksj747172@gmail.com',
-  '임': 'ksj747172@gmail.com',
-  '슬': 'ksj747172@gmail.com',
-  '영': 'ksj747172@gmail.com'
-};
- */
-
-const GROUP_EMAIL_MAP = {
-  '신': 'smk941129@gmail.com',
-  '조': 'kmc7758@naver.com',
-  '총': 'eomchong@icloud.com',
-  '석': 'hwoneeeeee@gmail.com',
-  '전': 'jbr0196@naver.com',
-  '명': 'jun607@naver.com',
-  '임': 'dkssud2521@naver.com',
-  '슬': 'l__seul@naver.com',
-  '영': 'revlee0956@gmail.com'
-};
-
-// ===========================================
-
-function runSystem() {
-  try {
-    syncNewFamilyData();
-    SpreadsheetApp.flush(); 
-    sendWeeklyReports();
-  } catch (error) {
-    // 🚨 에러 발생 시 부장님께 즉시 원인 메일 발송
-    Logger.log("에러 내용: " + error.toString());
-    try {
-      MailApp.sendEmail({
-        to: CONFIG.DISCREPANCY_RECIPIENT,
-        subject: "🚨 [새가족부 시스템] 스크립트 실행 에러 보고",
-        body: "부장님, 시스템 실행 중 에러가 발생했습니다.\n\n" +
-              "에러 상세 내용:\n" + error.toString() + "\n\n" +
-              "발생 위치(줄 번호):\n" + error.stack
-      });
-    } catch (mailError) {
-      Logger.log("에러 메일 발송 실패 (일일 메일 발송 한도 초과일 가능성 높음)");
-    }
-    throw error; // 화면에도 에러 표시
+function runRegistrationReportingTrigger() {
+  if (!REGISTRATION_AUTOMATION.active) {
+    console.log('등록 자동화가 비활성 상태라 수료 리포트를 실행하지 않았습니다.');
+    return;
   }
+  return withRegistrationLock_(function () {
+    return runRegistrationReporting_({
+      dryRun: false,
+      sendEmail: true,
+      label: '정기 실행'
+    });
+  });
+}
+/**
+ * 기존 설치형 트리거 함수명 호환용.
+ */
+function runSystem() {
+  return runRegistrationReportingTrigger();
+}
+
+function previewRegistrationReporting() {
+  return withRegistrationLock_(function () {
+    const result = runRegistrationReporting_({
+      dryRun: true,
+      sendEmail: false,
+      label: '미리보기'
+    });
+    console.log(JSON.stringify(result));
+    return result;
+  });
 }
 
 /**
- * 1. 데이터 동기화 및 자동 업데이트
+ * 사용자 승인 후에만 실행합니다. 테스트 메일은 본인 한 명에게만 갑니다.
  */
-function syncNewFamilyData() {
-  const regSpreadsheet = SpreadsheetApp.openById(CONFIG.REG_SPREADSHEET_ID);
-  const eduSpreadsheet = SpreadsheetApp.openById(CONFIG.EDU_SPREADSHEET_ID);
-  const regSheet = regSpreadsheet.getSheetByName('등록 새가족');
-  const targetSheet = regSpreadsheet.getSheetByName('새가족교육 수료현황');
-  const eduSheet = eduSpreadsheet.getSheetByName('교육 출석 현황');
+function runRegistrationReportingTest() {
+  return withRegistrationLock_(function () {
+    return runRegistrationReporting_({
+      dryRun: false,
+      sendEmail: true,
+      label: '승인된 테스트'
+    });
+  });
+}
 
-  if (!regSheet || !targetSheet || !eduSheet) return;
-  
-  if (regSheet.getLastRow() <= 1 || eduSheet.getLastRow() <= 1) return;
-  
-  const oldData = targetSheet.getDataRange().getValues();
-  const backupMap = {}; 
-  
-  if (oldData.length > 1) {
-    for (let i = 1; i < oldData.length; i++) {
-      const row = oldData[i];
-      const phone = normalizePhone(row[6]); 
-      const msgX = row[12]; 
-      const note = row[14]; 
-      
-      if (phone) backupMap[phone] = { msgX: msgX, note: note };
-    }
-  }
-  
-  const regData = regSheet.getRange(2, 1, regSheet.getLastRow() - 1, regSheet.getLastColumn()).getValues();
-  const eduData = eduSheet.getRange(2, 1, eduSheet.getLastRow() - 1, eduSheet.getLastColumn()).getValues();
-
-  const eduMapByPhone = {};
-  const eduMapByName = {};
-  eduData.forEach(row => {
-    const phone = normalizePhone(row[6]); 
-    const name = normalizeName(row[4]);
-    if (phone) eduMapByPhone[phone] = row;
-    if (name) eduMapByName[name] = row;
+function runRegistrationReporting_(options) {
+  const syncResult = syncCompletionData_({ dryRun: options.dryRun });
+  const reportResult = buildAndSendWeeklyReports_({
+    sendEmail: options.sendEmail,
+    syncResult: syncResult,
+    label: options.label
   });
 
-  const outputData = [];
-  const autoUpdates = []; 
+  const result = {
+    dryRun: Boolean(options.dryRun),
+    sync: syncResult,
+    report: reportResult
+  };
 
-  regData.forEach((row, index) => {
-    const regDate = row[1];
-    const regWorship = row[2];
-    let regGroup = row[3];     
-    let regTeam = row[4];      
-    const regNameRaw = row[5];
-    const regGender = row[6];
-    let regPhoneRaw = row[9];  
+  if (!options.dryRun) writeCompletionLog_(result);
+  return result;
+}
 
-    if (!regNameRaw && !regPhoneRaw) return;
+/**
+ * 기존 수동 함수명 호환용.
+ */
+function syncNewFamilyData() {
+  if (!REGISTRATION_AUTOMATION.active &&
+      REGISTRATION_AUTOMATION.mode === 'PRODUCTION') {
+    throw new Error('등록 자동화가 비활성 상태입니다.');
+  }
+  return withRegistrationLock_(function () {
+    return syncCompletionData_({ dryRun: false });
+  });
+}
 
-    const phoneKey = normalizePhone(regPhoneRaw);
-    const nameKey = normalizeName(regNameRaw);
-    
-    let matchedRow = null;
-    
-    if (phoneKey && eduMapByPhone[phoneKey]) {
-      matchedRow = eduMapByPhone[phoneKey];
-    } else if (nameKey && eduMapByName[nameKey]) {
-      const candidateRow = eduMapByName[nameKey];
-      const candidatePhone = normalizePhone(candidateRow[6]); 
+function syncCompletionData_(options) {
+  const registrationSS = getRegistrationSpreadsheet_();
+  const educationSS = SpreadsheetApp.openById(
+    REGISTRATION_AUTOMATION.educationSpreadsheetId
+  );
+  const registrationSheet = registrationSS.getSheetByName(
+    REGISTRATION_AUTOMATION.registrationSheetName
+  );
+  const completionSheet = registrationSS.getSheetByName(
+    REGISTRATION_AUTOMATION.completionSheetName
+  );
+  const educationSheet = educationSS.getSheetByName(
+    REGISTRATION_AUTOMATION.educationSheetName
+  );
 
-      if (phoneKey && candidatePhone && phoneKey !== candidatePhone) {
-        matchedRow = null; 
-      } else {
-        matchedRow = candidateRow;
+  if (!registrationSheet || !completionSheet || !educationSheet) {
+    throw new Error('등록/수료/교육 시트 중 하나를 찾을 수 없습니다.');
+  }
+
+  const registrationRows = registrationSheet.getLastRow() > 1
+    ? registrationSheet
+      .getRange(
+        2, 1, registrationSheet.getLastRow() - 1,
+        Math.max(registrationSheet.getLastColumn(), 11)
+      )
+      .getValues()
+    : [];
+  const educationRows = educationSheet.getLastRow() > 1
+    ? educationSheet
+      .getRange(
+        2, 1, educationSheet.getLastRow() - 1,
+        Math.max(educationSheet.getLastColumn(), 13)
+      )
+      .getValues()
+    : [];
+  const oldCompletionRows = completionSheet.getLastRow() > 1
+    ? completionSheet
+      .getRange(2, 1, completionSheet.getLastRow() - 1, 15)
+      .getValues()
+    : [];
+
+  const educationByPhone = new Map();
+  const oldManualByPhone = new Map();
+
+  educationRows.forEach(function (row, index) {
+    addRegistrationIndex_(
+      educationByPhone,
+      normalizeRegistrationPhone_(row[6]),
+      { index: index, row: row }
+    );
+  });
+
+  oldCompletionRows.forEach(function (row) {
+    const phone = normalizeRegistrationPhone_(row[6]);
+    if (!phone) return;
+    if (!oldManualByPhone.has(phone)) oldManualByPhone.set(phone, []);
+    oldManualByPhone.get(phone).push({
+      messageOptOut: row[12],
+      unidentified: row[13],
+      note: row[14]
+    });
+  });
+
+  const output = [];
+  const result = {
+    registrations: 0,
+    matched: 0,
+    unmatched: [],
+    ambiguous: [],
+    discrepancies: [],
+    preservedManualRows: 0,
+    outputRows: 0
+  };
+
+  registrationRows.forEach(function (row, index) {
+    const name = String(row[5] || '').trim();
+    const phoneKey = normalizeRegistrationPhone_(row[9]);
+    if (!name && !phoneKey) return;
+    result.registrations += 1;
+
+    const matches = phoneKey ? (educationByPhone.get(phoneKey) || []) : [];
+    let educationRow = null;
+
+    if (matches.length === 1) {
+      educationRow = matches[0].row;
+      result.matched += 1;
+    } else if (matches.length > 1) {
+      result.ambiguous.push({
+        registrationRow: index + 2,
+        name: name,
+        reason: '교육 시트에 같은 전화번호가 여러 행 존재'
+      });
+    } else {
+      result.unmatched.push({
+        registrationRow: index + 2,
+        name: name,
+        reason: phoneKey ? '교육 시트에서 전화번호를 찾지 못함' : '전화번호 없음'
+      });
+    }
+
+    if (educationRow) {
+      const educationGroup = String(educationRow[2] || '').trim();
+      const educationTeam = String(educationRow[3] || '').trim();
+      const registrationGroup = String(row[3] || '').trim();
+      const registrationTeam = String(row[4] || '').trim();
+
+      if (educationGroup && educationGroup !== registrationGroup) {
+        result.discrepancies.push({
+          registrationRow: index + 2,
+          name: name,
+          field: '군',
+          registrationValue: registrationGroup,
+          educationValue: educationGroup
+        });
+      }
+      if (educationTeam && educationTeam !== registrationTeam) {
+        result.discrepancies.push({
+          registrationRow: index + 2,
+          name: name,
+          field: '팀',
+          registrationValue: registrationTeam,
+          educationValue: educationTeam
+        });
       }
     }
 
-    let w1='', w2='', w3='', w4='';
-    if (matchedRow) {
-      const eduGroup = matchedRow[2]; 
-      const eduTeam = matchedRow[3];  
-      const eduPhone = matchedRow[6]; 
-      
-      let isUpdated = false;
-      let updateLog = {
-        name: regNameRaw,
-        oldGroup: regGroup || '없음', newGroup: regGroup || '없음',
-        oldTeam: regTeam || '없음', newTeam: regTeam || '없음',
-        oldPhone: regPhoneRaw || '없음', newPhone: regPhoneRaw || '없음',
-        changes: []
-      };
-
-      const actualRow = index + 2; 
-
-      const cleanEduGroup = String(eduGroup).trim();
-      const validGroups = ['석', '총', '신', '슬', '명', '전', '조', '영', '임', '군배정필요']; 
-      
-      const needsGroupUpdate = cleanEduGroup !== '' && validGroups.includes(cleanEduGroup) && (
-        !regGroup || String(regGroup).includes('미정') || String(regGroup).includes('배정필요') || String(regGroup).trim() !== cleanEduGroup
-      );
-
-      if (needsGroupUpdate) {
-        regSheet.getRange(actualRow, 4).setValue(cleanEduGroup); 
-        regSheet.getRange(actualRow, 5).setValue(eduTeam || ''); 
-        updateLog.newGroup = cleanEduGroup;
-        updateLog.newTeam = eduTeam || '없음';
-        regGroup = cleanEduGroup; 
-        regTeam = eduTeam;   
-        updateLog.changes.push('군/팀');
-        isUpdated = true;
+    let manual = {
+      messageOptOut: '',
+      unidentified: '',
+      note: ''
+    };
+    const manualMatches = phoneKey
+      ? (oldManualByPhone.get(phoneKey) || [])
+      : [];
+    if (manualMatches.length === 1) {
+      manual = manualMatches[0];
+      if (manual.messageOptOut || manual.unidentified || manual.note) {
+        result.preservedManualRows += 1;
       }
-
-      if (eduPhone && normalizePhone(regPhoneRaw) !== normalizePhone(eduPhone)) {
-        regSheet.getRange(actualRow, 10).setValue(eduPhone || ''); 
-        updateLog.newPhone = eduPhone;
-        regPhoneRaw = eduPhone; 
-        updateLog.changes.push('전화번호');
-        isUpdated = true;
-      }
-
-      if (isUpdated) autoUpdates.push(updateLog);
-
-      w1 = formatEduDate(matchedRow[7]);
-      w2 = formatEduDate(matchedRow[8]);
-      w3 = formatEduDate(matchedRow[9]);
-      w4 = formatEduDate(matchedRow[10]);
-    }
-    
-    let preservedMsgX = '';
-    let preservedNote = '';
-    const updatedPhoneKey = normalizePhone(regPhoneRaw);
-    if (updatedPhoneKey && backupMap[updatedPhoneKey]) {
-      preservedMsgX = backupMap[updatedPhoneKey].msgX !== undefined ? backupMap[updatedPhoneKey].msgX : ''; 
-      preservedNote = backupMap[updatedPhoneKey].note !== undefined ? backupMap[updatedPhoneKey].note : '';
     }
 
-    outputData.push([
-      index + 1,      
-      regGroup,       
-      regTeam,        
-      regWorship,     
-      regNameRaw,     
-      regGender,      
-      regPhoneRaw,    
-      regDate,        
-      w1, w2, w3, w4, 
-      preservedMsgX,  
-      '',             
-      preservedNote   
+    output.push([
+      output.length + 1,
+      row[3],
+      row[4],
+      row[2],
+      row[5],
+      row[6],
+      row[9],
+      row[1],
+      educationRow ? educationRow[7] : '',
+      educationRow ? educationRow[8] : '',
+      educationRow ? educationRow[9] : '',
+      educationRow ? educationRow[10] : '',
+      manual.messageOptOut,
+      manual.unidentified,
+      manual.note
     ]);
   });
 
-  if (targetSheet.getLastRow() > 1) targetSheet.getRange(2, 1, targetSheet.getLastRow() - 1, targetSheet.getLastColumn()).clearContent();
-  
-  if (outputData.length > 0 && outputData[0].length > 0) {
-    targetSheet.getRange(2, 1, outputData.length, outputData[0].length).setValues(outputData);
+  result.outputRows = output.length;
+
+  if (!options.dryRun) {
+    const oldRows = Math.max(completionSheet.getLastRow() - 1, 0);
+    if (oldRows > 0) {
+      completionSheet.getRange(2, 1, oldRows, 15).clearContent();
+    }
+    ensureRegistrationRows_(completionSheet, output.length + 1);
+    if (output.length > 0) {
+      completionSheet.getRange(2, 1, output.length, 15).setValues(output);
+    }
   }
-  
-  if (autoUpdates.length > 0) {
-    sendHtmlEmail([CONFIG.DISCREPANCY_RECIPIENT], "[새가족부] 등록현황 시트 자동 업데이트 완료 알림", createUpdateHtml(autoUpdates));
-  }
+
+  return result;
+}
+
+function buildAndSendWeeklyReports_(options) {
+  const ss = getRegistrationSpreadsheet_();
+  const sheet = ss.getSheetByName(
+    REGISTRATION_AUTOMATION.completionSheetName
+  );
+  if (!sheet) throw new Error('새가족교육 수료현황 시트를 찾을 수 없습니다.');
+
+  let rows = sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 15).getValues()
+    : [];
+
+  // 미리보기에서는 방금 계산한 결과가 아직 시트에 없으므로 현재 통계를 사용합니다.
+  const total = createCompletionStats_();
+  const byGroup = {};
+
+  rows.forEach(function (row) {
+    const group = String(row[1] || '').trim().charAt(0);
+    if (!byGroup[group]) byGroup[group] = createCompletionStats_();
+    updateCompletionStats_(total, row, false);
+    updateCompletionStats_(byGroup[group], row, true);
+  });
+
+  const report = {
+    total: total,
+    byGroup: byGroup,
+    discrepancies: options.syncResult.discrepancies.length,
+    ambiguous: options.syncResult.ambiguous.length,
+    unmatched: options.syncResult.unmatched.length
+  };
+
+  if (!options.sendEmail) return report;
+
+  const adminHtml = createCompletionReportHtml_(
+    '전체',
+    total,
+    options.syncResult,
+    byGroup
+  );
+  sendRegistrationEmail_({
+    recipients: REGISTRATION_AUTOMATION.productionAdminRecipients,
+    subject: '[새가족부] 전체 새가족교육 현황 - ' + options.label,
+    body: createCompletionReportText_('전체', total, options.syncResult),
+    htmlBody: adminHtml
+  });
+
+  Object.keys(REGISTRATION_AUTOMATION.groupRecipients).forEach(function (group) {
+    const stats = byGroup[group];
+    if (!stats || stats.registered === 0) return;
+    sendRegistrationEmail_({
+      recipients: [REGISTRATION_AUTOMATION.groupRecipients[group]],
+      subject: '[새가족부] ' + group + '군 새가족교육 수료 통계',
+      body: createCompletionReportText_(group + '군', stats, null),
+      htmlBody: createCompletionReportHtml_(group + '군', stats, null, null)
+    });
+  });
+
+  return report;
 }
 
 /**
- * 2. 통계 리포트 생성 및 메일 전송
+ * 기존 수동 함수명 호환용.
  */
 function sendWeeklyReports() {
-  const ss = SpreadsheetApp.openById(CONFIG.REG_SPREADSHEET_ID);
-  const sheet = ss.getSheetByName('새가족교육 수료현황');
-  const data = sheet.getDataRange().getValues();
-  const rows = data.slice(1);
-
-  const today = new Date();
-  const dateInfo = calculateDateRange(today); 
-  const yyYear = today.getFullYear().toString().slice(-2);
-  
-  // [변경] 하이라이트 기간 설정 (오늘 기준 7일 전 ~ 어제까지)
-  const highlightEnd = new Date(today);
-  highlightEnd.setDate(today.getDate() - 1); 
-  highlightEnd.setHours(23, 59, 59, 999);
-
-  const highlightStart = new Date(today);
-  highlightStart.setDate(today.getDate() - 7); 
-  highlightStart.setHours(0, 0, 0, 0);
-
-  const stats = { 'Total': createStatObject() };
-  for (const g in GROUP_EMAIL_MAP) stats[g] = createStatObject();
-
-  const assignmentNeededList = [];
-
-  rows.forEach(row => {
-    const groupRaw = row[1];
-    const groupName = String(groupRaw).trim().charAt(0);
-    const regDate = new Date(row[7]);
-    
-    if (String(groupRaw).includes("배정필요") || String(groupRaw).includes("군배정필요")) {
-      assignmentNeededList.push({
-        date: formatEduDate(regDate), worship: row[3], name: row[4], gender: row[5], phone: row[6]
-      });
-    }
-
-    const eduDates = [row[8], row[9], row[10], row[11]].map(d => {
-      if (!d) return null;
-      if (d instanceof Date) return d;
-      const parsed = new Date(d);
-      return isNaN(parsed.getTime()) ? d : parsed;
-    });
-    
-    // [변경] 파라미터에 highlightStart, highlightEnd 전달
-    updateStats(stats['Total'], row, eduDates, regDate, dateInfo.start, dateInfo.end, highlightStart, highlightEnd);
-    if (stats[groupName]) {
-      updateStats(stats[groupName], row, eduDates, regDate, dateInfo.start, dateInfo.end, highlightStart, highlightEnd);
-    }
-  });
-
-  // --- 상반기/하반기 방문 새가족 데이터 로드 및 처리 ---
-  const visitorSheet = ss.getSheetByName(CONFIG.VISITOR_SHEET_NAME);
-  let visitorRows = [];
-  if (visitorSheet && visitorSheet.getLastRow() > 1) {
-    visitorRows = visitorSheet.getRange(2, 1, visitorSheet.getLastRow() - 1, visitorSheet.getLastColumn()).getValues();
+  if (!REGISTRATION_AUTOMATION.active &&
+      REGISTRATION_AUTOMATION.mode === 'PRODUCTION') {
+    throw new Error('등록 자동화가 비활성 상태입니다.');
   }
-
-  const vStart = new Date(CONFIG.VISITOR_START_DATE);
-  const vEnd = new Date(CONFIG.VISITOR_END_DATE);
-  vEnd.setHours(23, 59, 59, 999);
-
-  const globalVisitorList = [];
-  visitorRows.forEach(row => {
-    const dateRaw = row[1];       // B열
-    const groupRaw = row[3];      // D열
-    const teamRaw = row[4];       // E열
-    const nameRaw = row[5];       // F열
-    const guideRaw = row[10];     // K열
-    // [변경] N열(13)에서 M열(12)로 중복 체크 컬럼 인덱스 수정
-    const duplicateRaw = row[12]; 
-    
-    if (!nameRaw || !dateRaw) return;
-    
-    if (String(duplicateRaw).trim().toUpperCase() === 'O') return;
-    
-    const vDate = parseVisitorDate(dateRaw);
-    if (!vDate || vDate < vStart || vDate > vEnd) return;
-    
-    const dateStr = formatEduDate(vDate);
-    // [변경] 방문 날짜가 지난 일주일 내에 있는지 체크하여 하이라이트 적용
-    globalVisitorList.push({
-      dateStr: dateStr,
-      group: String(groupRaw).trim(),
-      team: String(teamRaw).trim(),
-      name: String(nameRaw).trim(),
-      guide: String(guideRaw).trim(),
-      isHighlight: (vDate >= highlightStart && vDate <= highlightEnd) 
+  return withRegistrationLock_(function () {
+    const emptySync = {
+      discrepancies: [],
+      ambiguous: [],
+      unmatched: []
+    };
+    return buildAndSendWeeklyReports_({
+      sendEmail: true,
+      syncResult: emptySync,
+      label: '수동 실행'
     });
   });
-
-  stats['Total'].visitorList = globalVisitorList;
-  for (const g in GROUP_EMAIL_MAP) {
-    stats[g].visitorList = globalVisitorList.filter(v => v.group.charAt(0) === g);
-  }
-
-  const totalSubject = `[새가족부] ${yyYear}년 등록자 전체 새가족교육 수료 통계 현황`;
-  sendHtmlEmail(CONFIG.ADMIN_EMAILS, totalSubject, generateReportHtml('전체', stats['Total'], dateInfo));
-
-  for (const [groupName, email] of Object.entries(GROUP_EMAIL_MAP)) {
-    const groupStat = stats[groupName];
-    if (groupStat && (groupStat.totalReg > 0 || groupStat.visitorList.length > 0)) { 
-      const groupSubject = `[새가족부] ${yyYear}년 등록자 ${groupName}군 새가족교육 수료 통계 현황`;
-      sendHtmlEmail([email], groupSubject, generateReportHtml(`${groupName}군`, groupStat, dateInfo));
-      Utilities.sleep(10000); 
-    }
-  }
-
-  if (assignmentNeededList.length > 0) {
-    sendHtmlEmail(CONFIG.ADMIN_EMAILS, "[알림] 군 배정 필요 새가족 명단", createAssignmentHtml(assignmentNeededList));
-  }
 }
 
-// === 로직 함수 및 유틸리티 ===
-
-function createStatObject() {
+function createCompletionStats_() {
   return {
-    totalReg: 0, totalComp: 0, periodReg: 0, periodComp: 0, recentAttended: 0, periodList: [], gradList: [], visitorList: []      
+    registered: 0,
+    participated: 0,
+    completed: 0,
+    inProgress: 0,
+    notStarted: 0,
+    members: {
+      completed: [],
+      inProgress: [],
+      notStarted: []
+    }
   };
 }
 
-function updateStats(statObj, row, eduDates, regDate, startDate, endDate, highlightStart, highlightEnd) {
-  statObj.totalReg++;
-  const isCompleted = eduDates[3] !== null; 
-  
-  // [변경] 최근 7일(지난 일주일) 내에 등록했거나 교육을 받은 이력이 있는지 판별
-  let isHighlight = (regDate >= highlightStart && regDate <= highlightEnd);
-  eduDates.forEach(d => {
-    if (d) {
-      const ed = new Date(d);
-      if (ed >= highlightStart && ed <= highlightEnd) isHighlight = true;
-    }
+function updateCompletionStats_(stats, row, collectMembers) {
+  stats.registered += 1;
+  const weekValues = [row[8], row[9], row[10], row[11]];
+  const weeks = weekValues.map(function (value) {
+    return String(value || '').trim() !== '';
   });
-
-  if (isCompleted) {
-    statObj.totalComp++;
-    statObj.gradList.push({
-      worship: row[3], group: row[1], team: row[2], name: row[4], phone: row[6],
-      regDateStr: formatEduDate(regDate), status: formatEduDate(eduDates[3]), isHighlight: isHighlight
-    });
+  if (weeks.some(Boolean)) stats.participated += 1;
+  let status = 'notStarted';
+  if (weeks[3]) {
+    stats.completed += 1;
+    status = 'completed';
+  } else if (weeks.some(Boolean)) {
+    stats.inProgress += 1;
+    status = 'inProgress';
+  } else {
+    stats.notStarted += 1;
   }
 
-  let participatedAtLeastOnce = false;
-  eduDates.forEach(d => { if (d) participatedAtLeastOnce = true; });
-  if (participatedAtLeastOnce) statObj.recentAttended++;
-
-  if (regDate >= startDate && regDate <= endDate) {
-    statObj.periodReg++;
-    if (isCompleted) statObj.periodComp++;
-
-    let statusText = "";
-    if (isCompleted) {
-      const isText = typeof eduDates[3] === 'string'; 
-      const dispText = isText ? eduDates[3] : `수료완료(${formatEduDate(eduDates[3])})`;
-      statusText = `<span style="color:blue; font-weight:bold;">${dispText}</span>`;
-    } else {
-      let progressStr = [];
-      eduDates.forEach((d, idx) => { if (d) progressStr.push(`${idx+1}주`); });
-      statusText = progressStr.length > 0 ? progressStr.join(', ') : `<span style="color:#ff6b6b">미참여</span>`;
-    }
-
-    let recentEduStr = '-';
-    for (let i = 3; i >= 0; i--) {
-      if (eduDates[i]) {
-        recentEduStr = `${i + 1}주차(${formatEduDate(eduDates[i])})`;
-        break;
-      }
-    }
-
-    statObj.periodList.push({
-      worship: row[3], group: row[1], team: row[2], name: row[4], phone: row[6],
-      regDateStr: formatEduDate(regDate), recentEdu: recentEduStr, status: statusText, isHighlight: isHighlight
+  if (collectMembers) {
+    stats.members[status].push({
+      name: String(row[4] || '').trim(),
+      team: String(row[2] || '').trim(),
+      phone: formatRegistrationPhone_(row[6]),
+      relevantDate: status === 'completed'
+        ? formatRegistrationReportDate_(weekValues[3])
+        : status === 'inProgress'
+          ? findLastEducationDate_(weekValues)
+          : formatRegistrationReportDate_(row[7])
     });
   }
 }
 
-function generateReportHtml(title, data, dateInfo) {
-  // [정렬 조건 변경] 4. 군-팀-등록일 순으로 정렬
-  data.periodList.sort((a, b) => {
-    const groupComp = String(a.group).localeCompare(String(b.group));
-    if (groupComp !== 0) return groupComp;
-    const teamComp = String(a.team).localeCompare(String(b.team));
-    if (teamComp !== 0) return teamComp;
-    return String(a.regDateStr).localeCompare(String(b.regDateStr));
-  });
-
-  data.gradList.sort((a, b) => {
-    const groupComp = String(a.group).localeCompare(String(b.group));
-    if (groupComp !== 0) return groupComp;
-    const teamComp = String(a.team).localeCompare(String(b.team));
-    if (teamComp !== 0) return teamComp;
-    return String(a.regDateStr).localeCompare(String(b.regDateStr));
-  });
-
-  // [추가] 5. 방문자 데이터 군-팀-날짜 순으로 정렬
-  data.visitorList.sort((a, b) => {
-    const groupComp = String(a.group).localeCompare(String(b.group));
-    if (groupComp !== 0) return groupComp;
-    const teamComp = String(a.team).localeCompare(String(b.team));
-    if (teamComp !== 0) return teamComp;
-    return String(a.dateStr).localeCompare(String(b.dateStr));
-  });
-
-  // [변경] 2. 수식 및 항목 이름 전체 변경
-  const totalRate = data.totalReg > 0 ? ((data.totalComp / data.totalReg) * 100).toFixed(1) : 0;
-  const progressRate = data.totalReg > 0 ? ((data.recentAttended / data.totalReg) * 100).toFixed(1) : 0;
-
-  return `
-    <div style="font-family: 'Malgun Gothic', sans-serif; padding: 20px; color: #333;">
-      <h2 style="border-bottom: 2px solid #4CAF50; padding-bottom: 10px;">📊 ${title} 새가족 교육 수료 현황</h2>
-      <p><b>조회 범위:</b> ${dateInfo.label} (~ 직전 일요일: ${formatEduDate(dateInfo.end)})</p>
-      
-      <h3>1. 통계</h3>
-      <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px; text-align: center;">
-        <tr style="background-color: #f2f2f2;"><th>항목</th><th>인원/수치</th></tr>
-        <tr><td style="text-align:left;">총 등록 인원 (올해 전체)</td><td><b>${data.totalReg}명</b></td></tr>
-        <tr><td style="text-align:left;">총 수료 인원 (올해 전체)</td><td><b>${data.totalComp}명</b></td></tr>
-        <tr style="background-color: #e3f2fd;">
-          <td style="text-align:left;"><b>총 수료율 (올해 전체)</b></td>
-          <td style="color:blue;"><b>${totalRate}%</b></td>
-        </tr>
-        <tr>
-          <td style="text-align:left;">등록자 중 교육 참여 인원 (1회 이상)</td>
-          <td><b>${data.recentAttended}명</b></td>
-        </tr>
-        <tr style="background-color: #e8f5e9;">
-          <td style="text-align:left;">
-            <b>등록자 새가족 교육 진행율</b><br>
-            <span style="font-size:11px; color:gray;">(등록자 중 참여인원) / (총 등록 인원)</span>
-          </td>
-          <td style="color:green;"><b>${progressRate}%</b></td>
-        </tr>
-      </table>
-
-      <h3>2. 모든 등록자 중 새가족교육 참여자 명단 (${data.periodList.length}명)</h3>
-      ${createPeriodTable(data.periodList)}
-
-      <h3>3. 올해 수료자 명단 (${data.gradList.length}명)</h3>
-      ${createGradTable(data.gradList)}
-
-      ${CONFIG.USE_VISITOR_REPORT ? `
-        <h3>4. 상반기 방문자 현황 (${data.visitorList.length}명)</h3>
-        <p style="font-size:11px; color:gray; margin-top:-5px;">* 조회 기간: ${CONFIG.VISITOR_START_DATE} ~ ${CONFIG.VISITOR_END_DATE}</p>
-        ${createVisitorTable(data.visitorList)}
-      ` : ''}
-     </div>
-   `;
-}
-
-// [변경] 최근 교육 진행 현황 열이 반영된 참여자 리스트 표 디자인 및 6번 강조(볼드+파란색) 조건식 적용
-function createPeriodTable(list) {
-  if (list.length === 0) return '<p style="color:gray;">해당 인원이 없습니다.</p>';
-  let rows = list.map(p => {
-    // 파란 글씨 대신 배경색을 노란색(#ffff00)으로 변경 (글자는 검은색 유지)
-    const style = p.isHighlight ? ' style="background-color: #ffff00;"' : '';
-    return `<tr${style}><td>${p.group}</td><td>${p.team}</td><td><b>${p.name}</b></td><td>${p.phone}</td><td>${p.regDateStr}</td><td>${p.recentEdu}</td><td>${p.status}</td></tr>`;
-  }).join('');
-  return `<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 13px; text-align: center;"><tr style="background-color: #eee;"><th>군</th><th>팀</th><th>이름</th><th>전화번호</th><th>등록일</th><th>최근 교육 진행 현황</th><th>교육 진행 현황</th></tr>${rows}</table>`;
-}
-
-function createGradTable(list) {
-  if (list.length === 0) return '<p style="color:gray;">해당 인원이 없습니다.</p>';
-  let rows = list.map(p => {
-    // 파란 글씨 대신 배경색을 노란색(#ffff00)으로 변경
-    const style = p.isHighlight ? ' style="background-color: #ffff00;"' : '';
-    return `<tr${style}><td>${p.group}</td><td>${p.team}</td><td><b>${p.name}</b></td><td>${p.phone}</td><td>${p.regDateStr}</td><td>${p.status}</td></tr>`;
-  }).join('');
-  return `<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 13px; text-align: center;"><tr style="background-color: #eee;"><th>군</th><th>팀</th><th>이름</th><th>전화번호</th><th>등록일</th><th>수료날짜</th></tr>${rows}</table>`;
-}
-
-// [추가] 5번 및 6번 규칙이 적용된 방문자 현황 전용 표 렌더링 함수
-function createVisitorTable(list) {
-  if (list.length === 0) return '<p style="color:gray;">해당 범위 내에 방문한 인원이 없습니다.</p>';
-  let rows = list.map(v => {
-    const style = v.isHighlight ? ' style="background-color: #ffff00;"' : '';
-    // [변경] 데이터 출력 순서를 군 -> 팀 -> 날짜 순으로 바꿨습니다.
-    return `<tr${style}><td>${v.group}</td><td>${v.team}</td><td>${v.dateStr}</td><td><b>${v.name}</b></td><td>${v.guide}</td></tr>`;
-  }).join('');
-  // [변경] 표 헤더(제목) 순서를 군 -> 팀 -> 날짜 순으로 바꿨습니다.
-  return `<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-size: 13px; text-align: center;"><tr style="background-color: #eee;"><th>군</th><th>팀</th><th>날짜</th><th>방문자 이름</th><th>인도자</th></tr>${rows}</table>`;
-}
-
-// [변경] 최근 16주 기반 조회를 탈피하여 전체 누적 명단을 가져오도록 변경
-function calculateDateRange(today) {
-  const lastSunday = new Date(today);
-  lastSunday.setDate(today.getDate() - today.getDay());
-  lastSunday.setHours(23, 59, 59, 999);
-
-  const cutoffParts = CONFIG.START_CUTOFF_DATE.split('-');
-  const startDate = new Date(cutoffParts[0], cutoffParts[1] - 1, cutoffParts[2]); 
-  startDate.setHours(0, 0, 0, 0);
-
-  return { start: startDate, end: lastSunday, label: '올해 전체 명단' };
-}
-
-// [추가] 다양한 형태의 방문 날짜 포맷팅(5/17 텍스트형 또는 Date형 호환 가능) 보정 유틸리티
-function parseVisitorDate(dateVal) {
-  if (dateVal instanceof Date) return dateVal;
-  if (!dateVal) return null;
-  const str = String(dateVal).trim();
-  if (str.includes('/')) {
-    const parts = str.split('/');
-    return new Date(2026, parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+function createCompletionReportText_(title, stats, syncResult) {
+  const participationRate = stats.registered
+    ? (stats.participated / stats.registered * 100).toFixed(1)
+    : '0.0';
+  const completionRate = stats.registered
+    ? (stats.completed / stats.registered * 100).toFixed(1)
+    : '0.0';
+  let text = '';
+  text += title + ' 새가족교육 현황\n';
+  text += '등록: ' + stats.registered + '명\n';
+  text += '교육 참여: ' + stats.participated + '명\n';
+  text += '수료: ' + stats.completed + '명\n';
+  text += '진행 중: ' + stats.inProgress + '명\n';
+  text += '미시작: ' + stats.notStarted + '명\n';
+  text += '1회 이상 교육 참여율: ' + participationRate + '%\n';
+  text += '수료율: ' + completionRate + '%\n';
+  if (syncResult) {
+    text += '\n[등록 정보 확인 필요]\n';
+    text += '등록 시트와 교육 시트의 군/팀 값이 서로 다른 인원: ' +
+      syncResult.discrepancies.length + '건\n';
+    text += '자동화는 어느 값이 맞는지 판단하지 않고 등록 시트 값을 그대로 유지했습니다.\n';
+    text += '실제 소속을 확인하여 잘못된 시트 값을 직접 수정해 주세요.\n';
+    text += '중복 전화번호: ' + syncResult.ambiguous.length + '건\n';
+    text += '교육 미매칭: ' + syncResult.unmatched.length + '건\n';
   }
-  const parsed = new Date(str);
-  return isNaN(parsed.getTime()) ? null : parsed;
+  return text;
 }
 
-function createAssignmentHtml(list) {
-  let rows = list.map(p => `<tr><td>${p.date}</td><td>${p.worship}</td><td><b>${p.name}</b></td><td>${p.gender}</td><td>${p.phone}</td></tr>`).join('');
-  return `<h3 style="color:red;">🚨 군 배정 필요 인원</h3><table border="1" cellpadding="5" style="border-collapse:collapse;">${rows}</table>`;
+function createCompletionReportHtml_(title, stats, syncResult, groupStats) {
+  const participationRate = stats.registered
+    ? (stats.participated / stats.registered * 100).toFixed(1)
+    : '0.0';
+  const completionRate = stats.registered
+    ? (stats.completed / stats.registered * 100).toFixed(1)
+    : '0.0';
+  let html = '<div style="max-width:900px;margin:0 auto;font-family:Malgun Gothic,Arial,sans-serif;color:#1f2937;text-align:center">';
+  html += '<h2 style="margin:0 0 16px;color:#111827;text-align:center">' +
+    escapeRegistrationHtml_(title) + ' 새가족교육 현황</h2>';
+  html += '<table role="presentation" style="width:100%;border-collapse:separate;border-spacing:8px;margin:0 0 22px">';
+  html += '<tr>' +
+    createCompletionSummaryCell_('등록', stats.registered, '#f3f4f6') +
+    createCompletionSummaryCell_('교육 참여', stats.participated, '#dbeafe') +
+    createCompletionSummaryCell_('수료', stats.completed, '#dcfce7') +
+    createCompletionSummaryCell_('진행 중', stats.inProgress, '#fef3c7') +
+    createCompletionSummaryCell_('미시작', stats.notStarted, '#fee2e2') +
+    createCompletionSummaryCell_('1회 이상 참여율', participationRate + '%', '#cffafe') +
+    createCompletionSummaryCell_('수료율', completionRate + '%', '#ede9fe') +
+    '</tr></table>';
+
+  if (groupStats) {
+    html += createCompletionGroupSummaryTable_(groupStats);
+  }
+
+  const memberCount = stats.members
+    ? stats.members.completed.length + stats.members.inProgress.length +
+      stats.members.notStarted.length
+    : 0;
+  if (memberCount > 0) {
+    html += createCompletionMemberTable_('수료', '수료일', stats.members.completed, '#166534', '#f0fdf4');
+    html += createCompletionMemberTable_('진행 중', '마지막 교육일', stats.members.inProgress, '#92400e', '#fffbeb');
+    html += createCompletionMemberTable_('미시작', '등록일', stats.members.notStarted, '#991b1b', '#fef2f2');
+  }
+
+  if (syncResult && syncResult.discrepancies.length) {
+    html += '<div style="margin-top:28px;padding:16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;text-align:center">';
+    html += '<h3 style="margin:0 0 10px;color:#9a3412;text-align:center">등록 정보와 교육 응답이 다른 항목</h3>';
+    html += '<p style="margin:0 0 8px;line-height:1.6;text-align:center">아래 인원은 등록 새가족 시트의 군·팀과 교육 출석 시트에 입력된 군·팀이 서로 다릅니다.</p>';
+    html += '<p style="margin:0 0 14px;line-height:1.6;text-align:center"><strong>자동화는 등록 정보를 덮어쓰지 않고 기존 등록 값을 유지했습니다.</strong><br>실제 소속을 확인한 뒤 등록 시트 또는 교육 시트 중 잘못된 값을 직접 수정해 주세요.</p>';
+    html += '<table style="width:100%;margin:0 auto;border-collapse:collapse;text-align:center;font-size:13px">';
+    html += '<thead><tr style="background:#ffedd5">' +
+      '<th style="padding:8px;border:1px solid #fdba74;text-align:center">이름</th>' +
+      '<th style="padding:8px;border:1px solid #fdba74;text-align:center">확인 항목</th>' +
+      '<th style="padding:8px;border:1px solid #fdba74;text-align:center">현재 등록 값(유지됨)</th>' +
+      '<th style="padding:8px;border:1px solid #fdba74;text-align:center">교육 시트 입력 값</th>' +
+      '</tr></thead><tbody>';
+    syncResult.discrepancies.slice(0, 100).forEach(function (item) {
+      html += '<tr>' +
+        createCompletionTableCell_(item.name, 'center') +
+        createCompletionTableCell_(item.field, 'center') +
+        createCompletionTableCell_(item.registrationValue || '(빈값)', 'center') +
+        createCompletionTableCell_(item.educationValue || '(빈값)', 'center') +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+    if (syncResult.discrepancies.length > 100) {
+      html += '<p style="margin:10px 0 0;text-align:center">메일에는 처음 100건만 표시했습니다. 전체 내역은 수료 자동화 로그를 확인해 주세요.</p>';
+    }
+    html += '</div>';
+  }
+  return html + '</div>';
 }
 
-function createUpdateHtml(list) {
-  let rows = list.map(item => {
-    const groupDisplay = item.changes.includes('군/팀') ? `<strike style="color:#999;">${item.oldGroup}/${item.oldTeam}</strike><br><b style="color:blue;">${item.newGroup}/${item.newTeam}</b>` : `${item.newGroup}/${item.newTeam}`;
-    const phoneDisplay = item.changes.includes('전화번호') ? `<strike style="color:#999;">${item.oldPhone}</strike><br><b style="color:blue;">${item.newPhone}</b>` : `${item.newPhone}`;
-    return `<tr><td><b>${item.name}</b></td><td style="color:#d32f2f; font-weight:bold;">${item.changes.join(', ')}</td><td>${groupDisplay}</td><td>${phoneDisplay}</td></tr>`;
-  }).join('');
-  return `<div style="padding: 20px;"><h3 style="color:#4CAF50;">✅ 시트 자동 업데이트 알림</h3><table border="1" cellpadding="8" style="border-collapse: collapse; text-align: center;"><tr><th>이름</th><th>항목</th><th>군/팀 정보</th><th>전화번호</th></tr>${rows}</table></div>`;
+function createCompletionSummaryCell_(label, value, background) {
+  return '<td style="padding:12px 8px;text-align:center;background:' + background +
+    ';border-radius:8px"><div style="font-size:12px;color:#6b7280">' +
+    escapeRegistrationHtml_(label) + '</div><div style="margin-top:4px;font-size:20px;font-weight:700">' +
+    escapeRegistrationHtml_(value) + '</div></td>';
 }
 
-function sendHtmlEmail(recipients, subject, htmlBody) {
-  recipients.forEach(email => MailApp.sendEmail({ to: email, subject: subject, htmlBody: htmlBody }));
+function createCompletionGroupSummaryTable_(groupStats) {
+  let html = '<h3 style="margin:24px 0 8px;color:#1f2937;text-align:center">군별 교육 현황</h3>';
+  html += '<table style="width:100%;margin:0 auto;border-collapse:collapse;font-size:13px;text-align:center">';
+  html += '<thead><tr style="background:#eef2ff">' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">군</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">등록</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">1회 이상 참여</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">참여율</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">수료</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">진행 중</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">미시작</th>' +
+    '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">수료율</th>' +
+    '</tr></thead><tbody>';
+  Object.keys(REGISTRATION_AUTOMATION.groupRecipients).forEach(function (group) {
+    const item = groupStats[group] || createCompletionStats_();
+    const participationRate = item.registered
+      ? (item.participated / item.registered * 100).toFixed(1) + '%'
+      : '0.0%';
+    const completionRate = item.registered
+      ? (item.completed / item.registered * 100).toFixed(1) + '%'
+      : '0.0%';
+    html += '<tr>' +
+      createCompletionTableCell_(group + '군', 'center') +
+      createCompletionTableCell_(item.registered, 'center') +
+      createCompletionTableCell_(item.participated, 'center') +
+      createCompletionTableCell_(participationRate, 'center') +
+      createCompletionTableCell_(item.completed, 'center') +
+      createCompletionTableCell_(item.inProgress, 'center') +
+      createCompletionTableCell_(item.notStarted, 'center') +
+      createCompletionTableCell_(completionRate, 'center') +
+      '</tr>';
+  });
+  return html + '</tbody></table>';
 }
 
-function normalizeName(name) { return name ? String(name).replace(/[a-zA-Z]/g, '').replace(/\s+/g, '') : ''; }
-function normalizePhone(phone) { return phone ? String(phone).replace(/[^0-9]/g, '') : ''; }
-function formatEduDate(dateVal) { 
-  if (!dateVal) return '';
-  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? '' : Utilities.formatDate(dateVal, "GMT+9", "yyyy-MM-dd");
-  return String(dateVal);
+function createCompletionMemberTable_(label, dateLabel, members, color, background) {
+  let html = '<h3 style="margin:24px 0 8px;color:' + color + ';text-align:center">' +
+    escapeRegistrationHtml_(label) + ' (' + members.length + '명)</h3>';
+  if (!members.length) {
+    return html + '<div style="padding:12px;background:' + background +
+      ';border-radius:8px;color:#6b7280;text-align:center">대상자가 없습니다.</div>';
+  }
+
+  html += '<table style="width:100%;margin:0 auto;border-collapse:collapse;font-size:13px;text-align:center">';
+  html += '<thead><tr style="background:' + background + '">' +
+    '<th style="padding:9px;border:1px solid #d1d5db;text-align:center">이름</th>' +
+    '<th style="padding:9px;border:1px solid #d1d5db;text-align:center">팀</th>' +
+    '<th style="padding:9px;border:1px solid #d1d5db;text-align:center">연락처</th>' +
+    '<th style="padding:9px;border:1px solid #d1d5db;text-align:center">' +
+    escapeRegistrationHtml_(dateLabel) + '</th></tr></thead><tbody>';
+  members.forEach(function (member) {
+    html += '<tr>' +
+      createCompletionTableCell_(member.name, 'center') +
+      createCompletionTableCell_(member.team, 'center') +
+      createCompletionTableCell_(member.phone, 'center') +
+      createCompletionTableCell_(member.relevantDate, 'center') + '</tr>';
+  });
+  return html + '</tbody></table>';
+}
+
+function createCompletionTableCell_(value, align) {
+  return '<td style="padding:8px;border:1px solid #e5e7eb;text-align:' + align + '">' +
+    escapeRegistrationHtml_(value) + '</td>';
+}
+
+function formatRegistrationPhone_(value) {
+  const digits = normalizeRegistrationPhone_(value);
+  if (digits.length === 11) {
+    return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+  }
+  if (digits.length === 10) {
+    return digits.slice(0, 3) + '-' + digits.slice(3, 6) + '-' + digits.slice(6);
+  }
+  return String(value || '').trim();
+}
+
+function findLastEducationDate_(weekValues) {
+  for (let index = weekValues.length - 1; index >= 0; index--) {
+    if (String(weekValues[index] || '').trim() !== '') {
+      return formatRegistrationReportDate_(weekValues[index]);
+    }
+  }
+  return '날짜 없음';
+}
+
+function formatRegistrationReportDate_(value) {
+  if (!value || String(value).trim() === '') return '날짜 없음';
+  const parsed = parseRegistrationDate_(value);
+  if (parsed) {
+    return Utilities.formatDate(parsed, 'Asia/Seoul', 'yyyy-MM-dd');
+  }
+  return String(value).trim();
+}
+
+function writeCompletionLog_(result) {
+  const ss = getRegistrationSpreadsheet_();
+  const name = '수료 자동화 로그';
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    sheet.appendRow([
+      '실행시각', '모드', '등록', '매칭', '미매칭',
+      '중복', '불일치', '출력행'
+    ]);
+  }
+  sheet.appendRow([
+    new Date(), REGISTRATION_AUTOMATION.mode,
+    result.sync.registrations, result.sync.matched,
+    result.sync.unmatched.length, result.sync.ambiguous.length,
+    result.sync.discrepancies.length, result.sync.outputRows
+  ]);
 }

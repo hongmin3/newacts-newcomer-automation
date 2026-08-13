@@ -2,7 +2,7 @@
 
 Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하고, 안전하게 개선하기 위한 저장소입니다.
 
-현재 커밋은 2026-08-12 기준 Apps Script 편집기에 저장되어 있던 **원본 코드 스냅샷**입니다. 원본의 동작을 보존하기 위해 수신자 주소, 스프레드시트 ID, 기존 로직을 수정하지 않았습니다. 따라서 원본 함수를 로컬 검토 없이 직접 실행하지 마세요.
+첫 커밋(`73c2e5d`)은 2026-08-12 기준 Apps Script 편집기에 저장되어 있던 **원본 코드 스냅샷**입니다. 현재 작업 트리에는 검토 중인 개선본이 있으며, 사용자 승인 전에는 두 번째 커밋을 만들지 않습니다.
 
 ## 프로젝트 구성
 
@@ -10,6 +10,8 @@ Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하�
 - `education-project/`: `뉴액츠 새가족부 교육관리`에 연결된 프로젝트
 - `docs/current-architecture.md`: 시트 연결 구조와 현재 데이터 흐름
 - `docs/current-triggers.md`: 설치형 트리거 원본 설정
+- `docs/enhanced-architecture.md`: 개선본 구조, 안전 모드, 실행 절차
+- `docs/settlement-monthly-email-analysis.md`: 정착률 월간 실행·메일 자동화 분석
 
 ## 연결된 문서
 
@@ -19,7 +21,7 @@ Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하�
 
 ## 주의
 
-원본 코드에는 여러 실사용 메일 수신자가 설정되어 있습니다. `main`, `runSystem`, `sendWeeklyReports`, `sendNewcomerNotifications` 등의 함수를 실행하면 실제 메일이 발송될 수 있습니다. 개선본 검증 시에는 테스트 모드에서 `ksj747172@gmail.com` 한 주소만 사용합니다.
+개선본은 사용자 승인과 테스트를 거쳐 `active: true`, `mode: 'PRODUCTION'`으로 운영 전환했습니다. 테스트 전용 함수는 메일 수신자를 `ksj747172@gmail.com` 한 주소로 강제하며, 운영 트리거는 원본의 관리자·군 담당자 수신 목록을 그대로 사용합니다.
 
 ## 원본 Apps Script 프로젝트
 
@@ -33,3 +35,11 @@ Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하�
 3. 테스트 메일은 한 명에게만 발송합니다.
 4. 개인정보가 포함된 테스트 데이터는 저장소에 커밋하지 않습니다.
 
+## 현재 상태
+
+- 원본: GitHub 비공개 저장소 `hongmin3/newacts-newcomer-automation`의 `main`에 보존
+- 개선 코드: 로컬과 두 Apps Script 프로젝트에 저장됨
+- 자동 실행: `active: true`, `mode: 'PRODUCTION'`으로 승인된 운영 트리거 활성화
+- 실행 테스트: 2026-08-12 사용자 승인 후 TEST 모드로 완료
+- 테스트 메일: `[TEST]` 제목의 네 종류가 `ksj747172@gmail.com`에 도착함
+- 개선본 커밋: 최종 승인에 따라 생성·푸시 예정

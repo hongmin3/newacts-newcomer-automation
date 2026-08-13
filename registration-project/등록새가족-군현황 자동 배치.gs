@@ -1,323 +1,507 @@
 /**
- * ⛪ 새가족 통합 자동화 시스템 (트리거 & 이메일 발송 지원 버전)
+ * 등록/군 현황/방문자 자동화 - 안전한 배치 처리 버전
  */
+const REGISTRATION_AUTOMATION = Object.freeze({
+  active: true,
+  mode: 'PRODUCTION',
+  testRecipient: 'ksj747172@gmail.com',
+  productionAdminRecipients: [
+    'ksj747172@gmail.com',
+    'rayo072@naver.com',
+    'rnrnwkddn@naver.com',
+    'wnehdrms123@naver.com',
+    'whduswn94@naver.com'
+  ],
+  groupRecipients: {
+    '신': 'smk941129@gmail.com',
+    '조': 'kmc7758@naver.com',
+    '총': 'eomchong@icloud.com',
+    '석': 'hwoneeeeee@gmail.com',
+    '전': 'jbr0196@naver.com',
+    '명': 'jun607@naver.com',
+    '임': 'dkssud2521@naver.com',
+    '슬': 'l__seul@naver.com',
+    '영': 'revlee0956@gmail.com'
+  },
+  registrationSpreadsheetId: '1dBO4rhCCadxO-KVBX_Jmg4aDcV9zim_sqM95JKd4Snk',
+  educationSpreadsheetId: '1EEIAL39SgRtO1JTe8zpZ4qDMCf_qF-bfrtxn6jfpLgg',
+  registrationSheetName: '등록 새가족',
+  dashboardSheetName: '등록 새가족 군 현황',
+  visitedSheetName: '상반기 방문 새가족',
+  completionSheetName: '새가족교육 수료현황',
+  educationSheetName: '교육 출석 현황',
+  logSheetName: '자동화 로그',
+  visitorStartDate: '2026-03-29'
+});
 
-// 1. 스프레드시트 상단 메뉴 구성
 function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('⛪ 새가족 자동화 시스템')
-    .addItem('⚡ 전체 자동화 통합 실행 (현황판 + 방문자 동기화)', 'runAllAutomationMenu')
+  SpreadsheetApp.getUi()
+    .createMenu('⛪ 새가족 자동화 시스템')
+    .addItem('변경 예정 미리보기', 'previewRegistrationMaintenance')
+    .addItem('승인된 테스트 실행', 'runRegistrationMaintenanceTest')
     .addSeparator()
-    .addItem('1. 군 현황판만 업데이트', 'updateNewFamilyStatusMenu')
-    .addItem('2. 방문자 명단만 동기화 (3/29 이후)', 'syncRegisteredToVisitedMenu')
+    .addItem('군 현황판만 업데이트', 'updateNewFamilyStatusMenu')
+    .addItem('방문자 명단만 동기화', 'syncRegisteredToVisitedMenu')
     .addToUi();
 }
-
-// 🖱️ [메뉴 클릭 시 실행] 화면에 알림창을 띄워줍니다.
-function runAllAutomationMenu() {
-  updateNewFamilyStatus(); 
-  const result = syncRegisteredToVisited();
-  
-  if (result) {
-    SpreadsheetApp.getUi().alert(
-      "🎉 [전체 통합 자동화] 수동 실행 완료!\n\n" +
-      "▶ 현황판 정렬 및 업데이트가 완료되었습니다.\n" +
-      "▶ 새로 추가된 인원 (3/29 이후 미방문자): " + result.added + "명\n" +
-      "▶ 등록 확인 체크된 인원 (기방문자): " + result.updated + "행"
-    );
+function runRegistrationMaintenanceTrigger() {
+  if (!REGISTRATION_AUTOMATION.active) {
+    console.log('등록 자동화가 비활성 상태라 실행하지 않았습니다.');
+    return;
   }
+  return withRegistrationLock_(function () {
+    return runRegistrationMaintenance_({
+      dryRun: false,
+      sendEmail: true,
+      label: '정기 실행'
+    });
+  });
 }
 
-// ⏰ [매주 월요일 트리거 실행용 함수] 알림창 없이 백그라운드에서 실행 후 이메일을 보냅니다.
+/**
+ * 기존 설치형 트리거 함수명 호환용.
+ */
 function runAllAutomationTrigger() {
-  updateNewFamilyStatus(); 
-  const result = syncRegisteredToVisited();
-  
-  if (result) {
-    sendResultEmail(result.added, result.updated);
+  return runRegistrationMaintenanceTrigger();
+}
+
+function previewRegistrationMaintenance() {
+  return withRegistrationLock_(function () {
+    const result = runRegistrationMaintenance_({
+      dryRun: true,
+      sendEmail: false,
+      label: '미리보기'
+    });
+    console.log(JSON.stringify(result));
+    return result;
+  });
+}
+
+/**
+ * 사용자 승인 후에만 실행합니다. 메일은 테스트 수신자 한 명에게만 갑니다.
+ */
+function runRegistrationMaintenanceTest() {
+  return withRegistrationLock_(function () {
+    return runRegistrationMaintenance_({
+      dryRun: false,
+      sendEmail: true,
+      label: '승인된 테스트'
+    });
+  });
+}
+
+function runRegistrationMaintenance_(options) {
+  const dashboard = updateNewFamilyStatus_({ dryRun: options.dryRun });
+  const visitors = syncRegisteredToVisited_({ dryRun: options.dryRun });
+  const result = {
+    dryRun: Boolean(options.dryRun),
+    dashboard: dashboard,
+    visitors: visitors
+  };
+
+  if (!options.dryRun) {
+    writeRegistrationLog_('runRegistrationMaintenance', result);
   }
+  if (options.sendEmail) {
+    sendRegistrationEmail_({
+      recipients: REGISTRATION_AUTOMATION.productionAdminRecipients,
+      subject: '[새가족 자동화] ' + options.label + ' 결과',
+      body: createRegistrationMaintenanceText_(result)
+    });
+  }
+  return result;
 }
 
-// 📧 이메일 발송 처리 함수
-function sendResultEmail(addedCount, updatedCount) {
-  const email = "ksj747172@gmail.com"; // 수신 이메일 주소
-  const subject = "[새가족 자동화 시스템] 매주 월요일 정기 실행 결과 보고";
-  
-  const ssUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
-  const body = 
-    "안녕하세요, 새가족 자동화 시스템 알림입니다.\n\n" +
-    "지정된 일정(매주 월요일 오전)에 따라 자동화 스크립트가 성공적으로 수행되었습니다.\n\n" +
-    "========= 실행 결과 =========" +
-    "\n1. 군 현황판: 최신 데이터 반영 및 정렬 완료" +
-    "\n2. 상반기 방문 새가족 시트 동기화 완료" +
-    "\n   - 신규 추가 인원 (3/29 이후 미방문자): " + addedCount + "명" +
-    "\n   - 등록 여부 체크 인원 (기방문자): " + updatedCount + "행" +
-    "\n=============================\n\n" +
-    "자세한 사항은 아래 스프레드시트 링크에서 확인해 주세요.\n" +
-    ssUrl;
-    
-  // 구글 메일 서비스를 이용해 메일을 전송합니다.
-  MailApp.sendEmail(email, subject, body);
-}
-
-
-/* ==========================================================================
-   [개별 메뉴용 연결 함수]
-   ========================================================================== */
 function updateNewFamilyStatusMenu() {
-  updateNewFamilyStatus();
-  SpreadsheetApp.getUi().alert("군 현황판 업데이트가 완료되었습니다!");
+  if (!REGISTRATION_AUTOMATION.active &&
+      REGISTRATION_AUTOMATION.mode === 'PRODUCTION') {
+    throw new Error('등록 자동화가 비활성 상태입니다.');
+  }
+  const result = withRegistrationLock_(function () {
+    return updateNewFamilyStatus_({ dryRun: false });
+  });
+  SpreadsheetApp.getUi().alert(
+    '군 현황판 업데이트 완료\n처리: ' + result.processed +
+    '명\n검토 필요: ' + result.review.length + '건'
+  );
+  return result;
 }
 
 function syncRegisteredToVisitedMenu() {
-  const result = syncRegisteredToVisited();
-  if (result) {
-    SpreadsheetApp.getUi().alert(
-      "새가족 명단 동기화 완료!\n\n" +
-      "▶ 새로 추가된 인원 (3/29 이후 미방문자): " + result.added + "명\n" +
-      "▶ 등록 확인 체크된 인원 (기방문자): " + result.updated + "행"
-    );
+  if (!REGISTRATION_AUTOMATION.active &&
+      REGISTRATION_AUTOMATION.mode === 'PRODUCTION') {
+    throw new Error('등록 자동화가 비활성 상태입니다.');
   }
+  const result = withRegistrationLock_(function () {
+    return syncRegisteredToVisited_({ dryRun: false });
+  });
+  SpreadsheetApp.getUi().alert(
+    '방문자 동기화 완료\n추가: ' + result.added +
+    '명\n등록 표시: ' + result.updated +
+    '건\n검토 필요: ' + result.review.length + '건'
+  );
+  return result;
 }
 
-
-/* ==========================================================================
-   [기능 1 Core] 등록 새가족 -> 등록 새가족 군 현황판 업데이트
-   ========================================================================== */
-function updateNewFamilyStatus() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheet = ss.getSheetByName("등록 새가족");
-  const targetSheet = ss.getSheetByName("등록 새가족 군 현황");
-
-  if (!sourceSheet || !targetSheet) return;
-
-  const sourceData = sourceSheet.getDataRange().getValues();
-  const dataRows = sourceData.slice(1);
-
-  const colMap4 = { "신": 1, "조": 2, "명": 3, "총": 4, "영": 5, "석": 6, "전": 7, "슬": 8, "스스로": 9 };
-  const colMap5 = { "명": 10, "총": 11, "영": 12, "석": 13, "임": 14, "전": 15, "슬": 16, "스스로": 17 };
-
-  let groupedData = {};
-
-  dataRows.forEach(row => {
-    let dateVal = row[1];
-    if (!dateVal) return;
-    
-    let tempDate = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
-    let month = tempDate.getMonth() + 1;
-    let day = tempDate.getDate();
-    let year = (month === 12) ? 2025 : 2026;
-    let dateObj = new Date(year, month - 1, day);
-    let dateStr = month + "/" + day;
-    
-    const service = row[2];      
-    const groupName = row[3];    
-    const name = row[5];         
-    const introducer = row[10];  
-
-    if (!groupedData[dateStr]) {
-      groupedData[dateStr] = { "4": {}, "5": {}, "total": 0, "sortKey": dateObj.getTime() };
-    }
-    
-    let targetGroup = groupName;
-    if (groupName === "군배정필요" || (introducer === "스스로" && (!groupName || groupName === ""))) {
-      targetGroup = "스스로";
-    }
-
-    let serviceKey = service.toString();
-    if (!groupedData[dateStr][serviceKey][targetGroup]) {
-      groupedData[dateStr][serviceKey][targetGroup] = [];
-    }
-    
-    groupedData[dateStr][serviceKey][targetGroup].push(name);
-    groupedData[dateStr].total++;
-  });
-
-  const startRow = 3;
-  if (targetSheet.getLastRow() >= startRow) {
-    targetSheet.getRange(startRow, 1, targetSheet.getLastRow(), 20)
-               .clear()
-               .setBackground(null)
-               .setFontColor("black")
-               .setFontWeight("normal")
-               .setHorizontalAlignment("center")
-               .setVerticalAlignment("middle");
+function updateNewFamilyStatus_(options) {
+  const ss = getRegistrationSpreadsheet_();
+  const sourceSheet = ss.getSheetByName(
+    REGISTRATION_AUTOMATION.registrationSheetName
+  );
+  const targetSheet = ss.getSheetByName(
+    REGISTRATION_AUTOMATION.dashboardSheetName
+  );
+  if (!sourceSheet || !targetSheet) {
+    throw new Error('등록 새가족 또는 군 현황 시트를 찾을 수 없습니다.');
   }
 
-  const sortedDates = Object.keys(groupedData).sort((a, b) => groupedData[a].sortKey - groupedData[b].sortKey);
-  let currentRow = startRow;
-  let weekToggle = true;
+  const data = sourceSheet.getDataRange().getValues().slice(1);
+  const groups4 = {
+    '신': 1, '조': 2, '명': 3, '총': 4, '영': 5,
+    '석': 6, '전': 7, '슬': 8, '스스로': 9
+  };
+  const groups5 = {
+    '명': 10, '총': 11, '영': 12, '석': 13,
+    '임': 14, '전': 15, '슬': 16, '스스로': 17
+  };
 
-  sortedDates.forEach(dateStr => {
-    const dayData = groupedData[dateStr];
-    let maxRowsForDay = 1;
-    [dayData["4"], dayData["5"]].forEach(svc => {
-      Object.values(svc).forEach(names => maxRowsForDay = Math.max(maxRowsForDay, names.length));
+  const grouped = new Map();
+  const review = [];
+  let processed = 0;
+
+  data.forEach(function (row, index) {
+    const date = parseRegistrationDate_(row[1]);
+    const service = Number(row[2]);
+    let group = String(row[3] || '').trim();
+    const name = String(row[5] || '').trim();
+    const introducer = String(row[10] || '').trim();
+
+    if (!date || !name) return;
+    if (![4, 5].includes(service)) {
+      review.push({
+        row: index + 2,
+        name: name,
+        reason: '예배 구분이 4/5가 아님'
+      });
+      return;
+    }
+
+    if (group === '군배정필요' || (!group && introducer === '스스로')) {
+      group = '스스로';
+    }
+
+    const columnMap = service === 4 ? groups4 : groups5;
+    if (!columnMap[group]) {
+      review.push({
+        row: index + 2,
+        name: name,
+        reason: '현황판에 매핑되지 않은 군: ' + (group || '빈값')
+      });
+      return;
+    }
+
+    const key = Utilities.formatDate(date, 'Asia/Seoul', 'yyyy-MM-dd');
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        date: date,
+        display: Utilities.formatDate(date, 'Asia/Seoul', 'M/d'),
+        services: { 4: {}, 5: {} }
+      });
+    }
+    const serviceGroups = grouped.get(key).services[service];
+    if (!serviceGroups[group]) serviceGroups[group] = [];
+    serviceGroups[group].push(name);
+    processed += 1;
+  });
+
+  const days = Array.from(grouped.values()).sort(function (a, b) {
+    return a.date.getTime() - b.date.getTime();
+  });
+  const output = [];
+  const backgrounds = [];
+
+  days.forEach(function (day, dayIndex) {
+    let rowsForDay = 1;
+    [4, 5].forEach(function (service) {
+      Object.keys(day.services[service]).forEach(function (group) {
+        rowsForDay = Math.max(
+          rowsForDay,
+          day.services[service][group].length
+        );
+      });
     });
 
-    const bgColor = weekToggle ? "#FFF2CC" : "#FFFFFF";
-    targetSheet.getRange(currentRow, 1, maxRowsForDay, 20).setBackground(bgColor);
-    
-    targetSheet.getRange(currentRow, 1).setValue(dateStr);
-    targetSheet.getRange(currentRow, 19).setValue(dayData.total);
+    const color = dayIndex % 2 === 0 ? '#FFF2CC' : '#FFFFFF';
+    const start = output.length;
+    for (let offset = 0; offset < rowsForDay; offset++) {
+      output.push(new Array(20).fill(''));
+      backgrounds.push(new Array(20).fill(color));
+    }
 
-    fillServiceData(targetSheet, currentRow, dayData["4"], colMap4);
-    fillServiceData(targetSheet, currentRow, dayData["5"], colMap5);
+    output[start][0] = day.display;
+    let dayTotal = 0;
 
-    currentRow += maxRowsForDay;
-    weekToggle = !weekToggle;
+    [4, 5].forEach(function (service) {
+      const map = service === 4 ? groups4 : groups5;
+      Object.keys(day.services[service]).forEach(function (group) {
+        const names = day.services[service][group].slice().sort();
+        dayTotal += names.length;
+        names.forEach(function (name, offset) {
+          output[start + offset][map[group]] = name;
+        });
+      });
+    });
+    output[start][18] = dayTotal;
+  });
+
+  if (!options.dryRun) {
+    const startRow = 3;
+    const oldRows = Math.max(targetSheet.getLastRow() - startRow + 1, 0);
+    if (oldRows > 0) {
+      targetSheet.getRange(startRow, 1, oldRows, 20).clearContent();
+    }
+    ensureRegistrationRows_(targetSheet, startRow + output.length - 1);
+    if (output.length > 0) {
+      targetSheet.getRange(startRow, 1, output.length, 20)
+        .setValues(output)
+        .setBackgrounds(backgrounds)
+        .setHorizontalAlignment('center')
+        .setVerticalAlignment('middle');
+    }
+  }
+
+  return {
+    processed: processed,
+    outputRows: output.length,
+    review: review
+  };
+}
+
+function syncRegisteredToVisited_(options) {
+  const ss = getRegistrationSpreadsheet_();
+  const registrationSheet = ss.getSheetByName(
+    REGISTRATION_AUTOMATION.registrationSheetName
+  );
+  const visitedSheet = ss.getSheetByName(
+    REGISTRATION_AUTOMATION.visitedSheetName
+  );
+  if (!registrationSheet || !visitedSheet) {
+    throw new Error('등록 새가족 또는 방문자 시트를 찾을 수 없습니다.');
+  }
+
+  const registrationRows = registrationSheet.getLastRow() > 1
+    ? registrationSheet
+      .getRange(2, 1, registrationSheet.getLastRow() - 1, 11)
+      .getValues()
+    : [];
+  const visitedRows = visitedSheet.getLastRow() > 1
+    ? visitedSheet
+      .getRange(2, 1, visitedSheet.getLastRow() - 1, 14)
+      .getValues()
+    : [];
+
+  const phoneIndex = new Map();
+  let maxNo = 0;
+
+  visitedRows.forEach(function (row, index) {
+    const no = Number(row[0]);
+    if (Number.isFinite(no)) maxNo = Math.max(maxNo, no);
+    addRegistrationIndex_(phoneIndex, normalizeRegistrationPhone_(row[9]), index);
+  });
+
+  const cutoff = new Date(
+    REGISTRATION_AUTOMATION.visitorStartDate + 'T00:00:00+09:00'
+  );
+  const rowsToMark = [];
+  const newRows = [];
+  const review = [];
+
+  registrationRows.forEach(function (row, index) {
+    const registrationDate = parseRegistrationDate_(row[1]);
+    const name = String(row[5] || '').trim();
+    const phoneKey = normalizeRegistrationPhone_(row[9]);
+    if (!registrationDate || registrationDate < cutoff || !name) return;
+
+    if (!phoneKey) {
+      review.push({
+        row: index + 2,
+        name: name,
+        reason: '전화번호가 없어 방문자 자동 매칭 제외'
+      });
+      return;
+    }
+
+    const matches = phoneIndex.get(phoneKey) || [];
+    if (matches.length > 1) {
+      review.push({
+        row: index + 2,
+        name: name,
+        reason: '방문자 시트에 같은 전화번호가 여러 행 존재'
+      });
+      return;
+    }
+
+    if (matches.length === 1) {
+      const visitIndex = matches[0];
+      if (String(visitedRows[visitIndex][13] || '').trim().toUpperCase() !== 'O') {
+        rowsToMark.push(visitIndex + 2);
+      }
+      return;
+    }
+
+    maxNo += 1;
+    const newRow = new Array(14).fill('');
+    newRow[0] = maxNo;
+    for (let column = 1; column <= 10; column++) {
+      newRow[column] = row[column];
+    }
+    newRow[13] = 'O';
+    newRows.push(newRow);
+    phoneIndex.set(phoneKey, [visitedRows.length + newRows.length - 1]);
+  });
+
+  if (!options.dryRun) {
+    if (rowsToMark.length) {
+      visitedSheet
+        .getRangeList(rowsToMark.map(function (row) { return 'N' + row; }))
+        .setValue('O');
+    }
+    if (newRows.length) {
+      const startRow = visitedSheet.getLastRow() + 1;
+      ensureRegistrationRows_(
+        visitedSheet,
+        startRow + newRows.length - 1
+      );
+      visitedSheet
+        .getRange(startRow, 1, newRows.length, 14)
+        .setValues(newRows);
+    }
+  }
+
+  return {
+    added: newRows.length,
+    updated: rowsToMark.length,
+    review: review
+  };
+}
+
+function createRegistrationMaintenanceText_(result) {
+  let text = '';
+  text += '군 현황 처리: ' + result.dashboard.processed + '명\n';
+  text += '군 현황 출력: ' + result.dashboard.outputRows + '행\n';
+  text += '방문자 신규 추가: ' + result.visitors.added + '명\n';
+  text += '방문자 등록 표시: ' + result.visitors.updated + '건\n';
+  text += '검토 필요: ' +
+    (result.dashboard.review.length + result.visitors.review.length) +
+    '건\n';
+  return text;
+}
+
+function sendRegistrationEmail_(message) {
+  const requested = message.recipients || [];
+  const recipients = REGISTRATION_AUTOMATION.mode === 'PRODUCTION'
+    ? requested
+    : [REGISTRATION_AUTOMATION.testRecipient];
+
+  const unique = Array.from(new Set(recipients.map(String).map(function (value) {
+    return value.trim();
+  }).filter(Boolean)));
+
+  if (REGISTRATION_AUTOMATION.mode !== 'PRODUCTION') {
+    if (unique.length !== 1 ||
+        unique[0] !== REGISTRATION_AUTOMATION.testRecipient) {
+      throw new Error('테스트 메일 수신자 안전장치 위반');
+    }
+  }
+
+  MailApp.sendEmail({
+    to: unique.join(','),
+    subject: (REGISTRATION_AUTOMATION.mode === 'PRODUCTION'
+      ? ''
+      : '[TEST] ') + message.subject,
+    body: message.body || 'HTML 메일입니다.',
+    htmlBody: message.htmlBody || undefined
   });
 }
 
-function fillServiceData(sheet, startRow, serviceData, colMap) {
-  Object.keys(serviceData).forEach(group => {
-    const colIdx = colMap[group];
-    if (colIdx) {
-      const names = serviceData[group].sort();
-      names.forEach((name, i) => {
-        sheet.getRange(startRow + i, colIdx + 1).setValue(name);
-      });
-    }
-  });
+function withRegistrationLock_(callback) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('다른 등록 자동화가 실행 중입니다.');
+  try {
+    return callback();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
-
-/* ==========================================================================
-   [기능 2 Core] 등록 새가족 -> 상반기 방문 새가족 명단 동기화
-   ========================================================================== */
-/* ==========================================================================
-   [기능 2 Core] 등록 새가족 -> 상반기 방문 새가족 명단 동기화
-   ========================================================================== */
-function syncRegisteredToVisited() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var regSheet = ss.getSheetByName("등록 새가족");
-  var visitSheet = ss.getSheetByName("상반기 방문 새가족");
-  
-  if (!regSheet || !visitSheet) return null;
-  
-  var visitLastRow = visitSheet.getLastRow();
-  var visitData = [];
-  var existingKeysMap = new Map(); 
-  var maxNo = 0; 
-  
-  if (visitLastRow > 1) {
-    // 💡 수정됨: 15열(O열) -> 14열(N열)까지만 가져오도록 14로 변경
-    visitData = visitSheet.getRange(2, 1, visitLastRow - 1, 14).getValues();
-    for (var i = 0; i < visitData.length; i++) {
-      var gun = visitData[i][3] ? visitData[i][3].toString().trim() : "";  
-      var team = visitData[i][4] ? visitData[i][4].toString().trim() : ""; 
-      var name = visitData[i][5] ? visitData[i][5].toString().trim() : ""; 
-      
-      var currentNo = parseInt(visitData[i][0], 10);
-      if (!isNaN(currentNo) && currentNo > maxNo) {
-        maxNo = currentNo;
-      }
-      
-      if (name) {
-        var cleanedName = cleanName(name);
-        var key = cleanedName + "|" + gun + "|" + team;
-        if (!existingKeysMap.has(key)) {
-          existingKeysMap.set(key, []);
-        }
-        existingKeysMap.get(key).push(i); 
-      }
-    }
-  }
-  
-  var regLastRow = regSheet.getLastRow();
-  if (regLastRow <= 1) return { added: 0, updated: 0 };
-  
-  var regData = regSheet.getRange(2, 1, regLastRow - 1, 11).getValues();
-  var addedCount = 0;
-  var updatedCount = 0;
-  
-  for (var j = 0; j < regData.length; j++) {
-    var regDateVal = regData[j][1];
-    if (!isAfterOrEqualMarch29(regDateVal)) continue; 
-    
-    var regGun = regData[j][3] ? regData[j][3].toString().trim() : "";  
-    var regTeam = regData[j][4] ? regData[j][4].toString().trim() : ""; 
-    var regName = regData[j][5] ? regData[j][5].toString().trim() : ""; 
-    
-    if (!regName) continue; 
-    
-    var regCleanedName = cleanName(regName);
-    var regKey = regCleanedName + "|" + regGun + "|" + regTeam;
-    
-    if (existingKeysMap.has(regKey)) {
-      var indices = existingKeysMap.get(regKey);
-      indices.forEach(function(idx) {
-        // 💡 수정됨: 인덱스 14(O열) -> 인덱스 13(N열)로 변경
-        if (visitData[idx][13] !== "O") {
-          visitData[idx][13] = "O";
-          updatedCount++;
-        }
-      });
-    } else {
-      // 💡 수정됨: 배열 칸 수를 15 -> 14로 변경
-      var newRow = new Array(14).fill("");
-      
-      maxNo++;
-      newRow[0] = maxNo;
-      
-      // B~K열 복사 (이 부분은 열 삭제와 무관하게 동일합니다)
-      for (var k = 1; k <= 10; k++) {
-        newRow[k] = regData[j][k];
-      }
-      
-      // 💡 수정됨: 인덱스 14(O열) -> 인덱스 13(N열)에 "O" 체크
-      newRow[13] = "O"; 
-      
-      visitData.push(newRow);
-      addedCount++;
-      
-      existingKeysMap.set(regKey, [visitData.length - 1]);
-    }
-  }
-  
-  if (visitData.length > 0) {
-    // 💡 수정됨: 15열(O열) -> 14열(N열)까지만 덮어쓰도록 14로 변경
-    visitSheet.getRange(2, 1, visitData.length, 14).setValues(visitData);
-  }
-  
-  return { added: addedCount, updated: updatedCount };
+function getRegistrationSpreadsheet_() {
+  return SpreadsheetApp.openById(
+    REGISTRATION_AUTOMATION.registrationSpreadsheetId
+  );
 }
 
-function cleanName(name) {
-  if (!name) return "";
-  return name.toString().trim().replace(/[A-Z]$/, "").trim();
+function writeRegistrationLog_(functionName, result) {
+  const ss = getRegistrationSpreadsheet_();
+  let sheet = ss.getSheetByName(REGISTRATION_AUTOMATION.logSheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(REGISTRATION_AUTOMATION.logSheetName);
+    sheet.appendRow([
+      '실행시각', '함수', '모드', '현황인원', '현황검토',
+      '방문추가', '방문표시', '방문검토'
+    ]);
+  }
+  sheet.appendRow([
+    new Date(), functionName, REGISTRATION_AUTOMATION.mode,
+    result.dashboard.processed, result.dashboard.review.length,
+    result.visitors.added, result.visitors.updated,
+    result.visitors.review.length
+  ]);
 }
 
-function isAfterOrEqualMarch29(dateVal) {
-  if (!dateVal) return false;
-  var dateObj;
-  if (dateVal instanceof Date) {
-    dateObj = dateVal;
-  } else {
-    var str = dateVal.toString().trim();
-    if (!str) return false;
-    if (str.includes('/')) {
-      var parts = str.split('/');
-      var month = parseInt(parts[0], 10);
-      var day = parseInt(parts[1], 10);
-      if (isNaN(month) || isNaN(day)) return false;
-      var year = (month === 12) ? 2025 : 2026;
-      dateObj = new Date(year, month - 1, day);
-    } else if (str.includes('월')) {
-      var matches = str.match(/(\d+)월\s*(\d+)일/);
-      if (matches) {
-        var month = parseInt(matches[1], 10);
-        var day = parseInt(matches[2], 10);
-        var year = (month === 12) ? 2025 : 2026;
-        dateObj = new Date(year, month - 1, day);
-      } else { return false; }
-    } else {
-      dateObj = new Date(str);
-      if (dateObj.getFullYear() < 2026 && !str.includes('202')) { dateObj.setFullYear(2026); }
-    }
+function ensureRegistrationRows_(sheet, requiredLastRow) {
+  const missing = requiredLastRow - sheet.getMaxRows();
+  if (missing > 0) sheet.insertRowsAfter(sheet.getMaxRows(), missing);
+}
+
+function addRegistrationIndex_(map, key, value) {
+  if (!key) return;
+  if (!map.has(key)) map.set(key, []);
+  map.get(key).push(value);
+}
+
+function normalizeRegistrationPhone_(value) {
+  return String(value || '').replace(/[^0-9]/g, '');
+}
+
+function normalizeRegistrationName_(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[A-Z]$/, '')
+    .replace(/\s+/g, '');
+}
+
+function parseRegistrationDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  if (!value || String(value).trim() === '') return null;
+
+  const text = String(value).trim();
+  const short = text.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (short) {
+    const month = Number(short[1]);
+    const day = Number(short[2]);
+    const year = month === 12 ? 2025 : 2026;
+    return new Date(year, month - 1, day);
   }
-  if (isNaN(dateObj.getTime())) return false;
-  var targetDate = new Date(2026, 2, 29);
-  var compareDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
-  return compareDate >= targetDate;
+
+  const date = new Date(text);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function escapeRegistrationHtml_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

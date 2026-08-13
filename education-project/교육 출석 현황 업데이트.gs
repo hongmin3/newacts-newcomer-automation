@@ -1,375 +1,496 @@
 /**
- * 설정값
+ * 교육 출석 자동화 - 안전한 증분 처리 버전
+ *
+ * 기본값은 비활성(TEST)입니다. 설치형 트리거는 EDUCATION_AUTOMATION.active가
+ * true일 때만 시트를 수정합니다. 테스트 메일은 항상 한 주소로 제한됩니다.
  */
-const CONFIG = {
-  MASTER_SHEET_ID: '1EEIAL39SgRtO1JTe8zpZ4qDMCf_qF-bfrtxn6jfpLgg', 
-  MASTER_TAB_NAME: '교육 출석 현황',
-  // [수정됨] 통합된 하나의 응답 시트 ID를 여기에 입력하세요.
-  SOURCE_ID: '1PKQY3wVgSpk6SqJa9dCyCAV54CIzZF03d-ePReFGwxs', 
-  ADMIN_EMAIL: 'ksj747172@gmail.com, kimth6805@gmail.com, rnrnwkddn@naver.com, wnehdrms123@naver.com, whduswn94@naver.com'
-};
+const EDUCATION_AUTOMATION = Object.freeze({
+  active: true,
+  mode: 'PRODUCTION',
+  testRecipient: 'ksj747172@gmail.com',
+  productionRecipients: [
+    'ksj747172@gmail.com',
+    'kimth6805@gmail.com',
+    'rnrnwkddn@naver.com',
+    'wnehdrms123@naver.com',
+    'whduswn94@naver.com'
+  ],
+  masterSpreadsheetId: '1EEIAL39SgRtO1JTe8zpZ4qDMCf_qF-bfrtxn6jfpLgg',
+  masterSheetName: '교육 출석 현황',
+  sourceSpreadsheetId: '1PKQY3wVgSpk6SqJa9dCyCAV54CIzZF03d-ePReFGwxs',
+  sourceSheetName: '설문지 응답 시트1',
+  logSheetName: '자동화 로그',
+  cursorProperty: 'EDUCATION_LAST_RESPONSE_ROW',
+  serviceCutoffMinutes: 13 * 60 + 30
+});
 
-function main() {
-  if (CONFIG.SOURCE_ID.includes('여기에')) {
-    Browser.msgBox("오류: CONFIG 변수의 SOURCE_ID를 확인해주세요.");
+/**
+ * 설치형 트리거 진입점.
+ * active=false이면 아무 데이터도 수정하지 않습니다.
+ */
+function processPendingAttendanceTrigger() {
+  if (!EDUCATION_AUTOMATION.active) {
+    console.log('교육 자동화가 비활성 상태라 실행하지 않았습니다.');
     return;
   }
-
-  // 1. 실행일 기준 '지난 일요일' 날짜
-  const targetDate = getLastSundayDate(); 
-  Logger.log(`[시작] 타겟 날짜: ${targetDate}`);
-
-  // 2. 통합 시트 출석 동기화 처리
-  const result = syncAttendance(targetDate);
-
-  // 3. 결과 집계
-  const totalProcessed = result.processed[4] + result.processed[5];
-  const totalErrors = result.errors.length;
-  const totalDuplicates = result.duplicates.length;
-  const totalInfoChanges = result.infoChanges.length;
-  const totalPhoneMismatches = result.phoneMismatches.length;
-  const totalUndecided = result.undecided.length; 
-
-  // 알림 로직
-  // 데이터가 아예 없는 경우 (휴강 체크)
-  if (totalProcessed === 0 && totalErrors === 0 && totalDuplicates === 0 && totalPhoneMismatches === 0) {
-    const urlMaster = `https://docs.google.com/spreadsheets/d/${CONFIG.MASTER_SHEET_ID}`;
-    const urlSource = `https://docs.google.com/spreadsheets/d/${CONFIG.SOURCE_ID}`;
-    
-    const bodyText = `${targetDate} (일요일) 날짜로 접수된 새가족 교육 출석 데이터가 없습니다.\n휴강 주간이거나 접수된 인원이 없는지 확인바랍니다.`;
-    
-    const htmlBody = `
-      <div style="font-family: Arial, sans-serif;">
-        <p>${targetDate} (일요일) 날짜로 접수된 새가족 교육 출석 데이터가 없습니다.<br>
-        휴강 주간이거나 접수된 인원이 없는지 확인바랍니다.</p>
-        <hr>
-        <strong>[바로가기]</strong><br>
-        1. <a href="${urlMaster}">새가족 교육 현황</a><br>
-        2. <a href="${urlSource}">통합 응답 시트</a>
-      </div>
-    `;
-    MailApp.sendEmail({
-      to: CONFIG.ADMIN_EMAIL,
-      subject: `[알림] ${targetDate} 새가족 교육 데이터 없음`,
-      body: bodyText,
-      htmlBody: htmlBody
-    });
-  }
-  // 이슈가 하나라도 있으면 리포트 발송
-  else if (totalErrors > 0 || totalDuplicates > 0 || totalInfoChanges > 0 || totalPhoneMismatches > 0 || totalUndecided > 0 || totalProcessed > 0) {
-    sendReportEmail(targetDate, result);
-  }
+  return withEducationLock_(function () {
+    return processPendingAttendance_({ dryRun: false, sendEmail: true });
+  });
+}
+/**
+ * 기존 트리거/수동 실행 호환용 이름.
+ */
+function main() {
+  return processPendingAttendanceTrigger();
 }
 
-function syncAttendance(targetDateString) {
-  let result = {
-    processed: { 4: 0, 5: 0 }, // 4부, 5부 각각 카운트
-    errors: [],        
-    duplicates: [],    
-    infoChanges: [],    
-    phoneMismatches: [], 
-    undecided: []       
-  };
+/**
+ * 실행 전 변경 예정 건수만 확인합니다. 시트/속성/메일을 변경하지 않습니다.
+ */
+function previewPendingAttendance() {
+  return withEducationLock_(function () {
+    const result = processPendingAttendance_({ dryRun: true, sendEmail: false });
+    console.log(JSON.stringify(result));
+    return result;
+  });
+}
 
-  try {
-    const masterSS = SpreadsheetApp.openById(CONFIG.MASTER_SHEET_ID);
-    const masterSheet = masterSS.getSheetByName(CONFIG.MASTER_TAB_NAME);
-    const sourceSS = SpreadsheetApp.openById(CONFIG.SOURCE_ID);
-    const sourceSheet = sourceSS.getSheets()[0];
-    
-    const sourceData = sourceSheet.getDataRange().getValues();
-    const masterData = masterSheet.getDataRange().getValues();
-    
-    // 컬럼 인덱스
-    const COL_TIMESTAMP = 0;
-    const COL_WEEK = 2;
-    const COL_NAME = 4;
-    const COL_PHONE = 5;
-    const COL_GENDER = 6;
-    const COL_GUN = 8;
-    const COL_TEAM = 9;
-    
-    // 소스 데이터 반복
-    for (let i = 1; i < sourceData.length; i++) {
-      const row = sourceData[i];
-      if (row.length === 0 || row[0] === "") continue;
+/**
+ * 사용자 승인 후에만 실행할 테스트 함수입니다.
+ * 직전 일요일 응답을 검증하며 메일은 테스트 수신자 한 명에게만 보냅니다.
+ */
+function runEducationTest() {
+  return withEducationLock_(function () {
+    return processAttendanceForLastSunday_({ dryRun: false, sendEmail: true });
+  });
+}
 
-      // 1. 날짜 필터링 (지난 일요일 날짜와 같은 데이터만 처리)
-      const timestampObj = new Date(row[COL_TIMESTAMP]);
-      const rowDate = formatDate(timestampObj);
-      if (rowDate !== targetDateString) continue;
+/**
+ * 최초 운영 전 현재 응답 마지막 행을 기준점으로 설정합니다.
+ * 과거 응답은 다시 처리하지 않습니다.
+ */
+function initializeEducationCursor() {
+  const sourceSheet = getEducationSourceSheet_();
+  const lastRow = Math.max(sourceSheet.getLastRow(), 1);
+  PropertiesService.getScriptProperties()
+    .setProperty(EDUCATION_AUTOMATION.cursorProperty, String(lastRow));
+  console.log('교육 응답 기준 행을 ' + lastRow + '행으로 설정했습니다.');
+  return lastRow;
+}
 
-      // [핵심 변경] 타임스탬프 시간 기준으로 4/5부 분류
-      const hours = timestampObj.getHours();
-      const minutes = timestampObj.getMinutes();
-      const timeInMinutes = hours * 60 + minutes;
-      
-      // 13:30 (13 * 60 + 30 = 810분) 기준으로 이전이면 4부, 이후면 5부
-      const serviceType = timeInMinutes < 810 ? 4 : 5;
+function processPendingAttendance_(options) {
+  const sourceSheet = getEducationSourceSheet_();
+  const lastRow = sourceSheet.getLastRow();
+  const properties = PropertiesService.getScriptProperties();
+  const stored = Number(properties.getProperty(EDUCATION_AUTOMATION.cursorProperty));
 
-      const rawWeek = String(row[COL_WEEK]);
-      const name = row[COL_NAME];
-      const rawPhone = String(row[COL_PHONE]);
-      const gender = transformGender(row[COL_GENDER]);
-      const phone = transformPhone(rawPhone);
-      const gun = transformGun(row[COL_GUN]);
-      const team = transformTeam(row[COL_TEAM]);
-      const weekNum = parseInt(rawWeek.replace(/[^0-9]/g, "")); 
+  if (!Number.isFinite(stored) || stored < 1) {
+    const result = createEducationResult_();
+    result.initializationRequired = true;
+    result.message = '처리 기준 행이 없습니다. initializeEducationCursor를 먼저 실행하세요.';
+    return result;
+  }
 
-      try {
-        if (isNaN(weekNum)) throw new Error("주차 정보 파싱 실패");
+  if (lastRow <= stored) {
+    const result = createEducationResult_();
+    result.message = '새 응답이 없습니다.';
+    return result;
+  }
 
-        // 군/팀 미정 체크
-        if (gun === "미정" || team === "미정") {
-          result.undecided.push({
-            service: serviceType,
-            name: name,
-            week: rawWeek,
-            gun: gun,
-            team: team
-          });
-        }
+  const rows = sourceSheet
+    .getRange(stored + 1, 1, lastRow - stored, sourceSheet.getLastColumn())
+    .getValues()
+    .map(function (values, index) {
+      return { sourceRow: stored + 1 + index, values: values };
+    });
 
-        // --- [검색 1단계] 이름 + 전화번호로 찾기 ---
-        let foundRowIndex = -1;
-        for (let m = masterData.length - 1; m >= 1; m--) {
-          const mName = masterData[m][4]; 
-          const mPhone = String(masterData[m][6]);
-          if (mName === name && mPhone === phone) {
-            foundRowIndex = m + 1;
-            break;
-          }
-        }
+  const result = processAttendanceRows_(rows, options);
 
-        // --- [검색 2단계] 없으면 이름으로만 찾기 (번호 불일치 감지용) ---
-        if (foundRowIndex === -1 && weekNum > 1) {
-          let nameMatches = [];
-          for (let m = masterData.length - 1; m >= 1; m--) {
-            if (masterData[m][4] === name) {
-              nameMatches.push({ index: m + 1, phone: String(masterData[m][6]) });
-            }
-          }
-          
-          if (nameMatches.length === 1) {
-            result.phoneMismatches.push({
-              service: serviceType,
-              name: name,
-              inputPhone: phone,
-              masterPhone: nameMatches[0].phone,
-              week: rawWeek
-            });
-            continue; 
-          }
-        }
+  if (!options.dryRun) {
+    properties.setProperty(EDUCATION_AUTOMATION.cursorProperty, String(lastRow));
+    writeEducationLog_('processPendingAttendanceTrigger', result);
+  }
+  if (options.sendEmail && shouldSendEducationReport_(result)) {
+    sendEducationReport_(result, '새 응답 증분 처리');
+  }
+  return result;
+}
 
-        // [로직 분기]
-        if (weekNum === 1) {
-          if (foundRowIndex === -1) {
-            // [신규 추가]
-            const lastRow = masterSheet.getLastRow();
-            let newNo = 1;
-            if (lastRow > 1) {
-               const lastNo = masterSheet.getRange(lastRow, 1).getValue();
-               if (!isNaN(lastNo) && typeof lastNo === 'number') newNo = lastNo + 1;
-            }
-            masterSheet.appendRow([
-              newNo, serviceType, gun, team, name, gender, phone,
-              targetDateString, "", "", ""
-            ]);
-            result.processed[serviceType]++;
+function processAttendanceForLastSunday_(options) {
+  const sourceSheet = getEducationSourceSheet_();
+  const data = sourceSheet.getDataRange().getValues();
+  const sunday = getMostRecentSunday_(new Date());
+  const target = formatEducationDate_(sunday);
 
-          } else {
-            // [중복 확인] 
-            checkAndUpdate(masterSheet, foundRowIndex, 8, targetDateString, result, name, phone, rawWeek, serviceType);
-            updateGroupInfoIfChanged(masterSheet, foundRowIndex, gun, team, name, phone, result, serviceType);
-          }
-        } else {
-          // [2~4주차]
-          if (foundRowIndex === -1) throw new Error(`[데이터 없음] 명단에 없는 인원`);
-
-          updateGroupInfoIfChanged(masterSheet, foundRowIndex, gun, team, name, phone, result, serviceType);
-
-          const targetCol = 8 + (weekNum - 1);
-          
-          // 순서 체크
-          const attendanceRange = masterSheet.getRange(foundRowIndex, 8, 1, 4); 
-          const attendanceValues = attendanceRange.getValues()[0];
-          let isSequenceValid = true;
-          for (let w = 0; w < weekNum - 1; w++) {
-            if (attendanceValues[w] === "") {
-              isSequenceValid = false;
-              break;
-            }
-          }
-          if (!isSequenceValid) throw new Error(`[순서 오류] 이전 주차 누락`);
-
-          // [업데이트]
-          checkAndUpdate(masterSheet, foundRowIndex, targetCol, targetDateString, result, name, phone, rawWeek, serviceType);
-        }
-
-      } catch (e) {
-        result.errors.push({ service: serviceType, name: name, phone: phone, week: rawWeek, reason: e.message });
-      }
+  const rows = [];
+  for (let index = 1; index < data.length; index++) {
+    const timestamp = parseEducationDate_(data[index][0]);
+    if (timestamp && formatEducationDate_(timestamp) === target) {
+      rows.push({ sourceRow: index + 1, values: data[index] });
     }
-    return result;
-
-  } catch (e) {
-    Logger.log(`[시스템 오류]: ${e.message}`);
-    result.errors.push({ service: "시스템", name: "-", phone: "-", week: "-", reason: `실행 중단: ${e.message}` });
-    return result;
   }
+
+  const result = processAttendanceRows_(rows, options);
+  result.targetSunday = target;
+  if (!options.dryRun) writeEducationLog_('runEducationTest', result);
+  if (options.sendEmail) sendEducationReport_(result, '승인된 테스트 실행');
+  return result;
 }
 
-// --- 중복 체크 및 업데이트 함수 ---
-function checkAndUpdate(sheet, rowIndex, colIndex, dateStr, resultObj, name, phone, week, serviceType) {
-  const existingDate = sheet.getRange(rowIndex, colIndex).getValue();
-  
-  if (existingDate !== "") {
-    resultObj.duplicates.push({ service: serviceType, name: name, phone: phone, week: week, currentVal: formatDate(existingDate) });
-  } else {
-    sheet.getRange(rowIndex, colIndex).setValue(dateStr);
-    resultObj.processed[serviceType]++;
-  }
-}
+function processAttendanceRows_(sourceRows, options) {
+  const result = createEducationResult_();
+  result.scanned = sourceRows.length;
 
-// --- 군/팀 변경 확인 및 업데이트 함수 ---
-function updateGroupInfoIfChanged(sheet, rowIndex, newGun, newTeam, name, phone, resultObj, serviceType) {
-  const currentGun = sheet.getRange(rowIndex, 3).getValue();
-  const currentTeam = sheet.getRange(rowIndex, 4).getValue();
+  const masterSheet = getEducationMasterSheet_();
+  const masterLastRow = masterSheet.getLastRow();
+  const width = 11;
+  const masterRows = masterLastRow > 1
+    ? masterSheet.getRange(2, 1, masterLastRow - 1, width).getValues()
+    : [];
 
-  if (currentGun !== newGun || currentTeam !== newTeam) {
-    sheet.getRange(rowIndex, 3).setValue(newGun);
-    sheet.getRange(rowIndex, 4).setValue(newTeam);
-    
-    resultObj.infoChanges.push({
-      service: serviceType,
+  const phoneIndex = new Map();
+  const nameIndex = new Map();
+  let maxNo = 0;
+
+  masterRows.forEach(function (row, index) {
+    const no = Number(row[0]);
+    if (Number.isFinite(no)) maxNo = Math.max(maxNo, no);
+    addIndexValue_(phoneIndex, normalizeEducationPhone_(row[6]), index);
+    addIndexValue_(nameIndex, normalizeEducationName_(row[4]), index);
+  });
+
+  sourceRows.forEach(function (source) {
+    const row = source.values;
+    if (!row || !row[0]) return;
+
+    const timestamp = parseEducationDate_(row[0]);
+    const week = parseInt(String(row[2] || '').replace(/[^0-9]/g, ''), 10);
+    const name = String(row[4] || '').trim();
+    const phoneDisplay = formatEducationPhone_(row[5]);
+    const phoneKey = normalizeEducationPhone_(row[5]);
+    const gender = transformEducationGender_(row[6]);
+    const group = transformEducationGroup_(row[8]);
+    const team = transformEducationTeam_(row[9]);
+
+    const issueBase = {
+      sourceRow: source.sourceRow,
       name: name,
-      phone: phone,
-      oldInfo: `${currentGun}/${currentTeam}`,
-      newInfo: `${newGun}/${newTeam}`
+      phone: maskEducationPhone_(phoneDisplay),
+      week: week || ''
+    };
+
+    if (!timestamp || !name || !phoneKey) {
+      result.review.push(Object.assign({}, issueBase, {
+        reason: '필수값(타임스탬프/이름/전화번호) 누락'
+      }));
+      return;
+    }
+    if (![1, 2, 3, 4].includes(week)) {
+      result.review.push(Object.assign({}, issueBase, {
+        reason: '허용되지 않은 주차: ' + week
+      }));
+      return;
+    }
+
+    const phoneMatches = phoneIndex.get(phoneKey) || [];
+    if (phoneMatches.length > 1) {
+      result.review.push(Object.assign({}, issueBase, {
+        reason: '교육 시트에 같은 전화번호가 여러 행 존재'
+      }));
+      return;
+    }
+
+    let masterIndex = phoneMatches.length === 1 ? phoneMatches[0] : -1;
+
+    if (masterIndex < 0 && week > 1) {
+      const nameMatches = nameIndex.get(normalizeEducationName_(name)) || [];
+      result.review.push(Object.assign({}, issueBase, {
+        reason: nameMatches.length === 1
+          ? '이름은 일치하지만 전화번호가 달라 자동 반영하지 않음'
+          : '이전 주차 교육 대상자를 전화번호로 찾지 못함'
+      }));
+      return;
+    }
+
+    const sessionSunday = getMostRecentSunday_(timestamp);
+    const attendanceDate = formatEducationDate_(sessionSunday);
+
+    if (masterIndex < 0) {
+      if (timestamp.getDay() !== 0) {
+        result.review.push(Object.assign({}, issueBase, {
+          reason: '늦은 1주차 제출은 예배 구분을 알 수 없어 자동 추가하지 않음'
+        }));
+        return;
+      }
+
+      maxNo += 1;
+      const service = getEducationServiceFromTimestamp_(timestamp);
+      const newRow = [
+        maxNo, service, isValidEducationGroup_(group) ? group : '',
+        isValidEducationTeam_(team) ? team : '', name, gender, phoneDisplay,
+        attendanceDate, '', '', ''
+      ];
+      masterRows.push(newRow);
+      masterIndex = masterRows.length - 1;
+      addIndexValue_(phoneIndex, phoneKey, masterIndex);
+      addIndexValue_(nameIndex, normalizeEducationName_(name), masterIndex);
+      result.added += 1;
+    } else {
+      const target = masterRows[masterIndex];
+
+      if (isValidEducationGroup_(group) && target[2] !== group) {
+        result.infoChanges.push({
+          name: name,
+          field: '군',
+          before: String(target[2] || ''),
+          after: group
+        });
+        target[2] = group;
+      }
+      if (isValidEducationTeam_(team) && target[3] !== team) {
+        result.infoChanges.push({
+          name: name,
+          field: '팀',
+          before: String(target[3] || ''),
+          after: team
+        });
+        target[3] = team;
+      }
+
+      const targetColumnIndex = 7 + (week - 1);
+      if (String(target[targetColumnIndex] || '').trim() !== '') {
+        result.duplicates.push(Object.assign({}, issueBase, {
+          existing: formatEducationCell_(target[targetColumnIndex])
+        }));
+        return;
+      }
+      target[targetColumnIndex] = attendanceDate;
+      result.updated += 1;
+    }
+  });
+
+  if (!options.dryRun && (result.added > 0 || result.updated > 0 || result.infoChanges.length > 0)) {
+    ensureEducationRows_(masterSheet, masterRows.length + 1);
+    if (masterRows.length > 0) {
+      masterSheet.getRange(2, 1, masterRows.length, width).setValues(masterRows);
+    }
+  }
+
+  result.dryRun = Boolean(options.dryRun);
+  return result;
+}
+
+function createEducationResult_() {
+  return {
+    scanned: 0,
+    added: 0,
+    updated: 0,
+    duplicates: [],
+    infoChanges: [],
+    review: [],
+    dryRun: false
+  };
+}
+
+function shouldSendEducationReport_(result) {
+  return result.added > 0 ||
+    result.updated > 0 ||
+    result.duplicates.length > 0 ||
+    result.infoChanges.length > 0 ||
+    result.review.length > 0;
+}
+
+function sendEducationReport_(result, label) {
+  const subject = '[새가족교육 자동화] ' + label + ' 결과';
+  let body = '';
+  body += '실행 구분: ' + label + '\n';
+  body += '확인 응답: ' + result.scanned + '건\n';
+  body += '신규 추가: ' + result.added + '건\n';
+  body += '출석 반영: ' + result.updated + '건\n';
+  body += '기입済/중복: ' + result.duplicates.length + '건\n';
+  body += '군·팀 변경: ' + result.infoChanges.length + '건\n';
+  body += '수동 확인 필요: ' + result.review.length + '건\n\n';
+
+  if (result.review.length) {
+    body += '[수동 확인 필요]\n';
+    result.review.slice(0, 50).forEach(function (item) {
+      body += '- 응답 ' + item.sourceRow + '행 / ' + item.name +
+        ' / ' + item.phone + ' / ' + item.reason + '\n';
     });
   }
+
+  sendEducationEmail_({
+    subject: subject,
+    body: body,
+    htmlBody: '<pre style="font-family:monospace;white-space:pre-wrap;">' +
+      escapeEducationHtml_(body) + '</pre>'
+  });
 }
 
-// --- Helper Functions ---
-function getLastSundayDate() {
-  const date = new Date(); 
-  const day = date.getDay(); 
-  const diff = day === 0 ? 0 : day; 
-  date.setDate(date.getDate() - diff);
-  return Utilities.formatDate(date, "Asia/Seoul", "yyyy-MM-dd");
-}
+function sendEducationEmail_(message) {
+  const recipients = EDUCATION_AUTOMATION.mode === 'PRODUCTION'
+    ? EDUCATION_AUTOMATION.productionRecipients
+    : [EDUCATION_AUTOMATION.testRecipient];
 
-function transformPhone(str) {
-  if (!str) return "";
-  const cleanStr = str.replace(/[^0-9]/g, '');
-  if (cleanStr.length === 11) {
-    return cleanStr.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+  const uniqueRecipients = Array.from(new Set(recipients.map(String).map(function (v) {
+    return v.trim();
+  }).filter(Boolean)));
+
+  if (EDUCATION_AUTOMATION.mode !== 'PRODUCTION') {
+    if (uniqueRecipients.length !== 1 ||
+        uniqueRecipients[0] !== EDUCATION_AUTOMATION.testRecipient) {
+      throw new Error('테스트 메일 수신자 안전장치 위반');
+    }
   }
-  return str;
-}
-
-function transformGender(str) {
-  if (!str) return "";
-  if (str.includes("남자")) return "남";
-  if (str.includes("여자")) return "여";
-  return str;
-}
-
-function transformGun(str) {
-  if (!str) return "미정";
-  if (str.includes("모르겠")) return "미정";
-  return str.substring(0, 1);
-}
-
-function transformTeam(str) {
-  if (!str) return "미정";
-  if (str.includes("모르겠")) return "미정";
-  return str.split('(')[0].trim();
-}
-
-function formatDate(dateObj) {
-  if (!dateObj) return "";
-  return Utilities.formatDate(new Date(dateObj), "Asia/Seoul", "yyyy-MM-dd");
-}
-
-// 통합 리포트 메일 발송
-function sendReportEmail(dateStr, res) {
-  const subject = `[자동화 결과] ${dateStr} 새가족 출석부 정리 리포트`;
-  
-  let body = `[${dateStr} 처리 현황]\n`;
-  body += `4부 - 성공: ${res.processed[4]}\n`;
-  body += `5부 - 성공: ${res.processed[5]}\n\n`;
-
-  // 1. 군/팀 변경 내역
-  if (res.infoChanges.length > 0) {
-    body += `■ [정보 변경] 군/팀 정보가 최신 데이터로 업데이트됨\n`;
-    res.infoChanges.forEach(item => {
-      body += `- [${item.service}부] ${item.name}: ${item.oldInfo} -> ${item.newInfo}\n`;
-    });
-    body += `\n`;
-  }
-
-  // 2. 군/팀 미정(잘 모르겠어요) 입력자
-  if (res.undecided.length > 0) {
-    body += `■ [확인 필요] 군/팀 '미정' 입력자 (새가족부 확인 요망)\n`;
-    body += `(설문에 '잘 모르겠어요' 등으로 체크한 인원입니다)\n`;
-    res.undecided.forEach(item => {
-      body += `- [${item.service}부] ${item.name} (${item.week}): ${item.gun}/${item.team}\n`;
-    });
-    body += `\n`;
-  }
-
-  // 3. 전화번호 불일치
-  if (res.phoneMismatches.length > 0) {
-    body += `■ [번호 불일치] 이름은 같으나 전화번호가 다른 인원 (확인 필요)\n`;
-    body += `(안전을 위해 자동 입력하지 않았습니다. 확인 후 수동 처리 바랍니다.)\n`;
-    res.phoneMismatches.forEach(item => {
-      body += `- [${item.service}부] 이름: ${item.name} (${item.week})\n`;
-      body += `   명단 번호: ${item.masterPhone}\n`;
-      body += `   입력 번호: ${item.inputPhone}\n`;
-    });
-    body += `\n`;
-  }
-
-  // 4. 이미 기재되어 건너뛴 명단
-  if (res.duplicates.length > 0) {
-    body += `■ [알림] 이미 출석표에 기재되어 있어 건너뛴 인원\n`;
-    res.duplicates.forEach(item => {
-      body += `- [${item.service}부] ${item.name} (${item.week}): 기존값 [${item.currentVal}] 존재\n`;
-    });
-    body += `\n`;
-  }
-
-  // 5. 처리 중 오류 발생 명단
-  if (res.errors.length > 0) {
-    body += `■ [오류] 자동 입력 실패 (확인 필요)\n`;
-    res.errors.forEach(item => {
-      body += `- [${item.service}부] ${item.name} (${item.phone}): ${item.week} -> 사유: ${item.reason}\n`;
-    });
-    body += `\n`;
-  }
-
-  const urlMaster = `https://docs.google.com/spreadsheets/d/${CONFIG.MASTER_SHEET_ID}`;
-  const urlSource = `https://docs.google.com/spreadsheets/d/${CONFIG.SOURCE_ID}`;
-
-  const htmlBody = `
-    <div style="font-family: Arial, sans-serif;">
-      <h3>📊 시트 바로가기</h3>
-      <ul>
-        <li><a href="${urlMaster}" target="_blank"><strong>[마스터] 새가족 교육관리 시트</strong></a></li>
-        <li><a href="${urlSource}" target="_blank">통합 출석 응답 시트</a></li>
-      </ul>
-      <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-      <h3>📋 상세 리포트</h3>
-      <pre style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap;">${body}</pre>
-    </div>
-  `;
 
   MailApp.sendEmail({
-    to: CONFIG.ADMIN_EMAIL,
-    subject: subject,
-    body: body,         
-    htmlBody: htmlBody  
+    to: uniqueRecipients.join(','),
+    subject: (EDUCATION_AUTOMATION.mode === 'PRODUCTION' ? '' : '[TEST] ') + message.subject,
+    body: message.body || 'HTML 메일입니다.',
+    htmlBody: message.htmlBody || undefined
   });
+}
+
+function writeEducationLog_(functionName, result) {
+  const ss = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  let sheet = ss.getSheetByName(EDUCATION_AUTOMATION.logSheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(EDUCATION_AUTOMATION.logSheetName);
+    sheet.appendRow([
+      '실행시각', '함수', '모드', '확인', '추가', '갱신',
+      '중복', '정보변경', '검토필요'
+    ]);
+  }
+  sheet.appendRow([
+    new Date(), functionName, EDUCATION_AUTOMATION.mode,
+    result.scanned, result.added, result.updated,
+    result.duplicates.length, result.infoChanges.length, result.review.length
+  ]);
+}
+
+function withEducationLock_(callback) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('다른 교육 자동화가 실행 중입니다.');
+  try {
+    return callback();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getEducationMasterSheet_() {
+  const sheet = SpreadsheetApp
+    .openById(EDUCATION_AUTOMATION.masterSpreadsheetId)
+    .getSheetByName(EDUCATION_AUTOMATION.masterSheetName);
+  if (!sheet) throw new Error('교육 출석 현황 시트를 찾을 수 없습니다.');
+  return sheet;
+}
+
+function getEducationSourceSheet_() {
+  const sheet = SpreadsheetApp
+    .openById(EDUCATION_AUTOMATION.sourceSpreadsheetId)
+    .getSheetByName(EDUCATION_AUTOMATION.sourceSheetName);
+  if (!sheet) throw new Error('설문지 응답 시트를 찾을 수 없습니다.');
+  return sheet;
+}
+
+function ensureEducationRows_(sheet, requiredRows) {
+  const missing = requiredRows - sheet.getMaxRows();
+  if (missing > 0) sheet.insertRowsAfter(sheet.getMaxRows(), missing);
+}
+
+function addIndexValue_(map, key, value) {
+  if (!key) return;
+  if (!map.has(key)) map.set(key, []);
+  map.get(key).push(value);
+}
+
+function normalizeEducationPhone_(value) {
+  return String(value || '').replace(/[^0-9]/g, '');
+}
+
+function formatEducationPhone_(value) {
+  const phone = normalizeEducationPhone_(value);
+  if (phone.length === 11) {
+    return phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+  }
+  if (phone.length === 10) {
+    return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
+  return String(value || '').trim();
+}
+
+function maskEducationPhone_(value) {
+  const phone = normalizeEducationPhone_(value);
+  if (phone.length < 7) return '번호확인필요';
+  return phone.slice(0, 3) + '-****-' + phone.slice(-4);
+}
+
+function normalizeEducationName_(value) {
+  return String(value || '').trim().replace(/\s+/g, '');
+}
+
+function transformEducationGender_(value) {
+  const text = String(value || '');
+  if (text.includes('남')) return '남';
+  if (text.includes('여')) return '여';
+  return '';
+}
+
+function transformEducationGroup_(value) {
+  const text = String(value || '').trim();
+  if (!text || text.includes('모르겠')) return '';
+  return text.charAt(0);
+}
+
+function transformEducationTeam_(value) {
+  const text = String(value || '').trim();
+  if (!text || text.includes('모르겠')) return '';
+  return text.split('(')[0].trim();
+}
+
+function isValidEducationGroup_(value) {
+  return ['석', '총', '신', '슬', '명', '전', '조', '영', '임'].includes(value);
+}
+
+function isValidEducationTeam_(value) {
+  return Boolean(value && value !== '미정');
+}
+
+function getEducationServiceFromTimestamp_(date) {
+  const minutes = date.getHours() * 60 + date.getMinutes();
+  return minutes < EDUCATION_AUTOMATION.serviceCutoffMinutes ? 4 : 5;
+}
+
+function getMostRecentSunday_(dateValue) {
+  const date = new Date(dateValue);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - date.getDay());
+  return date;
+}
+
+function parseEducationDate_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) return value;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function formatEducationDate_(value) {
+  return Utilities.formatDate(new Date(value), 'Asia/Seoul', 'yyyy-MM-dd');
+}
+
+function formatEducationCell_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return formatEducationDate_(value);
+  }
+  return String(value || '');
+}
+
+function escapeEducationHtml_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

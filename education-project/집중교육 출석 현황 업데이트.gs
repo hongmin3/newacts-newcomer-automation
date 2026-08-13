@@ -1,67 +1,147 @@
+/**
+ * 집중교육 출석을 일반 교육 출석 현황에 안전하게 반영합니다.
+ * 기존 주차 값은 덮어쓰지 않으며 전화번호가 유일한 경우에만 자동 매칭합니다.
+ */
+function previewIntensiveTraining() {
+  return syncIntensiveTraining_({ dryRun: true });
+}
 function syncIntensiveTraining() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const intensiveSheet = ss.getSheetByName('26년 집중교육');
-  const attendanceSheet = ss.getSheetByName('교육 출석 현황');
-
-  // 데이터 범위 가져오기 (첫 번째 행인 헤더는 제외)
-  const intensiveData = intensiveSheet.getRange(2, 1, intensiveSheet.getLastRow() - 1, intensiveSheet.getLastColumn()).getValues();
-  const attendanceData = attendanceSheet.getRange(2, 1, attendanceSheet.getLastRow() - 1, attendanceSheet.getLastColumn()).getValues();
-
-  // '교육 출석 현황' 시트의 이름과 핸드폰 번호를 기준으로 기존 행 번호를 저장하는 객체 생성
-  // 인덱스: E열 이름(4), G열 핸드폰(6)
-  let attendanceMap = {};
-  for (let i = 0; i < attendanceData.length; i++) {
-    let name = attendanceData[i][4];
-    let phone = attendanceData[i][6];
-    if (name && phone) {
-      attendanceMap[name + phone] = i + 2; // 배열 인덱스(0) + 헤더(1) = 2부터 시작하는 실제 행 번호
-    }
+  if (!EDUCATION_AUTOMATION.active) {
+    console.log('교육 자동화가 비활성 상태라 집중교육을 반영하지 않았습니다.');
+    return;
   }
+  return withEducationLock_(function () {
+    return syncIntensiveTraining_({ dryRun: false });
+  });
+}
 
-  for (let j = 0; j < intensiveData.length; j++) {
-    let row = intensiveData[j];
-    let id = row[0];           // A열: 1-n 형태 (예: 1-1)
-    let group = row[1];        // B열: 군
-    let team = row[2];         // C열: 팀
-    let name = row[3];         // D열: 이름
-    let phone = row[4];        // E열: 핸드폰
-    let isAttended = row[5];   // F열: 참석 여부
+/**
+ * 사용자 승인 후 실제 시트 반영 테스트에 사용합니다.
+ */
+function runIntensiveTrainingTest() {
+  return withEducationLock_(function () {
+    return syncIntensiveTraining_({ dryRun: false });
+  });
+}
 
-    // 참석 여부가 'O'인 대상자만 필터링해서 처리
-    if (isAttended === 'O') {
-      
-      // 1. A열(id)에서 '-' 앞의 숫자를 추출하여 분기 텍스트 생성
-      let quarter = id.toString().split('-')[0];
-      let quarterText = quarter + "분기 집중교육";
+function syncIntensiveTraining_(options) {
+  const ss = SpreadsheetApp.openById(
+    EDUCATION_AUTOMATION.masterSpreadsheetId
+  );
+  const intensiveSheet = ss.getSheetByName('26년 집중교육');
+  const attendanceSheet = getEducationMasterSheet_();
+  if (!intensiveSheet) throw new Error('26년 집중교육 시트를 찾을 수 없습니다.');
 
-      let key = name + phone;
+  const intensiveLastRow = intensiveSheet.getLastRow();
+  const attendanceLastRow = attendanceSheet.getLastRow();
+  const result = {
+    scanned: 0,
+    added: 0,
+    updated: 0,
+    conflicts: [],
+    dryRun: Boolean(options.dryRun)
+  };
 
-      if (attendanceMap[key]) {
-        // 2. 이미 명단에 있는 경우 (기존 출석 업데이트)
-        let targetRow = attendanceMap[key];
+  if (intensiveLastRow <= 1) return result;
 
-        // 1~3주차(H, I, J열) 기존 데이터 확인
-        let current1 = attendanceSheet.getRange(targetRow, 8).getValue(); 
-        let current2 = attendanceSheet.getRange(targetRow, 9).getValue(); 
-        let current3 = attendanceSheet.getRange(targetRow, 10).getValue();
+  const intensiveData = intensiveSheet
+    .getRange(2, 1, intensiveLastRow - 1, Math.max(intensiveSheet.getLastColumn(), 6))
+    .getValues();
+  const attendanceRows = attendanceLastRow > 1
+    ? attendanceSheet.getRange(2, 1, attendanceLastRow - 1, 11).getValues()
+    : [];
 
-        // 비어있는 주차에만 'O' 채우기
-        if (!current1) attendanceSheet.getRange(targetRow, 8).setValue('O');
-        if (!current2) attendanceSheet.getRange(targetRow, 9).setValue('O');
-        if (!current3) attendanceSheet.getRange(targetRow, 10).setValue('O');
+  const phoneIndex = new Map();
+  let maxNo = 0;
+  attendanceRows.forEach(function (row, index) {
+    const no = Number(row[0]);
+    if (Number.isFinite(no)) maxNo = Math.max(maxNo, no);
+    addIndexValue_(phoneIndex, normalizeEducationPhone_(row[6]), index);
+  });
 
-        // 4주차(K열)에 "n분기 집중교육" 텍스트 덮어쓰기
-        attendanceSheet.getRange(targetRow, 11).setValue(quarterText);
+  intensiveData.forEach(function (row, index) {
+    if (String(row[5] || '').trim().toUpperCase() !== 'O') return;
+    result.scanned += 1;
 
-      } else {
-        // 3. 명단에 없는 경우 (새로운 행으로 추가)
-        // 시트 구조: [ㄱ, 예배, 군, 팀, 이름, 성별, 핸드폰, 1주차, 2주차, 3주차, 4주차, 문자공지, 비고]
-        let newRow = ['', '', group, team, name, '', phone, 'O', 'O', 'O', quarterText, '', ''];
-        attendanceSheet.appendRow(newRow);
+    const id = String(row[0] || '').trim();
+    const group = transformEducationGroup_(row[1]);
+    const team = String(row[2] || '').trim();
+    const name = String(row[3] || '').trim();
+    const phone = formatEducationPhone_(row[4]);
+    const phoneKey = normalizeEducationPhone_(phone);
+    const quarter = id.split('-')[0];
+    const completionText = quarter ? quarter + '분기 집중교육' : '집중교육';
 
-        // 새롭게 추가된 사람도 Map에 기록하여 스크립트 내에서 중복 추가되는 것을 방지
-        attendanceMap[key] = attendanceSheet.getLastRow();
+    if (!name || !phoneKey) {
+      result.conflicts.push({
+        row: index + 2,
+        name: name,
+        reason: '이름 또는 전화번호 누락'
+      });
+      return;
+    }
+
+    const matches = phoneIndex.get(phoneKey) || [];
+    if (matches.length > 1) {
+      result.conflicts.push({
+        row: index + 2,
+        name: name,
+        reason: '같은 전화번호가 교육 시트에 여러 행 존재'
+      });
+      return;
+    }
+
+    if (matches.length === 0) {
+      maxNo += 1;
+      const newRow = [
+        maxNo, '', isValidEducationGroup_(group) ? group : '',
+        isValidEducationTeam_(team) ? team : '', name, '', phone,
+        'O', 'O', 'O', completionText
+      ];
+      attendanceRows.push(newRow);
+      addIndexValue_(phoneIndex, phoneKey, attendanceRows.length - 1);
+      result.added += 1;
+      return;
+    }
+
+    const target = attendanceRows[matches[0]];
+    let changed = false;
+    for (let column = 7; column <= 9; column++) {
+      if (String(target[column] || '').trim() === '') {
+        target[column] = 'O';
+        changed = true;
       }
     }
+
+    if (String(target[10] || '').trim() === '') {
+      target[10] = completionText;
+      changed = true;
+    } else if (String(target[10]).trim() !== completionText) {
+      result.conflicts.push({
+        row: index + 2,
+        name: name,
+        reason: '기존 4주차 값을 보존함: ' + String(target[10])
+      });
+    }
+
+    if (changed) result.updated += 1;
+  });
+
+  if (!options.dryRun && (result.added > 0 || result.updated > 0)) {
+    ensureEducationRows_(attendanceSheet, attendanceRows.length + 1);
+    attendanceSheet
+      .getRange(2, 1, attendanceRows.length, 11)
+      .setValues(attendanceRows);
+    writeEducationLog_('syncIntensiveTraining', {
+      scanned: result.scanned,
+      added: result.added,
+      updated: result.updated,
+      duplicates: [],
+      infoChanges: [],
+      review: result.conflicts
+    });
   }
+
+  console.log(JSON.stringify(result));
+  return result;
 }
