@@ -31,8 +31,8 @@ DEFAULT_ARMY_RECIPIENTS = {
 }
 
 
-def is_last_saturday(day):
-    return day.weekday() == 5 and (day + timedelta(days=7)).month != day.month
+def is_last_tuesday(day):
+    return day.weekday() == 1 and (day + timedelta(days=7)).month != day.month
 
 
 def _rate(attended, possible):

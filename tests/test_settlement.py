@@ -2,13 +2,13 @@ import unittest
 from datetime import date
 
 from settlement_automation import normalize_team
-from settlement_email import build_html, ensure_safe_to_email, is_last_saturday
+from settlement_email import build_html, ensure_safe_to_email, is_last_tuesday
 
 
 class SettlementAutomationTest(unittest.TestCase):
-    def test_last_saturday(self):
-        self.assertTrue(is_last_saturday(date(2026, 8, 29)))
-        self.assertFalse(is_last_saturday(date(2026, 8, 22)))
+    def test_last_tuesday(self):
+        self.assertTrue(is_last_tuesday(date(2026, 8, 25)))
+        self.assertFalse(is_last_tuesday(date(2026, 8, 18)))
 
     def test_team_parentheses_are_removed(self):
         self.assertEqual(normalize_team("주품 (황수현 )"), "주품")

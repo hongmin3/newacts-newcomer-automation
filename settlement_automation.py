@@ -13,7 +13,7 @@ import config
 from settlement_email import (
     already_sent,
     ensure_safe_to_email,
-    is_last_saturday,
+    is_last_tuesday,
     mark_sent,
     send_reports,
 )
@@ -677,8 +677,8 @@ def parse_args():
     parser.add_argument("--retry-unmatched", action="store_true", help="이전 결과에서 미확인 인원만 재조회 후 병합")
     parser.add_argument("--send-email", action="store_true", help="시트 갱신 성공 후 정착률 메일 발송")
     parser.add_argument("--test-email", action="store_true", help="모든 보고서를 테스트 수신자 한 명에게만 발송")
-    parser.add_argument("--monthly", action="store_true", help="마지막 토요일에만 실행하고 월별 중복 발송 방지")
-    parser.add_argument("--force-monthly", action="store_true", help="오늘이 마지막 토요일이 아니어도 월간 실행 강제")
+    parser.add_argument("--monthly", action="store_true", help="마지막 화요일에만 실행하고 월별 중복 발송 방지")
+    parser.add_argument("--force-monthly", action="store_true", help="오늘이 마지막 화요일이 아니어도 월간 실행 강제")
     parser.add_argument("--headless", action="store_true", help="예약 작업용 숨김 브라우저 실행")
     parser.add_argument("--email-from-csv", action="store_true", help="검증 완료된 기존 CSV로 조회 없이 메일만 발송")
     parser.add_argument("--email-scope", choices=("all", "overall"), default="all", help="메일 발송 범위")
@@ -688,8 +688,8 @@ def parse_args():
 def main():
     args = parse_args()
     as_of = datetime.strptime(args.as_of, "%Y-%m-%d").date() if args.as_of else date.today()
-    if args.monthly and not args.force_monthly and not is_last_saturday(as_of):
-        print(f"{as_of.isoformat()}은 마지막 토요일이 아니므로 실행하지 않습니다.", flush=True)
+    if args.monthly and not args.force_monthly and not is_last_tuesday(as_of):
+        print(f"{as_of.isoformat()}은 마지막 화요일이 아니므로 실행하지 않습니다.", flush=True)
         return
     if args.monthly and not args.test_email and already_sent(PROJECT_DIR, as_of):
         print(f"{as_of.strftime('%Y-%m')} 운영 메일은 이미 발송되어 중복 실행하지 않습니다.", flush=True)
