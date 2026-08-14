@@ -1,0 +1,13 @@
+config.py
+credentials.json
+token.json
+.venv/
+__pycache__/
+output/
+*.log
+*.pid
+*.out
+*.err
+
+# 과거 실행 결과 복구용 일회성 로컬 도구
+repair_retry_merge.py
