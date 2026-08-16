@@ -1,11 +1,12 @@
 # 뉴액츠 새가족·교육 통합 자동화
 
-Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하고, 안전하게 개선하기 위한 저장소입니다.
+Google Sheets에 연결된 세 Apps Script 프로젝트의 원본을 보존하고, 안전하게 개선하기 위한 저장소입니다.
 
 첫 커밋(`73c2e5d`)은 2026-08-12 기준 Apps Script 편집기에 저장되어 있던 **원본 코드 스냅샷**입니다. 현재 작업 트리에는 검토 중인 개선본이 있으며, 사용자 승인 전에는 두 번째 커밋을 만들지 않습니다.
 
 ## 프로젝트 구성
 
+- `attendance-webapp/`: `2026년 새가족교육 출석 (응답)`에 연결된 출석 웹앱 프로젝트
 - `registration-project/`: `2026년 뉴액츠 청년부 등록 새가족 현황`에 연결된 프로젝트
 - `education-project/`: `뉴액츠 새가족부 교육관리`에 연결된 프로젝트
 - `docs/current-architecture.md`: 시트 연결 구조와 현재 데이터 흐름
@@ -25,6 +26,7 @@ Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하�
 
 ## 원본 Apps Script 프로젝트
 
+- 출석 웹앱 스크립트 ID: `1JPi6GfNS1UR_iWic0h9yZRr-NhEYnxAV_l-YM7_huZwVceBhnDX7m5s6`
 - 등록 프로젝트 스크립트 ID: `1ZUvqTsXt0HwODX0Byi7GYWnNa75uTJ0ViKxP2vBUYl7KyM9-VriLQjK9`
 - 교육 프로젝트 스크립트 ID: `1FkpwxV8uFORcOMqTO19rrMB2ifEfFAmK7aXu1pI8p5eT0_HMX-o4brJc`
 
