@@ -155,6 +155,26 @@
 
   <script>
     let userData = {};
+    let requestInFlight = false;
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showRequestError(error) {
+      requestInFlight = false;
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('submitBtn').disabled = false;
+      document.getElementById('searchSection').classList.remove('hidden');
+      alert(error && error.message
+        ? error.message
+        : '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    }
 
     function formatPhoneNumber(input) {
       let number = input.value.replace(/[^0-9]/g, '');
@@ -218,12 +238,14 @@
     }
 
     function searchUser() {
+      if (requestInFlight) return;
       const name = document.getElementById('searchName').value;
       const phone = document.getElementById('searchPhone').value;
       const consent = document.getElementById('privacyConsent').checked; 
+      const phoneDigits = phone.replace(/[^0-9]/g, '');
       
-      if(!name || phone.length < 12) {
-        alert("이름과 휴대폰 번호(11자리)를 정확히 입력해주세요.");
+      if(!name.trim() || phoneDigits.length < 10 || phoneDigits.length > 11) {
+        alert("이름과 휴대폰 번호를 정확히 입력해주세요.");
         return;
       }
 
@@ -234,13 +256,16 @@
 
       document.getElementById('searchSection').classList.add('hidden');
       document.getElementById('loading').classList.remove('hidden');
+      requestInFlight = true;
 
       google.script.run
         .withSuccessHandler(handleSearchResult)
+        .withFailureHandler(showRequestError)
         .searchUser(name, phone);
     }
 
     function handleSearchResult(record) {
+      requestInFlight = false;
       document.getElementById('loading').classList.add('hidden');
 
       userData.name = document.getElementById('searchName').value;
@@ -260,7 +285,7 @@
         document.getElementById('formSection').classList.remove('hidden');
         
         document.getElementById('welcomeMessage').innerHTML = 
-          `<strong>${userData.name}</strong>님 환영합니다!<br>오늘은 <strong>${userData.week}주차</strong> 교육입니다.<br><span style="font-size:13px; color:#555;">소속 군/팀이 변경되었다면 아래에서 수정해 주세요.</span>`;
+          `<strong>${escapeHtml(userData.name)}</strong>님 환영합니다!<br>오늘은 <strong>${userData.week}주차</strong> 교육입니다.<br><span style="font-size:13px; color:#555;">소속 군/팀이 변경되었다면 아래에서 수정해 주세요.</span>`;
         
         // 기존 데이터 세팅 및 불필요 항목 숨기기
         document.getElementById('gender').value = record.gender;
@@ -280,7 +305,7 @@
         userData.week = 1;
         document.getElementById('formSection').classList.remove('hidden');
         document.getElementById('welcomeMessage').innerHTML = 
-          `<strong>${userData.name}</strong>님 첫 방문을 진심으로 환영합니다!<br>오늘은 <strong>1주차</strong> 교육입니다.<br>아래 정보를 꼼꼼히 입력해 주세요.`;
+          `<strong>${escapeHtml(userData.name)}</strong>님 첫 방문을 진심으로 환영합니다!<br>오늘은 <strong>1주차</strong> 교육입니다.<br>아래 정보를 꼼꼼히 입력해 주세요.`;
         
         // 1주차는 모든 입력칸 노출
         document.getElementById('genderGroup').classList.remove('hidden');
@@ -291,6 +316,7 @@
     }
 
     function submitForm() {
+      if (requestInFlight) return;
       if (userData.week === 1) {
         if (!document.getElementById('route').value || !document.getElementById('gender').value || !document.getElementById('age').value) {
           alert("유입 경로, 성별, 나이를 모두 선택해주세요.");
@@ -307,6 +333,7 @@
       document.getElementById('formSection').classList.add('hidden');
       document.getElementById('loading').innerHTML = "제출 중입니다...";
       document.getElementById('loading').classList.remove('hidden');
+      requestInFlight = true;
 
       const formData = {
         name: userData.name,
@@ -320,11 +347,17 @@
       };
 
       google.script.run
-        .withSuccessHandler(function(week) {
+        .withSuccessHandler(function(result) {
+          requestInFlight = false;
           document.getElementById('loading').classList.add('hidden');
-          document.getElementById('successMessage').innerHTML = week + "주차 출석이 완료되었습니다<br><br>오늘도 은혜로운 시간이 되세요!";
+          const message = result.duplicate
+            ? result.week + "주차 출석이 이미 접수되어 있습니다."
+            : result.week + "주차 출석이 완료되었습니다.";
+          document.getElementById('successMessage').innerHTML =
+            escapeHtml(message) + "<br><br>오늘도 은혜로운 시간이 되세요!";
           document.getElementById('successSection').classList.remove('hidden');
         })
+        .withFailureHandler(showRequestError)
         .submitAttendance(formData);
     }
   </script>
