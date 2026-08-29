@@ -1,6 +1,6 @@
 # 뉴액츠 새가족·교육 통합 자동화
 
-뉴액츠 새가족 등록, 교육 출석, 수료 현황, 문자공지 명단을 관리하는 Google Apps Script 소스 저장소입니다. 세 개의 Apps Script 프로젝트가 서로 다른 Google Sheets를 연결해 사용합니다.
+뉴액츠 새가족 등록, 교육 출석, 집중교육 신청, 수료 현황, 문자공지 명단을 관리하는 Google Apps Script 소스 저장소입니다. 네 개의 Apps Script 프로젝트가 서로 다른 Google Workspace 파일을 연결해 사용합니다.
 
 > GitHub의 `.gs` 파일을 수정해도 운영 중인 Apps Script에 자동 배포되지는 않습니다. 변경한 파일을 해당 Apps Script 프로젝트에 반영해야 실제 트리거 실행에 적용됩니다. 이 저장소에는 현재 `clasp` 설정이 없습니다.
 
@@ -13,6 +13,7 @@
 | 교육 수료현황·주간 메일 | `runSystem` → `runRegistrationReportingTrigger` | 매주 금요일 11:00~12:00 | 등록 명단과 교육 출석 결합, 수료현황 재작성, 전체·군별 주간 메일 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` |
 | 교육 출석 반영 | `main` → `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00, 금요일 09:00~10:00 | 새 설문 응답을 교육 출석 현황에 증분 반영하고 결과 메일 | `education-project/교육 출석 현황 업데이트.gs` |
 | 교육 문자공지 명단 | `sendNewcomerNotifications` → `sendNewcomerNotificationsTrigger` | 매주 토요일 08:00~09:00 | 교육 진행 중·미진행 명단과 문자 발송용 번호를 메일로 전송 | `education-project/문자 명단 리스트.gs` |
+| 집중교육 신청 접수 | `onFormSubmitHandler` | Form 제출 즉시 | 군→팀 분기 신청, 전화번호 정규화, 관리자·공개 명단 동기화 | `intensive-training-application/` |
 | 집중교육 출석 반영 | `syncIntensiveTraining` | 필요할 때 수동 실행 | `26년 집중교육` 참석자를 일반 교육 출석 현황에 반영 | `education-project/집중교육 출석 현황 업데이트.gs` |
 | 상반기 결산 생성 | `generateSettlementReport` | 필요할 때 수동 실행 | 등록 자료를 기준으로 상반기 결산 집계표 갱신 | `registration-project/제목 없음.gs` |
 
@@ -45,6 +46,8 @@
 
 연결 구조와 데이터 기준에 관한 추가 설명은 [`docs/current-architecture.md`](docs/current-architecture.md), 안전장치와 처리 규칙은 [`docs/enhanced-architecture.md`](docs/enhanced-architecture.md)를 참고하세요.
 
+집중교육 신청 Form 제출이 완료되면 신청자 현황은 [공개 확인 시트](https://docs.google.com/spreadsheets/d/1dZbp9oHvcWEuWrDhATK3obLC_8rUb_M1jzH9UC8tOM0/edit)에서 확인하면 됩니다. 공개 명단에는 전화번호가 포함되지 않습니다.
+
 ## 디렉터리 안내
 
 ### `attendance-webapp/`
@@ -75,6 +78,14 @@
 - 스크립트 ID: `1ZUvqTsXt0HwODX0Byi7GYWnNa75uTJ0ViKxP2vBUYl7KyM9-VriLQjK9`
 
 등록 프로젝트 파일들은 `REGISTRATION_AUTOMATION` 설정과 공통 잠금·메일·형식 변환 함수를 공유하므로 한 Apps Script 프로젝트에 함께 배치합니다.
+
+### `intensive-training-application/`
+
+- `Code.gs`: Form·관리자 시트·공개 확인 시트·제출 트리거 일괄 설치 및 실시간 동기화
+- `README.md`: [운영 Form과 공개 확인 시트](intensive-training-application/README.md), 재설치, 보안 구조, 실제 검증 기록
+- 스크립트 ID: `1CRE913FQ73aVI2D2ol03-7vUAMJLIiD2-f64L2YL0fqHayAmSG_3ceZy`
+
+이 프로젝트는 기존 교육관리 Spreadsheet와 코드를 공유하지 않는 독립 Apps Script 프로젝트입니다. `setupSystem()`은 비공개 시스템 폴더에 Form 1개와 Spreadsheet 2개를 만들고 공개 확인 시트만 링크 뷰어로 공유합니다.
 
 ### `docs/`와 `tests/`
 
@@ -161,6 +172,7 @@ Node.js 18 이상에서 실행합니다. 별도 패키지 설치는 필요 없�
 ```bash
 node tests/attendance-webapp.test.js
 node tests/education-notification.test.js
+node tests/intensive-training-application.test.js
 ```
 
 이 테스트는 Apps Script API를 실제 호출하지 않는 정적·단위 검증입니다. 실제 시트 권한, 트리거, 메일 도착 여부는 Apps Script에서 별도로 확인해야 합니다.
