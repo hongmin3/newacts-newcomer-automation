@@ -5,6 +5,13 @@
 const NOTIFICATION_CONFIG = Object.freeze({
   registrationSpreadsheetId: '1dBO4rhCCadxO-KVBX_Jmg4aDcV9zim_sqM95JKd4Snk',
   registrationSheetName: '새가족교육 수료현황',
+  productionRecipients: [
+    'ksj747172@gmail.com',
+    'kimth6805@gmail.com',
+    'rnrnwkddn@naver.com',
+    'wnehdrms123@naver.com',
+    'whduswn94@naver.com'
+  ],
   fixedStartDate: '2025-11-02',
   weeksLimit: 15,
   executivePhones: [
@@ -63,6 +70,7 @@ function sendNewcomerNotifications_() {
   );
 
   sendEducationEmail_({
+    recipients: NOTIFICATION_CONFIG.productionRecipients,
     subject: '[뉴액츠 새가족부] 금주 새가족 교육 문자공지 명단 (' +
       formatNotificationDate_(today) + ')',
     body: 'HTML 형식의 문자공지 대상자 명단입니다.',
