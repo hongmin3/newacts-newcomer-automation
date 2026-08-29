@@ -303,6 +303,13 @@ function onFormSubmitHandler(e) {
     const teamValid = groupValid && (TEAMS_BY_GROUP[group] || []).indexOf(team) !== -1;
     const phoneValid = PHONE_REGEX.test(phone);
     const requiredValuesValid = Boolean(applicantName && attendeeName);
+    const storedGroup = displayGroupName(group);
+
+    // Form에서는 '명군/총군/전군'처럼 안내하되 시트에는 '명/총/전'만 저장합니다.
+    const groupColumn = headers.indexOf(Q.GROUP) + 1;
+    if (groupColumn > 0 && groupValid) {
+      responseSheet.getRange(e.range.getRow(), groupColumn).setValue(storedGroup);
+    }
 
     // 원문 응답 시트의 전화번호도 010-xxxx-xxxx 형식으로 즉시 정규화합니다.
     const phoneColumn = headers.indexOf(Q.PHONE) + 1;
@@ -333,7 +340,7 @@ function onFormSubmitHandler(e) {
       .getRange(nextRow, 1, 1, 9)
       .setValues([[
         rowNumber,
-        group,
+        storedGroup,
         team,
         attendeeName,
         phone,
@@ -379,7 +386,9 @@ function isDuplicate(adminViewSheet, attendeeName, phone) {
 function appendAndSortPublicSheet(publicSs, group, team, attendeeName, applicantName) {
   const sheet = publicSs.getSheetByName(CONFIG.PUBLIC_SHEET_NAME);
   const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, 1, 5).setValues([[0, group, team, attendeeName, applicantName]]);
+  sheet
+    .getRange(lastRow + 1, 1, 1, 5)
+    .setValues([[0, displayGroupName(group), team, attendeeName, applicantName]]);
   resortPublicSheet(sheet);
   refreshFilter(sheet, 5);
 }
@@ -391,11 +400,13 @@ function resortPublicSheet(sheet) {
   const data = sheet.getRange(2, 1, numRows, 5).getValues();
 
   data.sort(function (a, b) {
-    const ga = GROUPS.indexOf(a[1]);
-    const gb = GROUPS.indexOf(b[1]);
+    const canonicalGroupA = canonicalGroupName(a[1]);
+    const canonicalGroupB = canonicalGroupName(b[1]);
+    const ga = GROUPS.indexOf(canonicalGroupA);
+    const gb = GROUPS.indexOf(canonicalGroupB);
     if (ga !== gb) return ga - gb;
-    const teamsA = TEAMS_BY_GROUP[a[1]] || [];
-    const teamsB = TEAMS_BY_GROUP[b[1]] || [];
+    const teamsA = TEAMS_BY_GROUP[canonicalGroupA] || [];
+    const teamsB = TEAMS_BY_GROUP[canonicalGroupB] || [];
     const ta = teamsA.indexOf(a[2]);
     const tb = teamsB.indexOf(b[2]);
     if (ta !== tb) return ta - tb;
@@ -417,6 +428,17 @@ function normalizePhone(raw) {
     return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
   }
   return String(raw).trim();
+}
+
+function displayGroupName(group) {
+  return String(group || '').trim().replace(/군$/, '');
+}
+
+function canonicalGroupName(group) {
+  const value = String(group || '').trim();
+  if (GROUPS.indexOf(value) !== -1) return value;
+  const candidate = value + '군';
+  return GROUPS.indexOf(candidate) !== -1 ? candidate : value;
 }
 
 function moveFileToFolder(fileId, folder) {

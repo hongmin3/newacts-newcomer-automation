@@ -4,7 +4,8 @@ const path = require('path');
 const sourcePath = path.join(__dirname, '..', 'intensive-training-application', 'Code.gs');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const api = new Function(
-  source + '\nreturn { CONFIG, GROUPS, TEAMS_BY_GROUP, PHONE_REGEX, normalizePhone, pickResponseValue };'
+  source +
+    '\nreturn { CONFIG, GROUPS, TEAMS_BY_GROUP, PHONE_REGEX, normalizePhone, pickResponseValue, displayGroupName, canonicalGroupName };'
 )();
 
 function assert(condition, message) {
@@ -33,6 +34,9 @@ assert(api.normalizePhone('01012345678') === '010-1234-5678', '숫자 전화번�
 assert(api.normalizePhone('010-1234-5678') === '010-1234-5678', '하이픈 전화번호 유지 실패');
 assert(api.PHONE_REGEX.test(api.normalizePhone('01012345678')), '정상 전화번호 검증 실패');
 assert(!api.PHONE_REGEX.test(api.normalizePhone('0101234567')), '10자리 전화번호가 통과했습니다.');
+assert(api.displayGroupName('총군') === '총', '시트 저장용 군 이름 변환 실패');
+assert(api.displayGroupName('명') === '명', '이미 축약된 군 이름 유지 실패');
+assert(api.canonicalGroupName('전') === '전군', '정렬용 군 이름 복원 실패');
 
 assert(
   api.pickResponseValue(['팀', '팀', '팀'], ['', '보배', ''], '팀') === '보배',
