@@ -110,3 +110,15 @@ Windows 작업 스케줄러는 매주 화요일 오전 9시에 `run_monthly.ps1`
 - 원본 `등록 새가족` 탭은 수정하지 않습니다.
 - `정착률` 탭만 자동화가 전체 갱신합니다.
 - 자격 증명과 실행 결과는 `.gitignore`에 포함되어 있습니다.
+
+## AI 에이전트 Context 관리 (Akela)
+
+이 프로젝트는 [Akela](https://github.com/TimothyHan/akela)를 사용해 Codex/Claude Code 같은 AI 에이전트가 작업할 때 전체 문서를 다 읽는 대신 필요한 지식만 골라 압축된 컨텍스트로 제공받습니다. 런타임 의존성이 아니며 실행/배포 동작에는 전혀 영향을 주지 않습니다.
+
+- Knowledge: `knowledge/`
+- Protocol: `akela/PROTOCOL.md`
+- 설정: `akela.json`
+
+작업 종류(activity)별로 관련 지식만 컴파일해서 사용하므로 매 작업마다 전체 문서를 컨텍스트에 넣을 때보다 토큰 사용량이 크게 줄어듭니다. 기본 흐름:
+
+knowledge/ → `akela compile` → 작업별 slice.md → Codex/Claude 작업 → `akela log`로 Evidence 기록 → `akela stats`/curate로 지식 유지보수

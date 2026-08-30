@@ -11,3 +11,5 @@ output/
 
 # 과거 실행 결과 복구용 일회성 로컬 도구
 repair_retry_merge.py
+.akela/
+akela/.cache/
