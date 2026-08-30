@@ -178,9 +178,18 @@ node tests/intensive-training-application.test.js
 이 테스트는 Apps Script API를 실제 호출하지 않는 정적·단위 검증입니다. 실제 시트 권한, 트리거, 메일 도착 여부는 Apps Script에서 별도로 확인해야 합니다.
 
 ## 변경 시 체크리스트
-
 1. 개인정보가 포함된 실제 명단이나 실행 결과를 저장소에 커밋하지 않습니다.
 2. 시트 ID, 시트 이름, 열 위치를 바꾸면 이를 참조하는 모든 프로젝트를 함께 확인합니다.
 3. 운영 메일 수신자 변경 시 TEST 모드 안전장치와 수신자 테스트도 갱신합니다.
 4. 미리보기 → TEST 모드 → 운영 모드 순서로 검증합니다.
 5. GitHub 반영 후 Apps Script 프로젝트에도 같은 코드를 배포합니다.
+
+## AI Agent Context
+
+이 저장소는 작업별 AI 컨텍스트 관리를 위해 Akela를 사용합니다. Akela는 Apps Script Runtime Dependency가 아닙니다.
+
+- Knowledge: `knowledge/`
+- Agent Protocol: `akela/PROTOCOL.md`
+- Configuration: `akela.json`
+
+Codex와 Claude Code는 대상 Apps Script 활동의 Knowledge만 compile한 뒤 작업하고 Evidence와 outcome을 기록합니다. `akela stats`의 후보는 `akela/CURATE.md` 절차로 검토하며, 정식 Knowledge 변경은 사람이 승인합니다.
