@@ -43,3 +43,15 @@ Google Sheets에 연결된 두 Apps Script 프로젝트의 원본을 보존하�
 - 실행 테스트: 2026-08-12 사용자 승인 후 TEST 모드로 완료
 - 테스트 메일: `[TEST]` 제목의 네 종류가 `ksj747172@gmail.com`에 도착함
 - 개선본 커밋: 최종 승인에 따라 생성·푸시 예정
+
+## AI 에이전트 Context 관리 (Akela)
+
+이 프로젝트는 [Akela](https://github.com/TimothyHan/akela)를 사용해 Codex/Claude Code 같은 AI 에이전트가 작업할 때 전체 문서를 다 읽는 대신 필요한 지식만 골라 압축된 컨텍스트로 제공받습니다. 런타임 의존성이 아니며 실행/배포 동작에는 전혀 영향을 주지 않습니다.
+
+- Knowledge: `knowledge/`
+- Protocol: `akela/PROTOCOL.md`
+- 설정: `akela.json`
+
+작업 종류(activity)별로 관련 지식만 컴파일해서 사용하므로 매 작업마다 전체 문서를 컨텍스트에 넣을 때보다 토큰 사용량이 크게 줄어듭니다. 기본 흐름:
+
+knowledge/ → `akela compile` → 작업별 slice.md → Codex/Claude 작업 → `akela log`로 Evidence 기록 → `akela stats`/curate로 지식 유지보수

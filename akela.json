@@ -1,0 +1,19 @@
+{
+  "domain": "default",
+  "activities": [
+    "policy-change",
+    "trigger-debug",
+    "gas-role-lookup",
+    "production-cutover"
+  ],
+  "knowledge": [
+    {
+      "path": "knowledge",
+      "namespace": "REF",
+      "untagged": "derive"
+    }
+  ],
+  "learnings": "akela/LEARNINGS.md",
+  "runs": ".akela/runs",
+  "compiler": {}
+}
