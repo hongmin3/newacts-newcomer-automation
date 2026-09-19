@@ -2,16 +2,22 @@
 
 뉴액츠 새가족 등록, 교육 출석, 집중교육 신청, 수료 현황, 문자공지 명단을 관리하는 Google Apps Script 소스 저장소입니다. 네 개의 Apps Script 프로젝트가 서로 다른 Google Workspace 파일을 연결해 사용합니다.
 
-> GitHub의 `.gs` 파일을 수정해도 운영 중인 Apps Script에 자동 배포되지는 않습니다. 변경한 파일을 해당 Apps Script 프로젝트에 반영해야 실제 트리거 실행에 적용됩니다. 이 저장소에는 현재 `clasp` 설정이 없습니다.
+저장소와 운영 Apps Script는 `scripts/apps-script.mjs`로 직접 비교·반영합니다. `npm run diff`가 "모든 프로젝트가 운영과 동일합니다"를 출력하면 저장소 코드가 곧 운영 코드입니다.
+
+```bash
+npm test          # 로컬 정적·단위 검증 5종
+npm run diff      # 운영 ↔ 저장소 차이 확인
+npm run push      # 저장소 코드를 운영에 반영
+```
 
 ## 한눈에 보는 자동화
 
 | 자동화 | 실행 함수 | 일정/방식 | 주요 기능 | 코드 위치 |
 |---|---|---|---|---|
-| 교육 출석 입력 웹앱 | `doGet`, `searchUser`, `submitAttendance` | 웹앱에서 수시 실행 | 이름·전화번호 확인 후 교육 주차 출석 응답 저장 | `attendance-webapp/` |
-| 등록 명단 유지관리 | `runAllAutomationTrigger` → `runRegistrationMaintenanceTrigger` | 매주 월요일 08:00~09:00 | 군별 현황판 갱신, 방문 새가족 명단 동기화, 결과 메일 | `registration-project/등록새가족-군현황 자동 배치.gs` |
+| 교육 출석 입력 웹앱 | `doGet`, `searchUser`, `submitAttendance` | 웹앱에서 수시 실행 | 이름·전화번호 확인 후 교육 주차 출석 응답을 시트 **2행에 최신순으로** 저장 | `attendance-webapp/` |
+| 등록 명단 유지관리 | `runAllAutomationTrigger` → `runRegistrationMaintenanceTrigger` | 매주 월요일 08:00~09:00 | 교육 출석 기준 등록정보 자동 보정, 군 현황판 갱신, 결과 메일 | `registration-project/등록새가족-군현황 자동 배치.gs` |
 | 교육 수료현황·주간 메일 | `runSystem` → `runRegistrationReportingTrigger` | 매주 금요일 11:00~12:00 | 등록 명단과 교육 출석 결합, 수료현황 재작성, 전체·군별 주간 메일 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` |
-| 교육 출석 반영 | `main` → `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00, 금요일 09:00~10:00 | 새 설문 응답을 교육 출석 현황에 증분 반영하고 결과 메일 | `education-project/교육 출석 현황 업데이트.gs` |
+| 교육 출석 반영 | `main` → `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00, 금요일 09:00~10:00 | 새 설문 응답을 **타임스탬프 커서** 기준으로 증분 반영하고 상세 결과 메일 | `education-project/교육 출석 현황 업데이트.gs` |
 | 교육 문자공지 명단 | `sendNewcomerNotifications` → `sendNewcomerNotificationsTrigger` | 매주 토요일 08:00~09:00 | 교육 진행 중·미진행 명단과 문자 발송용 번호를 메일로 전송 | `education-project/문자 명단 리스트.gs` |
 | 집중교육 신청 접수 | `onFormSubmitHandler` | Form 제출 즉시 | 군→팀 분기 신청, 전화번호 정규화, 관리자·공개 명단 동기화 | `intensive-training-application/` |
 | 집중교육 출석 반영 | `syncIntensiveTraining` | 필요할 때 수동 실행 | `26년 집중교육` 참석자를 일반 교육 출석 현황에 반영 | `education-project/집중교육 출석 현황 업데이트.gs` |
@@ -19,29 +25,36 @@
 
 트리거 시간은 Apps Script가 지정 시간대 안에서 선택해 실행하므로 정확히 정각에 시작되지 않을 수 있습니다. 확인 당시 트리거 상세는 [`docs/current-triggers.md`](docs/current-triggers.md)에 있습니다.
 
+### 현재 중지된 기능
+
+- **상반기 방문 새가족 동기화**: `syncRegisteredToVisited_`가 의도적으로 비활성입니다. 하반기 시트를 준비한 뒤 다시 켜야 합니다. 시트 메뉴의 "방문자 명단만 동기화"를 눌러도 안내만 표시됩니다.
+
 ## 프로젝트와 데이터 흐름
 
 ```text
 출석 웹앱
-  └─ 2026년 새가족교육 출석 (응답) / 설문지 응답 시트1
-       │  화·금: 교육 출석 증분 반영
+  └─ 2026년 새가족교육 출석 (응답) / 설문지 응답 시트1   ← 최신 응답이 2행
+       │  화·금: 교육 출석 증분 반영 (타임스탬프 커서)
        ▼
 뉴액츠 새가족부 교육관리
-  ├─ 교육 출석 현황
-  └─ 26년 집중교육
+  ├─ 교육 출석 현황   ← 최근 활동순 정렬
+  ├─ 26년 집중교육
+  └─ 자동화 로그 (숨김)
        │  금: 등록 명단과 결합
        ▼
 2026년 뉴액츠 청년부 등록 새가족 현황
-  ├─ 등록 새가족
+  ├─ 등록 새가족       ← 월: 교육 출석 기준 자동 보정
   ├─ 등록 새가족 군 현황
-  ├─ 상반기 방문 새가족
+  ├─ 상반기 방문 새가족 (동기화 중지)
   ├─ 새가족교육 수료현황
-  └─ 상반기 결산
+  ├─ 상반기 결산
+  ├─ 자동화 로그 (숨김)
+  └─ 수료 자동화 로그 (숨김)
 
 토요일 문자공지 명단
   ├─ 교육 출석 현황에서 교육 진행 중 대상 조회
   └─ 새가족교육 수료현황에서 교육 미진행 대상 조회
-       └─ 관리자 5명에게 메일 발송
+       └─ 운영 수신자 5명에게 메일 발송
 ```
 
 연결 구조와 데이터 기준에 관한 추가 설명은 [`docs/current-architecture.md`](docs/current-architecture.md), 안전장치와 처리 규칙은 [`docs/enhanced-architecture.md`](docs/enhanced-architecture.md)를 참고하세요.
@@ -54,24 +67,31 @@
 
 - `Code.gs`: 웹앱 화면 제공, 사용자 검색, 입력값 검증, 출석 응답 저장
 - `Index.html`: 이름·전화번호 검색과 주차 선택 화면
+- `appsscript.json`: 시간대, 웹앱 접근 권한(`ANYONE_ANONYMOUS`, `USER_DEPLOYING`)
 - 연결 대상: `2026년 새가족교육 출석 (응답)`
 - 스크립트 ID: `1JPi6GfNS1UR_iWic0h9yZRr-NhEYnxAV_l-YM7_huZwVceBhnDX7m5s6`
 
-웹앱은 이름과 전화번호를 함께 확인하고, 1~4주차만 허용합니다. 배포본을 바꿀 때에는 Apps Script에서 새 웹앱 버전을 배포해야 합니다.
+웹앱은 이름과 전화번호를 함께 확인하고, 1~4주차만 허용하며, 직전 주차 다음 주차만 접수합니다. 신규 응답은 `insertAttendanceNewestFirst_`가 **헤더 바로 아래 2행에 삽입**합니다. 기존 응답을 한 번에 최신순으로 정렬하려면 `sortAttendanceSourceNewestFirst`를 1회 실행합니다.
+
+웹앱은 버전 고정 배포이므로 코드만 반영해서는 사용자 화면이 바뀌지 않습니다. `npm run deploy` 대신 아래 명령으로 새 버전을 만들고 기존 URL에 연결합니다.
+
+```bash
+node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요약"
+```
 
 ### `education-project/`
 
-- `교육 출석 현황 업데이트.gs`: 공통 설정, 새 응답 증분 처리, 메일 안전장치, 로그 및 공통 유틸리티
+- `교육 출석 현황 업데이트.gs`: 공통 설정, 새 응답 증분 처리, 메일 안전장치, 숨김 로그, 공통 유틸리티
 - `문자 명단 리스트.gs`: 토요일 문자공지 대상 조회와 HTML 메일 작성
 - `집중교육 출석 현황 업데이트.gs`: 집중교육 결과 병합
 - 연결 대상: `뉴액츠 새가족부 교육관리`
 - 스크립트 ID: `1FkpwxV8uFORcOMqTO19rrMB2ifEfFAmK7aXu1pI8p5eT0_HMX-o4brJc`
 
-`문자 명단 리스트.gs`는 같은 프로젝트의 `sendEducationEmail_`, 잠금, 전화번호·날짜 유틸리티를 사용하므로 세 파일을 한 Apps Script 프로젝트에 함께 두어야 합니다.
+`문자 명단 리스트.gs`는 같은 프로젝트의 `sendEducationEmail_`, 잠금, 전화번호·날짜 유틸리티를 사용하므로 세 파일을 한 Apps Script 프로젝트에 함께 두어야 합니다. 운영 수신자는 `EDUCATION_AUTOMATION.productionRecipients` 한 곳에서만 관리합니다.
 
 ### `registration-project/`
 
-- `등록새가족-군현황 자동 배치.gs`: 등록 자동화 설정과 공통 함수, 군 현황판 및 방문자 명단 관리
+- `등록새가족-군현황 자동 배치.gs`: 등록 자동화 설정, 교육 출석 기준 자동 보정, 군 현황판, 숨김 로그, 공통 함수
 - `등록 새가족 새가족교육 수료현황 자동화.gs`: 수료현황 동기화 및 전체·군별 메일
 - `제목 없음.gs`: 상반기 결산 집계. Apps Script 파일명도 현재 동일하게 유지해야 관리가 쉽습니다.
 - 연결 대상: `2026년 뉴액츠 청년부 등록 새가족 현황`
@@ -87,22 +107,38 @@
 
 이 프로젝트는 기존 교육관리 Spreadsheet와 코드를 공유하지 않는 독립 Apps Script 프로젝트입니다. `setupSystem()`은 비공개 시스템 폴더에 Form 1개와 Spreadsheet 2개를 만들고 공개 확인 시트만 링크 뷰어로 공유합니다.
 
-### `docs/`와 `tests/`
+### `scripts/`, `docs/`, `tests/`
 
+- `scripts/apps-script.mjs`: 운영 ↔ 저장소 `diff` / `pull` / `push` / `deploy`
+- `scripts/apps-script-projects.json`: 네 프로젝트의 script ID 매니페스트
+- `scripts/run-tests.mjs`: `tests/*.test.js` 일괄 실행
 - `docs/current-triggers.md`: 운영 트리거와 수동 함수
 - `docs/current-architecture.md`: 시트 간 데이터 흐름
 - `docs/enhanced-architecture.md`: 안전 모드, 증분 처리, 검토 규칙
 - `docs/attendance-webapp-hardening.md`: 웹앱 보강 내용
 - `docs/test-results-2026-08-12.md`: 운영 전 검증 기록
 - `docs/settlement-monthly-email-analysis.md`: 정착률/월간 메일 분석 자료
-- `tests/attendance-webapp.test.js`: 웹앱 입력 검증 정적 테스트
-- `tests/education-notification.test.js`: 토요일 문자공지 운영 수신자 검증
 
-## 토요일 문자공지 메일
+## 운영 메일
 
-메일 제목은 `[뉴액츠 새가족부] 금주 새가족 교육 문자공지 명단 (날짜)`입니다.
+### 월요일 08:00 — 등록 유지관리 (`runAllAutomationTrigger`)
 
-운영 수신자는 `education-project/문자 명단 리스트.gs`의 `NOTIFICATION_CONFIG.productionRecipients`에서 관리합니다.
+수신자는 `REGISTRATION_AUTOMATION.testRecipient` **1명**입니다. 관리자 전체 발송이 필요해지면 `runRegistrationMaintenance_`의 `recipients`를 `productionAdminRecipients`로 바꿉니다.
+
+- 제목: `[새가족 자동화] 정기 실행 | 자동 수정 N건 · 검토 M건`
+- 내용: 등록정보 자동 보정 요약(등록자·매칭·미매칭·자동수정·수동수정 보호·검토) → 자동수정 상세(행/이름/항목/기존값→교육 최신값/판단 근거) → 군 현황판 결과 → 검토 필요 상세 → 시트 링크
+
+### 화·금 — 교육 출석 반영 (`main`)
+
+운영 수신자 5명. 제목에 신규·출석·중복·검토 건수가 들어가고, 본문에는 신규 추가 / 출석 반영 / 중복 / 군·팀 최신화 / 검토 필요를 각각 표로 정리합니다.
+
+### 금요일 11:00 — 수료현황·주간 통계 (`runSystem`)
+
+관리자 5명에게 전체 통계, 군 리더 9명에게 각 군 통계가 갑니다.
+
+### 토요일 08:00 — 문자공지 명단 (`sendNewcomerNotifications`)
+
+제목은 `[뉴액츠 새가족부] 금주 새가족 교육 문자공지 명단 (날짜)`이고 운영 수신자 5명에게 발송합니다.
 
 ```text
 ksj747172@gmail.com
@@ -111,8 +147,6 @@ rnrnwkddn@naver.com
 wnehdrms123@naver.com
 whduswn94@naver.com
 ```
-
-운영 모드에서는 위 5명에게 모두 발송합니다. `EDUCATION_AUTOMATION.mode`가 `TEST`이면 전달된 운영 명단을 무시하고 `testRecipient` 한 명에게만 보내므로, 테스트가 실수로 전체 수신자에게 발송되지 않습니다.
 
 대상자 선정 기준:
 
@@ -125,30 +159,49 @@ whduswn94@naver.com
 
 교육과 등록 프로젝트의 공통 설정은 각각 `EDUCATION_AUTOMATION`, `REGISTRATION_AUTOMATION`에 있습니다.
 
-- `active: true`: 정기 트리거가 실제 작업을 수행
-- `active: false`: 트리거가 진입해도 작업하지 않고 종료
-- `mode: 'PRODUCTION'`: 운영 수신자에게 메일 발송
-- `mode: 'TEST'`: 테스트 수신자 한 명에게만 메일 발송
+- `active: true`: 정기 트리거가 실제 작업을 수행 / `active: false`: 진입해도 작업하지 않고 종료
+- `mode: 'PRODUCTION'`: 운영 수신자에게 메일 발송 / `mode: 'TEST'`: 테스트 수신자 한 명에게만 발송
+- `forceTestRecipient`: **현재 모드와 무관하게** 테스트 수신자 한 명으로 고정하고 제목에 `[TEST]`를 붙입니다. 아래 테스트 함수들이 이 옵션을 켭니다.
 - `LockService`: 동시에 실행된 작업이 같은 시트를 중복 수정하지 않도록 차단
-- `자동화 로그` 시트: 실제 반영 결과와 검토 필요 건 기록
-- 교육 응답 커서: `EDUCATION_LAST_RESPONSE_ROW` 이후의 새 응답만 처리
+- 교육 응답 커서: `EDUCATION_LAST_RESPONSE_AT`(타임스탬프) 이후의 새 응답만 처리. 과거 행 번호 커서 `EDUCATION_LAST_RESPONSE_ROW`는 자동으로 이전됩니다.
+- 등록정보 자동 보정: 자동 수정한 값을 스크립트 속성에 기록해 두고, 사람이 그 값을 다시 고치면 이후 자동 수정 대상에서 **보호**합니다.
 
-`runEducationTest`, `runNewcomerNotificationTest`, `runRegistrationMaintenanceTest`, `runRegistrationReportingTest`는 이름과 달리 현재 모드를 자동으로 `TEST`로 전환하지 않습니다. 전체 수신자 발송을 피하려면 먼저 설정의 `mode`를 `TEST`로 변경한 뒤 실행하고, 검증 후 `PRODUCTION`으로 되돌려야 합니다.
+### 테스트 함수 (운영 발송 없음)
 
-## 설치·배포 방법
+| 함수 | 동작 |
+|---|---|
+| `runEducationTest` | 직전 일요일 응답을 미리보기로 처리하고 테스트 수신자 1명에게만 발송 |
+| `runNewcomerNotificationTest` | 문자공지 메일을 테스트 수신자 1명에게만 발송 |
+| `runRegistrationMaintenanceTest` | 시트 변경 없이 등록 유지관리 결과를 테스트 수신자 1명에게만 발송 |
+| `runRegistrationReportingTest` | 시트 변경 없이 수료 리포트를 테스트 수신자 1명에게 1통만 발송 |
 
-1. 이 저장소에서 변경할 파일과 연결 대상 프로젝트를 확인합니다.
-2. [Google Apps Script](https://script.google.com/)에서 위 스크립트 ID에 해당하는 프로젝트를 엽니다.
-3. 로컬 디렉터리 안의 `.gs`/`.html` 파일 내용을 같은 프로젝트의 대응 파일에 반영합니다.
-4. Apps Script 프로젝트 설정에서 시간대를 `Asia/Seoul`로 확인합니다.
-5. 처음 설치하는 교육 프로젝트라면 `initializeEducationCursor`를 한 번 실행해 기존 응답의 마지막 행을 기준점으로 저장합니다.
-6. 필요한 Google Sheets 및 메일 권한을 승인합니다.
-7. 먼저 미리보기 함수로 결과를 확인하고, 필요하면 `mode: 'TEST'`에서 테스트합니다.
-8. 운영 전환 시 `active: true`, `mode: 'PRODUCTION'`을 확인합니다.
-9. 왼쪽 **트리거** 메뉴에서 아래 정기 트리거를 설치하거나 기존 트리거의 함수명을 확인합니다.
-10. 웹앱 코드를 변경했다면 **배포 → 배포 관리 → 새 버전**으로 웹앱을 다시 배포합니다.
+세 함수 모두 `mode`를 `TEST`로 바꾸지 않아도 안전합니다. 예전에는 이름과 달리 운영 수신자 전체에게 실제 메일이 나갔습니다.
 
-GitHub와 Apps Script를 자동 동기화하려면 별도로 `clasp` 설정 및 인증을 추가해야 합니다. 현재는 수동 반영 방식입니다.
+### 자동화 로그 (숨김 시트)
+
+실행 결과는 아래 시트에 최신순으로 쌓이며 **항상 숨김 상태**로 유지됩니다. 운영 화면에는 보이지 않고, 확인이 필요하면 스프레드시트 메뉴의 `보기 → 숨겨진 시트`에서 엽니다.
+
+| 스프레드시트 | 시트 | 기록 내용 |
+|---|---|---|
+| 뉴액츠 새가족부 교육관리 | `자동화 로그` | 실행시각·함수·모드·확인·추가·갱신·중복·정보변경·검토필요 |
+| 2026년 뉴액츠 청년부 등록 새가족 현황 | `자동화 로그` | 실행시각·함수·모드·자동보정·수동보호·보정검토·현황인원·현황출력행·현황검토 |
+| 2026년 뉴액츠 청년부 등록 새가족 현황 | `수료 자동화 로그` | 실행시각·모드·등록·매칭·미매칭·중복·불일치·출력행 |
+
+## 배포 방법
+
+```bash
+npm run diff                  # 운영과 무엇이 다른지 먼저 확인
+npm test                      # 로컬 검증
+npm run push                  # 네 프로젝트 전체 반영
+node scripts/apps-script.mjs push education      # 한 프로젝트만 반영
+node scripts/apps-script.mjs pull                # 운영 코드를 저장소로 되돌림
+```
+
+- 인증은 clasp가 저장한 `~/.clasprc.json`의 refresh token을 재사용합니다. 토큰이 없으면 `clasp login`을 한 번 실행하세요.
+- `push`는 해당 프로젝트의 **파일 전체를 교체**합니다. 실행 전 `npm run diff`로 확인하고, 반영 후에는 도구가 다시 읽어 일치를 자동 검증합니다.
+- 트리거는 코드 반영으로 바뀌지 않습니다. 함수명을 바꾸면 Apps Script 트리거 화면에서 직접 수정해야 합니다.
+- 처음 설치하는 교육 프로젝트라면 `initializeEducationCursor`를 한 번 실행해 기준 시각을 저장합니다.
+- 웹앱은 코드 반영 후 `deploy` 명령으로 새 버전을 만들어야 사용자 화면에 적용됩니다.
 
 ## 수동 실행 순서
 
@@ -156,33 +209,40 @@ GitHub와 Apps Script를 자동 동기화하려면 별도로 `clasp` 설정 및 
 
 | 목적 | 미리보기/안전 확인 | 실제 실행 |
 |---|---|---|
-| 새 교육 응답 반영 | `previewPendingAttendance` | `processPendingAttendanceTrigger` |
+| 새 교육 응답 반영 | `previewPendingAttendance`, `previewEducationDetailedReport` | `processPendingAttendanceTrigger` |
 | 집중교육 병합 | `previewIntensiveTraining` | `syncIntensiveTraining` |
-| 등록 군 현황·방문자 갱신 | `previewRegistrationMaintenance` | `runRegistrationMaintenanceTrigger` |
+| 등록 보정·군 현황 갱신 | `previewRegistrationMaintenance` | `runRegistrationMaintenanceTrigger` |
 | 수료현황·주간 메일 | `previewRegistrationReporting` | `runRegistrationReportingTrigger` |
 | 상반기 결산 | `previewSettlementReport` | `generateSettlementReport` |
-| 토요일 문자공지 메일 | TEST 모드에서 `runNewcomerNotificationTest` | `sendNewcomerNotificationsTrigger` |
+| 토요일 문자공지 메일 | `runNewcomerNotificationTest` | `sendNewcomerNotificationsTrigger` |
 
-Apps Script 실행 로그와 각 문서의 `자동화 로그` 시트를 함께 확인하세요. 검토 필요 항목은 전화번호 중복, 누락, 잘못된 교육 주차, 군·팀 불일치 등을 뜻하며 자동으로 임의 수정하지 않습니다.
+Apps Script 실행 로그와 숨김 `자동화 로그` 시트를 함께 확인하세요. 검토 필요 항목은 전화번호 중복, 누락, 잘못된 교육 주차, 군·팀 불일치 등을 뜻하며 자동으로 임의 수정하지 않습니다.
 
 ## 로컬 테스트
 
 Node.js 18 이상에서 실행합니다. 별도 패키지 설치는 필요 없습니다.
 
 ```bash
-node tests/attendance-webapp.test.js
-node tests/education-notification.test.js
-node tests/intensive-training-application.test.js
+npm test
 ```
+
+| 파일 | 검증 내용 |
+|---|---|
+| `tests/attendance-webapp.test.js` | 입력 검증, 전화번호·주차 정규화, 2행 삽입 호출 순서 |
+| `tests/education-automation.test.js` | 메일 수신자 안전장치, 수신자 안내 문구, 숨김 로그 시트 |
+| `tests/education-notification.test.js` | 토요일 문자공지 운영 수신자 5명, 수신자 목록 단일 관리 |
+| `tests/registration-automation.test.js` | 메일 안전장치, `M/d` 연도 추정, 숨김 로그, Properties 배치 호출 |
+| `tests/intensive-training-application.test.js` | 군·팀 구성, 전화번호 정규화, 트리거·공유 설정, 공개 헤더 |
 
 이 테스트는 Apps Script API를 실제 호출하지 않는 정적·단위 검증입니다. 실제 시트 권한, 트리거, 메일 도착 여부는 Apps Script에서 별도로 확인해야 합니다.
 
 ## 변경 시 체크리스트
+
 1. 개인정보가 포함된 실제 명단이나 실행 결과를 저장소에 커밋하지 않습니다.
 2. 시트 ID, 시트 이름, 열 위치를 바꾸면 이를 참조하는 모든 프로젝트를 함께 확인합니다.
 3. 운영 메일 수신자 변경 시 TEST 모드 안전장치와 수신자 테스트도 갱신합니다.
-4. 미리보기 → TEST 모드 → 운영 모드 순서로 검증합니다.
-5. GitHub 반영 후 Apps Script 프로젝트에도 같은 코드를 배포합니다.
+4. 미리보기 → 테스트 함수 → 운영 실행 순서로 검증합니다.
+5. `npm test` → `npm run diff` → `npm run push` 순서로 반영하고, 웹앱은 새 버전까지 배포합니다.
 
 ## AI Agent Context
 

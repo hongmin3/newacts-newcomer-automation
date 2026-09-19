@@ -220,9 +220,11 @@ async function main() {
   const description = descriptionIndex >= 0
     ? args[descriptionIndex + 1]
     : `repo deploy ${new Date().toISOString().slice(0, 10)}`;
+  // --description의 값 위치만 제외합니다. 옵션이 없을 때 0번을 지우면 안 됩니다.
+  const descriptionValueIndex = descriptionIndex >= 0 ? descriptionIndex + 1 : -1;
   const names = args.filter(
     (value, index) =>
-      !value.startsWith('--') && index !== descriptionIndex + 1
+      !value.startsWith('--') && index !== descriptionValueIndex
   );
 
   const { projects } = JSON.parse(await fs.readFile(MANIFEST, 'utf8'));
