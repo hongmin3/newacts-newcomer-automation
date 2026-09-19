@@ -62,7 +62,9 @@ function previewPendingAttendance() {
  */
 function runEducationTest() {
   return withEducationLock_(function () {
-    return processAttendanceForLastSunday_({ dryRun: true, sendEmail: true });
+    return processAttendanceForLastSunday_({
+      dryRun: true, sendEmail: true, forceTestRecipient: true
+    });
   });
 }
 
@@ -77,7 +79,7 @@ function previewEducationDetailedReport() {
       dryRun: true, sendEmail: false
     });
     const message = createEducationReportMessage_(
-      result, '상세 메일 미리보기'
+      result, '상세 메일 미리보기', { forceTestRecipient: true }
     );
     console.log(JSON.stringify({
       subject: message.subject,
@@ -172,9 +174,10 @@ function processPendingAttendance_(options) {
       String(latestTimestamp)
     );
     properties.deleteProperty(EDUCATION_AUTOMATION.legacyCursorProperty);
+    writeEducationLog_('processPendingAttendanceTrigger', result);
   }
   if (options.sendEmail && shouldSendEducationReport_(result)) {
-    sendEducationReport_(result, '새 응답 증분 처리');
+    sendEducationReport_(result, '새 응답 증분 처리', options);
   }
   return result;
 }
@@ -195,7 +198,10 @@ function processAttendanceForLastSunday_(options) {
 
   const result = processAttendanceRows_(rows, options);
   result.targetSunday = target;
-  if (options.sendEmail) sendEducationReport_(result, '승인된 테스트 실행');
+  if (!options.dryRun) writeEducationLog_('runEducationTest', result);
+  if (options.sendEmail) {
+    sendEducationReport_(result, '승인된 테스트 실행', options);
+  }
   return result;
 }
 
@@ -392,11 +398,12 @@ function shouldSendEducationReport_(result) {
     result.review.length > 0;
 }
 
-function sendEducationReport_(result, label) {
-  sendEducationEmail_(createEducationReportMessage_(result, label));
+function sendEducationReport_(result, label, options) {
+  sendEducationEmail_(createEducationReportMessage_(result, label, options));
 }
 
-function createEducationReportMessage_(result, label) {
+function createEducationReportMessage_(result, label, options) {
+  const forceTestRecipient = Boolean(options && options.forceTestRecipient);
   const subject = '[새가족교육 자동화] ' + label + ' | 신규 ' +
     result.added + '명 · 출석 ' + result.updated + '건 · 중복 ' +
     result.duplicates.length + '건 · 검토 ' + result.review.length + '건';
@@ -452,11 +459,29 @@ function createEducationReportMessage_(result, label) {
     '<a href="https://docs.google.com/spreadsheets/d/' +
     EDUCATION_AUTOMATION.sourceSpreadsheetId +
     '/edit#gid=679249123">원본 출석 응답 열기</a></p>';
-  html += '<p style="color:#6b7280;font-size:12px">이 메일은 ' +
-    escapeEducationHtml_(EDUCATION_AUTOMATION.testRecipient) +
-    ' 한 명에게만 발송됩니다.</p></div>';
+  html += '<p style="color:#6b7280;font-size:12px">' +
+    escapeEducationHtml_(describeEducationRecipients_(forceTestRecipient)) +
+    '</p></div>';
 
-  return { subject: subject, body: body, htmlBody: html };
+  return {
+    subject: subject,
+    body: body,
+    htmlBody: html,
+    forceTestRecipient: forceTestRecipient
+  };
+}
+
+/**
+ * 메일 하단에 실제 수신 대상을 그대로 적습니다.
+ * 운영 모드에서 '한 명에게만 발송'이라고 잘못 안내하던 문구를 대체합니다.
+ */
+function describeEducationRecipients_(forceTestRecipient) {
+  if (forceTestRecipient || EDUCATION_AUTOMATION.mode !== 'PRODUCTION') {
+    return '이 메일은 테스트 발송이라 ' +
+      EDUCATION_AUTOMATION.testRecipient + ' 한 명에게만 전달됩니다.';
+  }
+  return '이 메일은 운영 수신자 ' +
+    EDUCATION_AUTOMATION.productionRecipients.length + '명에게 발송됩니다.';
 }
 
 function buildEducationTextBody_(body, result) {
@@ -604,15 +629,18 @@ function createEducationTableCell_(value) {
 }
 
 function sendEducationEmail_(message) {
-  const recipients = EDUCATION_AUTOMATION.mode === 'PRODUCTION'
-    ? (message.recipients || EDUCATION_AUTOMATION.productionRecipients)
-    : [EDUCATION_AUTOMATION.testRecipient];
+  // run*Test 계열은 현재 모드와 무관하게 테스트 수신자 한 명으로 고정합니다.
+  const testOnly = Boolean(message.forceTestRecipient) ||
+    EDUCATION_AUTOMATION.mode !== 'PRODUCTION';
+  const recipients = testOnly
+    ? [EDUCATION_AUTOMATION.testRecipient]
+    : (message.recipients || EDUCATION_AUTOMATION.productionRecipients);
 
   const uniqueRecipients = Array.from(new Set(recipients.map(String).map(function (v) {
     return v.trim();
   }).filter(Boolean)));
 
-  if (EDUCATION_AUTOMATION.mode !== 'PRODUCTION') {
+  if (testOnly) {
     if (uniqueRecipients.length !== 1 ||
         uniqueRecipients[0] !== EDUCATION_AUTOMATION.testRecipient) {
       throw new Error('테스트 메일 수신자 안전장치 위반');
@@ -621,14 +649,61 @@ function sendEducationEmail_(message) {
 
   MailApp.sendEmail({
     to: uniqueRecipients.join(','),
-    subject: (EDUCATION_AUTOMATION.mode === 'PRODUCTION' ? '' : '[TEST] ') + message.subject,
+    subject: (testOnly ? '[TEST] ' : '') + message.subject,
     body: message.body || 'HTML 메일입니다.',
     htmlBody: message.htmlBody || undefined
   });
 }
 
+/**
+ * 실행 결과를 숨김 로그 시트에 최신순으로 남깁니다.
+ * 운영 화면에는 보이지 않도록 항상 숨김 상태를 유지합니다.
+ */
 function writeEducationLog_(functionName, result) {
-  return { disabled: true };
+  const ss = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = getHiddenEducationLogSheet_(ss, [
+    '실행시각', '함수', '모드', '확인', '추가', '갱신',
+    '중복', '정보변경', '검토필요'
+  ]);
+
+  if (sheet.getLastRow() > 1) sheet.insertRowAfter(1);
+  sheet.getRange(2, 1, 1, 9).setValues([[
+    new Date(), functionName, EDUCATION_AUTOMATION.mode,
+    result.scanned, result.added, result.updated,
+    result.duplicates.length, result.infoChanges.length, result.review.length
+  ]]);
+  sheet.getRange(2, 1).setNumberFormat('yyyy. MM. dd HH:mm:ss');
+  return { logged: true };
+}
+
+function getHiddenEducationLogSheet_(spreadsheet, headers) {
+  return getHiddenLogSheet_(
+    spreadsheet, EDUCATION_AUTOMATION.logSheetName, headers
+  );
+}
+
+/**
+ * 로그 시트를 만들고 항상 숨김 상태로 유지합니다.
+ * 활성 시트는 숨길 수 없으므로 다른 시트를 먼저 활성화합니다.
+ */
+function getHiddenLogSheet_(spreadsheet, name, headers) {
+  let sheet = spreadsheet.getSheetByName(name);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  }
+  if (!sheet.isSheetHidden()) {
+    const visibleOthers = spreadsheet.getSheets().filter(function (other) {
+      return other.getSheetId() !== sheet.getSheetId() && !other.isSheetHidden();
+    });
+    if (visibleOthers.length) {
+      spreadsheet.setActiveSheet(visibleOthers[0]);
+      sheet.hideSheet();
+    }
+  }
+  return sheet;
 }
 
 function withEducationLock_(callback) {

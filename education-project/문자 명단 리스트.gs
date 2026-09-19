@@ -21,7 +21,7 @@ function sendNewcomerNotificationsTrigger() {
     return;
   }
   return withEducationLock_(function () {
-    return sendNewcomerNotifications_();
+    return sendNewcomerNotifications_({});
   });
 }
 /**
@@ -36,11 +36,12 @@ function sendNewcomerNotifications() {
  */
 function runNewcomerNotificationTest() {
   return withEducationLock_(function () {
-    return sendNewcomerNotifications_();
+    return sendNewcomerNotifications_({ forceTestRecipient: true });
   });
 }
 
-function sendNewcomerNotifications_() {
+function sendNewcomerNotifications_(options) {
+  const forceTestRecipient = Boolean(options && options.forceTestRecipient);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -66,7 +67,8 @@ function sendNewcomerNotifications_() {
     subject: '[뉴액츠 새가족부] 금주 새가족 교육 문자공지 명단 (' +
       formatNotificationDate_(today) + ')',
     body: 'HTML 형식의 문자공지 대상자 명단입니다.',
-    htmlBody: html
+    htmlBody: html,
+    forceTestRecipient: forceTestRecipient
   });
 
   const result = {

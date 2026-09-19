@@ -40,9 +40,10 @@ function previewRegistrationReporting() {
 function runRegistrationReportingTest() {
   return withRegistrationLock_(function () {
     return runRegistrationReporting_({
-      dryRun: false,
+      dryRun: true,
       sendEmail: true,
-      label: '승인된 테스트'
+      forceTestRecipient: true,
+      label: '승인된 테스트(미리보기)'
     });
   });
 }
@@ -51,6 +52,7 @@ function runRegistrationReporting_(options) {
   const syncResult = syncCompletionData_({ dryRun: options.dryRun });
   const reportResult = buildAndSendWeeklyReports_({
     sendEmail: options.sendEmail,
+    forceTestRecipient: Boolean(options.forceTestRecipient),
     syncResult: syncResult,
     label: options.label
   });
@@ -61,6 +63,7 @@ function runRegistrationReporting_(options) {
     report: reportResult
   };
 
+  if (!options.dryRun) writeCompletionLog_(result);
   return result;
 }
 
@@ -295,17 +298,22 @@ function buildAndSendWeeklyReports_(options) {
     recipients: REGISTRATION_AUTOMATION.productionAdminRecipients,
     subject: '[새가족부] 전체 새가족교육 현황 - ' + options.label,
     body: createCompletionReportText_('전체', total, options.syncResult),
-    htmlBody: adminHtml
+    htmlBody: adminHtml,
+    forceTestRecipient: Boolean(options.forceTestRecipient)
   });
 
   Object.keys(REGISTRATION_AUTOMATION.groupRecipients).forEach(function (group) {
     const stats = byGroup[group];
     if (!stats || stats.registered === 0) return;
+    // 테스트 실행에서 군 리더 9명에게 실제 통계가 나가지 않도록 첫 군만 보냅니다.
+    if (options.forceTestRecipient && report.testGroupMailSent) return;
+    report.testGroupMailSent = Boolean(options.forceTestRecipient);
     sendRegistrationEmail_({
       recipients: [REGISTRATION_AUTOMATION.groupRecipients[group]],
       subject: '[새가족부] ' + group + '군 새가족교육 수료 통계',
       body: createCompletionReportText_(group + '군', stats, null),
-      htmlBody: createCompletionReportHtml_(group + '군', stats, null, null)
+      htmlBody: createCompletionReportHtml_(group + '군', stats, null, null),
+      forceTestRecipient: Boolean(options.forceTestRecipient)
     });
   });
 
@@ -328,6 +336,7 @@ function sendWeeklyReports() {
     };
     return buildAndSendWeeklyReports_({
       sendEmail: true,
+      forceTestRecipient: false,
       syncResult: emptySync,
       label: '수동 실행'
     });
@@ -574,6 +583,24 @@ function formatRegistrationReportDate_(value) {
   return String(value).trim();
 }
 
+/**
+ * 수료 자동화 결과를 숨김 로그 시트에 최신순으로 남깁니다.
+ */
 function writeCompletionLog_(result) {
-  return { disabled: true };
+  const sheet = getHiddenLogSheet_(
+    getRegistrationSpreadsheet_(),
+    '수료 자동화 로그',
+    ['실행시각', '모드', '등록', '매칭', '미매칭',
+      '중복', '불일치', '출력행']
+  );
+
+  if (sheet.getLastRow() > 1) sheet.insertRowAfter(1);
+  sheet.getRange(2, 1, 1, 8).setValues([[
+    new Date(), REGISTRATION_AUTOMATION.mode,
+    result.sync.registrations, result.sync.matched,
+    result.sync.unmatched.length, result.sync.ambiguous.length,
+    result.sync.discrepancies.length, result.sync.outputRows
+  ]]);
+  sheet.getRange(2, 1).setNumberFormat('yyyy. MM. dd HH:mm:ss');
+  return { logged: true };
 }

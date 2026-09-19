@@ -89,6 +89,7 @@ function runRegistrationMaintenanceTest() {
     return runRegistrationMaintenance_({
       dryRun: true,
       sendEmail: true,
+      forceTestRecipient: true,
       label: '상세 테스트(미리보기)'
     });
   });
@@ -113,6 +114,10 @@ function runRegistrationMaintenance_(options) {
     visitors: visitors
   };
 
+  if (!options.dryRun) {
+    writeRegistrationLog_('runRegistrationMaintenance', result);
+  }
+
   if (options.sendEmail) {
     const reviewCount =
       reconciliation.review.length +
@@ -126,7 +131,8 @@ function runRegistrationMaintenance_(options) {
         changeLabel + ' ' + reconciliation.changes.length +
         '건 · 검토 ' + reviewCount + '건',
       body: createDetailedRegistrationMaintenanceText_(result, options.label),
-      htmlBody: createDetailedRegistrationMaintenanceHtml_(result, options.label)
+      htmlBody: createDetailedRegistrationMaintenanceHtml_(result, options.label),
+      forceTestRecipient: Boolean(options.forceTestRecipient)
     });
   }
   return result;
@@ -378,6 +384,8 @@ function reconcileRegistrationWithLatestAttendance_(options) {
   });
 
   const properties = PropertiesService.getScriptProperties();
+  const storedStates = properties.getProperties();
+  const pendingStates = {};
   const result = {
     registrations: 0,
     matched: 0,
@@ -400,7 +408,9 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     const stateKey = REGISTRATION_AUTOMATION.correctionStatePrefix +
       (no || ('ROW_' + registrationRow));
     const savedState = parseRegistrationCorrectionState_(
-      properties.getProperty(stateKey)
+      Object.prototype.hasOwnProperty.call(storedStates, stateKey)
+        ? storedStates[stateKey]
+        : null
     );
     let match = null;
     let strategy = '';
@@ -542,11 +552,16 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     if (!options.dryRun && stateChanged) {
       savedState.sourceNameKey = match.nameKey;
       savedState.sourcePhoneKey = match.phoneKey;
-      properties.setProperty(stateKey, JSON.stringify(savedState));
+      pendingStates[stateKey] = JSON.stringify(savedState);
     }
   });
 
-  if (!options.dryRun) SpreadsheetApp.flush();
+  if (!options.dryRun) {
+    if (Object.keys(pendingStates).length) {
+      properties.setProperties(pendingStates);
+    }
+    SpreadsheetApp.flush();
+  }
   return result;
 }
 
@@ -737,16 +752,18 @@ function createRegistrationTableCell_(value) {
 }
 
 function sendRegistrationEmail_(message) {
-  const requested = message.recipients || [];
-  const recipients = REGISTRATION_AUTOMATION.mode === 'PRODUCTION'
-    ? requested
-    : [REGISTRATION_AUTOMATION.testRecipient];
+  // run*Test 계열은 현재 모드와 무관하게 테스트 수신자 한 명으로 고정합니다.
+  const testOnly = Boolean(message.forceTestRecipient) ||
+    REGISTRATION_AUTOMATION.mode !== 'PRODUCTION';
+  const recipients = testOnly
+    ? [REGISTRATION_AUTOMATION.testRecipient]
+    : (message.recipients || []);
 
   const unique = Array.from(new Set(recipients.map(String).map(function (value) {
     return value.trim();
   }).filter(Boolean)));
 
-  if (REGISTRATION_AUTOMATION.mode !== 'PRODUCTION') {
+  if (testOnly) {
     if (unique.length !== 1 ||
         unique[0] !== REGISTRATION_AUTOMATION.testRecipient) {
       throw new Error('테스트 메일 수신자 안전장치 위반');
@@ -755,9 +772,7 @@ function sendRegistrationEmail_(message) {
 
   MailApp.sendEmail({
     to: unique.join(','),
-    subject: (REGISTRATION_AUTOMATION.mode === 'PRODUCTION'
-      ? ''
-      : '[TEST] ') + message.subject,
+    subject: (testOnly ? '[TEST] ' : '') + message.subject,
     body: message.body || 'HTML 메일입니다.',
     htmlBody: message.htmlBody || undefined
   });
@@ -779,8 +794,53 @@ function getRegistrationSpreadsheet_() {
   );
 }
 
+/**
+ * 실행 결과를 숨김 로그 시트에 최신순으로 남깁니다.
+ * 운영 화면에는 보이지 않도록 항상 숨김 상태를 유지합니다.
+ */
 function writeRegistrationLog_(functionName, result) {
-  return { disabled: true };
+  const sheet = getHiddenLogSheet_(
+    getRegistrationSpreadsheet_(),
+    REGISTRATION_AUTOMATION.logSheetName,
+    ['실행시각', '함수', '모드', '자동보정', '수동보호',
+      '보정검토', '현황인원', '현황출력행', '현황검토']
+  );
+  const correction = result.reconciliation ||
+    { changes: [], protected: [], review: [] };
+
+  if (sheet.getLastRow() > 1) sheet.insertRowAfter(1);
+  sheet.getRange(2, 1, 1, 9).setValues([[
+    new Date(), functionName, REGISTRATION_AUTOMATION.mode,
+    correction.changes.length, correction.protected.length,
+    correction.review.length, result.dashboard.processed,
+    result.dashboard.outputRows, result.dashboard.review.length
+  ]]);
+  sheet.getRange(2, 1).setNumberFormat('yyyy. MM. dd HH:mm:ss');
+  return { logged: true };
+}
+
+/**
+ * 로그 시트를 만들고 항상 숨김 상태로 유지합니다.
+ * 활성 시트는 숨길 수 없으므로 다른 시트를 먼저 활성화합니다.
+ */
+function getHiddenLogSheet_(spreadsheet, name, headers) {
+  let sheet = spreadsheet.getSheetByName(name);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(name);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+  }
+  if (!sheet.isSheetHidden()) {
+    const visibleOthers = spreadsheet.getSheets().filter(function (other) {
+      return other.getSheetId() !== sheet.getSheetId() && !other.isSheetHidden();
+    });
+    if (visibleOthers.length) {
+      spreadsheet.setActiveSheet(visibleOthers[0]);
+      sheet.hideSheet();
+    }
+  }
+  return sheet;
 }
 
 function ensureRegistrationRows_(sheet, requiredLastRow) {
@@ -814,12 +874,26 @@ function parseRegistrationDate_(value) {
   if (short) {
     const month = Number(short[1]);
     const day = Number(short[2]);
-    const year = month === 12 ? 2025 : 2026;
-    return new Date(year, month - 1, day);
+    return new Date(resolveRegistrationYear_(month), month - 1, day);
   }
 
   const date = new Date(text);
   return isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * 'M/d' 표기는 연도가 없어 회기 기준으로 추정합니다.
+ * 회기는 3월에 시작하므로 12월 값은 오늘이 12월이 아니면 전년도로 봅니다.
+ * 연도를 고정하면 해가 바뀌는 순간 모든 날짜가 어긋나므로 오늘 기준으로 계산합니다.
+ */
+function resolveRegistrationYear_(month, today) {
+  const base = today && typeof today.getFullYear === 'function'
+    ? today
+    : new Date();
+  const currentYear = base.getFullYear();
+  const currentMonth = base.getMonth() + 1;
+  if (month === 12 && currentMonth !== 12) return currentYear - 1;
+  return currentYear;
 }
 
 function escapeRegistrationHtml_(value) {
