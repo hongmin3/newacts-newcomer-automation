@@ -87,9 +87,7 @@ function submitAttendance(formData) {
       clean.team
     ];
 
-    // 교육관리 자동화는 마지막 처리 행 이후를 읽으므로 신규 응답은 반드시 끝에 추가합니다.
-    sheet.appendRow(newRow);
-    sheet.getRange(sheet.getLastRow(), 1).setNumberFormat('yyyy. MM. dd HH:mm:ss');
+    insertAttendanceNewestFirst_(sheet, newRow);
     SpreadsheetApp.flush();
 
     return { week: clean.week, duplicate: false };
@@ -196,4 +194,71 @@ function formatAttendancePhone_(value) {
     return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
   }
   return String(value || '').trim();
+}
+
+
+/**
+ * 기존 응답도 타임스탬프 기준 최신순으로 정렬하는 1회성 마이그레이션 함수입니다.
+ */
+function sortAttendanceSourceNewestFirst() {
+  const sheet = getAttendanceSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 2) return 0;
+
+  sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn())
+    .sort({ column: 1, ascending: false });
+  SpreadsheetApp.flush();
+  return lastRow - 1;
+}
+
+/**
+ * 신규 출석을 헤더 바로 아래에 삽입합니다.
+ */
+function insertAttendanceNewestFirst_(sheet, newRow) {
+  sheet.insertRowBefore(2);
+  sheet.getRange(2, 1, 1, newRow.length).setValues([newRow]);
+  sheet.getRange(2, 1).setNumberFormat('yyyy. MM. dd HH:mm:ss');
+}
+
+/**
+ * 운영 시트를 수정하지 않고 2행 삽입 호출 순서를 검증합니다.
+ */
+function testNewestFirstInsertionLogic() {
+  const calls = [];
+  const fakeSheet = {
+    insertRowBefore: function (row) {
+      calls.push(['insertRowBefore', row]);
+    },
+    getRange: function (row, column, numRows, numColumns) {
+      return {
+        setValues: function (values) {
+          calls.push([
+            'setValues', row, column, numRows, numColumns, values
+          ]);
+          return this;
+        },
+        setNumberFormat: function (format) {
+          calls.push(['setNumberFormat', row, column, format]);
+          return this;
+        }
+      };
+    }
+  };
+
+  const sampleRow = ['timestamp', 'consent'];
+  insertAttendanceNewestFirst_(fakeSheet, sampleRow);
+
+  const passed =
+    calls[0][0] === 'insertRowBefore' && calls[0][1] === 2 &&
+    calls[1][0] === 'setValues' &&
+    calls[1][1] === 2 && calls[1][2] === 1 &&
+    calls[1][3] === 1 && calls[1][4] === sampleRow.length &&
+    calls[2][0] === 'setNumberFormat' &&
+    calls[2][1] === 2 && calls[2][2] === 1;
+
+  if (!passed) {
+    throw new Error('최신순 2행 삽입 로직 테스트 실패: ' + JSON.stringify(calls));
+  }
+  console.log(JSON.stringify({ passed: true, calls: calls }));
+  return { passed: true, calls: calls };
 }

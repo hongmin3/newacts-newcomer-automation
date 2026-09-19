@@ -61,7 +61,6 @@ function runRegistrationReporting_(options) {
     report: reportResult
   };
 
-  if (!options.dryRun) writeCompletionLog_(result);
   return result;
 }
 
@@ -467,7 +466,7 @@ function createCompletionReportHtml_(title, stats, syncResult, groupStats) {
     });
     html += '</tbody></table>';
     if (syncResult.discrepancies.length > 100) {
-      html += '<p style="margin:10px 0 0;text-align:center">메일에는 처음 100건만 표시했습니다. 전체 내역은 수료 자동화 로그를 확인해 주세요.</p>';
+      html += '<p style="margin:10px 0 0;text-align:center">메일에는 처음 100건만 표시했습니다. 전체 내역은 등록 시트와 수료현황 시트에서 확인해 주세요.</p>';
     }
     html += '</div>';
   }
@@ -576,20 +575,5 @@ function formatRegistrationReportDate_(value) {
 }
 
 function writeCompletionLog_(result) {
-  const ss = getRegistrationSpreadsheet_();
-  const name = '수료 자동화 로그';
-  let sheet = ss.getSheetByName(name);
-  if (!sheet) {
-    sheet = ss.insertSheet(name);
-    sheet.appendRow([
-      '실행시각', '모드', '등록', '매칭', '미매칭',
-      '중복', '불일치', '출력행'
-    ]);
-  }
-  sheet.appendRow([
-    new Date(), REGISTRATION_AUTOMATION.mode,
-    result.sync.registrations, result.sync.matched,
-    result.sync.unmatched.length, result.sync.ambiguous.length,
-    result.sync.discrepancies.length, result.sync.outputRows
-  ]);
+  return { disabled: true };
 }

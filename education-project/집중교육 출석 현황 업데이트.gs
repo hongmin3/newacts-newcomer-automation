@@ -47,8 +47,11 @@ function syncIntensiveTraining_(options) {
   const intensiveData = intensiveSheet
     .getRange(2, 1, intensiveLastRow - 1, Math.max(intensiveSheet.getLastColumn(), 6))
     .getValues();
+  const attendanceWidth = Math.max(attendanceSheet.getLastColumn(), 13);
   const attendanceRows = attendanceLastRow > 1
-    ? attendanceSheet.getRange(2, 1, attendanceLastRow - 1, 11).getValues()
+    ? attendanceSheet
+        .getRange(2, 1, attendanceLastRow - 1, attendanceWidth)
+        .getValues()
     : [];
 
   const phoneIndex = new Map();
@@ -93,11 +96,16 @@ function syncIntensiveTraining_(options) {
 
     if (matches.length === 0) {
       maxNo += 1;
-      const newRow = [
-        maxNo, '', isValidEducationGroup_(group) ? group : '',
-        isValidEducationTeam_(team) ? team : '', name, '', phone,
-        'O', 'O', 'O', completionText
-      ];
+      const newRow = new Array(attendanceWidth).fill('');
+      newRow[0] = maxNo;
+      newRow[2] = isValidEducationGroup_(group) ? group : '';
+      newRow[3] = isValidEducationTeam_(team) ? team : '';
+      newRow[4] = name;
+      newRow[6] = phone;
+      newRow[7] = 'O';
+      newRow[8] = 'O';
+      newRow[9] = 'O';
+      newRow[10] = completionText;
       attendanceRows.push(newRow);
       addIndexValue_(phoneIndex, phoneKey, attendanceRows.length - 1);
       result.added += 1;
@@ -128,9 +136,10 @@ function syncIntensiveTraining_(options) {
   });
 
   if (!options.dryRun && (result.added > 0 || result.updated > 0)) {
+    sortEducationMasterRows_(attendanceRows);
     ensureEducationRows_(attendanceSheet, attendanceRows.length + 1);
     attendanceSheet
-      .getRange(2, 1, attendanceRows.length, 11)
+      .getRange(2, 1, attendanceRows.length, attendanceWidth)
       .setValues(attendanceRows);
     writeEducationLog_('syncIntensiveTraining', {
       scanned: result.scanned,

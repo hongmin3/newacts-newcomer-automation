@@ -25,6 +25,10 @@ const REGISTRATION_AUTOMATION = Object.freeze({
   },
   registrationSpreadsheetId: '1dBO4rhCCadxO-KVBX_Jmg4aDcV9zim_sqM95JKd4Snk',
   educationSpreadsheetId: '1EEIAL39SgRtO1JTe8zpZ4qDMCf_qF-bfrtxn6jfpLgg',
+  attendanceSpreadsheetId: '1PKQY3wVgSpk6SqJa9dCyCAV54CIzZF03d-ePReFGwxs',
+  attendanceSheetName: '설문지 응답 시트1',
+  autoCorrectionEnabled: true,
+  correctionStatePrefix: 'REGISTRATION_EDUCATION_CORRECTION_',
   registrationSheetName: '등록 새가족',
   dashboardSheetName: '등록 새가족 군 현황',
   visitedSheetName: '상반기 방문 새가족',
@@ -83,30 +87,46 @@ function previewRegistrationMaintenance() {
 function runRegistrationMaintenanceTest() {
   return withRegistrationLock_(function () {
     return runRegistrationMaintenance_({
-      dryRun: false,
+      dryRun: true,
       sendEmail: true,
-      label: '승인된 테스트'
+      label: '상세 테스트(미리보기)'
     });
   });
 }
 
 function runRegistrationMaintenance_(options) {
+  const reconciliation = reconcileRegistrationWithLatestAttendance_({
+    dryRun: options.dryRun ||
+      !REGISTRATION_AUTOMATION.autoCorrectionEnabled
+  });
   const dashboard = updateNewFamilyStatus_({ dryRun: options.dryRun });
-  const visitors = syncRegisteredToVisited_({ dryRun: options.dryRun });
+  const visitors = {
+    disabled: true, added: 0, updated: 0,
+    addedDetails: [], updatedDetails: [], review: []
+  };
   const result = {
     dryRun: Boolean(options.dryRun),
+    autoCorrectionEnabled:
+      Boolean(REGISTRATION_AUTOMATION.autoCorrectionEnabled),
+    reconciliation: reconciliation,
     dashboard: dashboard,
     visitors: visitors
   };
 
-  if (!options.dryRun) {
-    writeRegistrationLog_('runRegistrationMaintenance', result);
-  }
   if (options.sendEmail) {
+    const reviewCount =
+      reconciliation.review.length +
+      dashboard.review.length;
+    const changeLabel = result.dryRun ||
+      !result.autoCorrectionEnabled ? '변경 예정' : '자동 수정';
+
     sendRegistrationEmail_({
-      recipients: REGISTRATION_AUTOMATION.productionAdminRecipients,
-      subject: '[새가족 자동화] ' + options.label + ' 결과',
-      body: createRegistrationMaintenanceText_(result)
+      recipients: [REGISTRATION_AUTOMATION.testRecipient],
+      subject: '[새가족 자동화] ' + options.label + ' | ' +
+        changeLabel + ' ' + reconciliation.changes.length +
+        '건 · 검토 ' + reviewCount + '건',
+      body: createDetailedRegistrationMaintenanceText_(result, options.label),
+      htmlBody: createDetailedRegistrationMaintenanceHtml_(result, options.label)
     });
   }
   return result;
@@ -128,17 +148,12 @@ function updateNewFamilyStatusMenu() {
 }
 
 function syncRegisteredToVisitedMenu() {
-  if (!REGISTRATION_AUTOMATION.active &&
-      REGISTRATION_AUTOMATION.mode === 'PRODUCTION') {
-    throw new Error('등록 자동화가 비활성 상태입니다.');
-  }
-  const result = withRegistrationLock_(function () {
-    return syncRegisteredToVisited_({ dryRun: false });
-  });
+  const result = {
+    disabled: true, added: 0, updated: 0,
+    addedDetails: [], updatedDetails: [], review: []
+  };
   SpreadsheetApp.getUi().alert(
-    '방문자 동기화 완료\n추가: ' + result.added +
-    '명\n등록 표시: ' + result.updated +
-    '건\n검토 필요: ' + result.review.length + '건'
+    '상반기 방문자 동기화는 중지되었습니다. 하반기 시트 준비 후 다시 설정해 주세요.'
   );
   return result;
 }
@@ -278,110 +293,9 @@ function updateNewFamilyStatus_(options) {
 }
 
 function syncRegisteredToVisited_(options) {
-  const ss = getRegistrationSpreadsheet_();
-  const registrationSheet = ss.getSheetByName(
-    REGISTRATION_AUTOMATION.registrationSheetName
-  );
-  const visitedSheet = ss.getSheetByName(
-    REGISTRATION_AUTOMATION.visitedSheetName
-  );
-  if (!registrationSheet || !visitedSheet) {
-    throw new Error('등록 새가족 또는 방문자 시트를 찾을 수 없습니다.');
-  }
-
-  const registrationRows = registrationSheet.getLastRow() > 1
-    ? registrationSheet
-      .getRange(2, 1, registrationSheet.getLastRow() - 1, 11)
-      .getValues()
-    : [];
-  const visitedRows = visitedSheet.getLastRow() > 1
-    ? visitedSheet
-      .getRange(2, 1, visitedSheet.getLastRow() - 1, 14)
-      .getValues()
-    : [];
-
-  const phoneIndex = new Map();
-  let maxNo = 0;
-
-  visitedRows.forEach(function (row, index) {
-    const no = Number(row[0]);
-    if (Number.isFinite(no)) maxNo = Math.max(maxNo, no);
-    addRegistrationIndex_(phoneIndex, normalizeRegistrationPhone_(row[9]), index);
-  });
-
-  const cutoff = new Date(
-    REGISTRATION_AUTOMATION.visitorStartDate + 'T00:00:00+09:00'
-  );
-  const rowsToMark = [];
-  const newRows = [];
-  const review = [];
-
-  registrationRows.forEach(function (row, index) {
-    const registrationDate = parseRegistrationDate_(row[1]);
-    const name = String(row[5] || '').trim();
-    const phoneKey = normalizeRegistrationPhone_(row[9]);
-    if (!registrationDate || registrationDate < cutoff || !name) return;
-
-    if (!phoneKey) {
-      review.push({
-        row: index + 2,
-        name: name,
-        reason: '전화번호가 없어 방문자 자동 매칭 제외'
-      });
-      return;
-    }
-
-    const matches = phoneIndex.get(phoneKey) || [];
-    if (matches.length > 1) {
-      review.push({
-        row: index + 2,
-        name: name,
-        reason: '방문자 시트에 같은 전화번호가 여러 행 존재'
-      });
-      return;
-    }
-
-    if (matches.length === 1) {
-      const visitIndex = matches[0];
-      if (String(visitedRows[visitIndex][13] || '').trim().toUpperCase() !== 'O') {
-        rowsToMark.push(visitIndex + 2);
-      }
-      return;
-    }
-
-    maxNo += 1;
-    const newRow = new Array(14).fill('');
-    newRow[0] = maxNo;
-    for (let column = 1; column <= 10; column++) {
-      newRow[column] = row[column];
-    }
-    newRow[13] = 'O';
-    newRows.push(newRow);
-    phoneIndex.set(phoneKey, [visitedRows.length + newRows.length - 1]);
-  });
-
-  if (!options.dryRun) {
-    if (rowsToMark.length) {
-      visitedSheet
-        .getRangeList(rowsToMark.map(function (row) { return 'N' + row; }))
-        .setValue('O');
-    }
-    if (newRows.length) {
-      const startRow = visitedSheet.getLastRow() + 1;
-      ensureRegistrationRows_(
-        visitedSheet,
-        startRow + newRows.length - 1
-      );
-      visitedSheet
-        .getRange(startRow, 1, newRows.length, 14)
-        .setValues(newRows);
-    }
-  }
-
   return {
-    added: newRows.length,
-    updated: rowsToMark.length,
-    review: review
+    disabled: true, added: 0, updated: 0,
+    addedDetails: [], updatedDetails: [], review: []
   };
 }
 
@@ -389,12 +303,437 @@ function createRegistrationMaintenanceText_(result) {
   let text = '';
   text += '군 현황 처리: ' + result.dashboard.processed + '명\n';
   text += '군 현황 출력: ' + result.dashboard.outputRows + '행\n';
-  text += '방문자 신규 추가: ' + result.visitors.added + '명\n';
-  text += '방문자 등록 표시: ' + result.visitors.updated + '건\n';
-  text += '검토 필요: ' +
-    (result.dashboard.review.length + result.visitors.review.length) +
-    '건\n';
+  text += '검토 필요: ' + result.dashboard.review.length + '건\n';
   return text;
+}
+
+function reconcileRegistrationWithLatestAttendance_(options) {
+  const registrationSS = getRegistrationSpreadsheet_();
+  const attendanceSS = SpreadsheetApp.openById(
+    REGISTRATION_AUTOMATION.attendanceSpreadsheetId
+  );
+  const registrationSheet = registrationSS.getSheetByName(
+    REGISTRATION_AUTOMATION.registrationSheetName
+  );
+  const attendanceSheet = attendanceSS.getSheetByName(
+    REGISTRATION_AUTOMATION.attendanceSheetName
+  );
+  if (!registrationSheet || !attendanceSheet) {
+    throw new Error('등록 새가족 또는 교육 출석 응답 시트를 찾을 수 없습니다.');
+  }
+
+  const registrationRows = registrationSheet.getLastRow() > 1
+    ? registrationSheet.getRange(
+        2, 1, registrationSheet.getLastRow() - 1,
+        Math.max(registrationSheet.getLastColumn(), 14)
+      ).getValues()
+    : [];
+  const attendanceRows = attendanceSheet.getLastRow() > 1
+    ? attendanceSheet.getRange(
+        2, 1, attendanceSheet.getLastRow() - 1,
+        Math.max(attendanceSheet.getLastColumn(), 10)
+      ).getValues()
+    : [];
+
+  const registrationNameCounts = new Map();
+  registrationRows.forEach(function (row) {
+    const key = normalizeRegistrationName_(row[5]);
+    if (key) registrationNameCounts.set(
+      key, (registrationNameCounts.get(key) || 0) + 1
+    );
+  });
+
+  const attendanceRecords = attendanceRows.map(function (row, index) {
+    const timestamp = parseRegistrationDate_(row[0]);
+    return {
+      sourceRow: index + 2,
+      timestamp: timestamp,
+      timestampMs: timestamp ? timestamp.getTime() : 0,
+      name: String(row[4] || '').trim(),
+      nameKey: normalizeRegistrationName_(row[4]),
+      phone: formatRegistrationPhone_(row[5]),
+      phoneKey: normalizeRegistrationPhone_(row[5]),
+      group: normalizeAttendanceGroupForRegistration_(row[8]),
+      team: normalizeAttendanceTeamForRegistration_(row[9])
+    };
+  }).filter(function (item) {
+    return item.timestamp && item.nameKey;
+  }).sort(function (a, b) {
+    return b.timestampMs - a.timestampMs || a.sourceRow - b.sourceRow;
+  });
+
+  const attendanceByName = new Map();
+  const attendanceByPhone = new Map();
+  attendanceRecords.forEach(function (record) {
+    if (!attendanceByName.has(record.nameKey)) {
+      attendanceByName.set(record.nameKey, []);
+    }
+    attendanceByName.get(record.nameKey).push(record);
+    if (record.phoneKey) {
+      if (!attendanceByPhone.has(record.phoneKey)) {
+        attendanceByPhone.set(record.phoneKey, []);
+      }
+      attendanceByPhone.get(record.phoneKey).push(record);
+    }
+  });
+
+  const properties = PropertiesService.getScriptProperties();
+  const result = {
+    registrations: 0,
+    matched: 0,
+    unmatched: 0,
+    changes: [],
+    protected: [],
+    review: [],
+    dryRun: Boolean(options.dryRun)
+  };
+
+  registrationRows.forEach(function (row, index) {
+    const registrationRow = index + 2;
+    const no = String(row[0] || '').trim();
+    const currentName = String(row[5] || '').trim();
+    const currentNameKey = normalizeRegistrationName_(currentName);
+    const currentPhoneKey = normalizeRegistrationPhone_(row[9]);
+    if (!currentNameKey && !currentPhoneKey) return;
+    result.registrations += 1;
+
+    const stateKey = REGISTRATION_AUTOMATION.correctionStatePrefix +
+      (no || ('ROW_' + registrationRow));
+    const savedState = parseRegistrationCorrectionState_(
+      properties.getProperty(stateKey)
+    );
+    let match = null;
+    let strategy = '';
+
+    if (savedState.sourceNameKey &&
+        attendanceByName.has(savedState.sourceNameKey)) {
+      match = attendanceByName.get(savedState.sourceNameKey)[0];
+      strategy = '이전 자동매칭 이름';
+    } else if (currentNameKey &&
+               attendanceByName.has(currentNameKey)) {
+      const nameMatches = attendanceByName.get(currentNameKey);
+      const nameAndPhoneMatches = currentPhoneKey
+        ? nameMatches.filter(function (item) {
+            return item.phoneKey === currentPhoneKey;
+          })
+        : [];
+      if (nameAndPhoneMatches.length > 0) {
+        match = nameAndPhoneMatches[0];
+        strategy = '이름+전화번호';
+      } else if (registrationNameCounts.get(currentNameKey) === 1) {
+        match = nameMatches[0];
+        strategy = '고유 이름';
+      } else {
+        result.review.push({
+          registrationRow: registrationRow,
+          name: currentName,
+          reason: '동명이인이 있어 전화번호까지 일치하는 교육 출석을 찾지 못함'
+        });
+      }
+    } else if (currentPhoneKey &&
+               attendanceByPhone.has(currentPhoneKey)) {
+      const phoneMatches = attendanceByPhone.get(currentPhoneKey);
+      result.review.push({
+        registrationRow: registrationRow,
+        name: currentName,
+        reason: '전화번호는 같지만 이름이 달라 자동 수정하지 않음: ' +
+          phoneMatches[0].name
+      });
+    }
+
+    if (!match) {
+      result.unmatched += 1;
+      return;
+    }
+    result.matched += 1;
+
+    const fields = [
+      {
+        key: 'name', label: '이름', column: 6,
+        current: currentName, latest: match.name,
+        normalize: normalizeRegistrationName_
+      },
+      {
+        key: 'group', label: '군', column: 4,
+        current: String(row[3] || '').trim(), latest: match.group,
+        normalize: function (value) { return String(value || '').trim(); }
+      },
+      {
+        key: 'team', label: '팀', column: 5,
+        current: String(row[4] || '').trim(), latest: match.team,
+        normalize: function (value) { return String(value || '').trim(); }
+      },
+      {
+        key: 'phone', label: '전화번호', column: 10,
+        current: formatRegistrationPhone_(row[9]), latest: match.phone,
+        normalize: normalizeRegistrationPhone_
+      }
+    ];
+
+    let stateChanged = false;
+    fields.forEach(function (field) {
+      if (!field.latest ||
+          field.normalize(field.current) === field.normalize(field.latest)) {
+        return;
+      }
+
+      const fieldState = savedState.fields[field.key] || null;
+      if (fieldState && fieldState.protected) {
+        result.protected.push({
+          registrationRow: registrationRow,
+          name: currentName,
+          field: field.label,
+          currentValue: field.current,
+          educationValue: field.latest,
+          reason: '사용자가 자동 수정 후 직접 변경하여 보호됨'
+        });
+        return;
+      }
+
+      if (fieldState &&
+          field.normalize(field.current) !==
+            field.normalize(fieldState.lastAutoValue)) {
+        result.protected.push({
+          registrationRow: registrationRow,
+          name: currentName,
+          field: field.label,
+          currentValue: field.current,
+          educationValue: field.latest,
+          reason: '자동 수정값과 달라 수동 수정으로 판단해 보호'
+        });
+        if (!options.dryRun) {
+          fieldState.protected = true;
+          fieldState.manualValue = field.current;
+          fieldState.protectedAt = new Date().toISOString();
+          savedState.fields[field.key] = fieldState;
+          stateChanged = true;
+        }
+        return;
+      }
+
+      result.changes.push({
+        registrationRow: registrationRow,
+        no: no,
+        name: currentName || match.name,
+        field: field.label,
+        before: field.current || '(빈값)',
+        after: field.latest,
+        matchStrategy: strategy,
+        attendanceRow: match.sourceRow,
+        attendanceAt: Utilities.formatDate(
+          match.timestamp, 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss'
+        )
+      });
+
+      if (!options.dryRun) {
+        registrationSheet.getRange(
+          registrationRow, field.column
+        ).setValue(field.latest);
+        savedState.fields[field.key] = {
+          previousValue: field.current,
+          lastAutoValue: field.latest,
+          protected: false,
+          updatedAt: new Date().toISOString()
+        };
+        stateChanged = true;
+      }
+    });
+
+    if (!options.dryRun && stateChanged) {
+      savedState.sourceNameKey = match.nameKey;
+      savedState.sourcePhoneKey = match.phoneKey;
+      properties.setProperty(stateKey, JSON.stringify(savedState));
+    }
+  });
+
+  if (!options.dryRun) SpreadsheetApp.flush();
+  return result;
+}
+
+function parseRegistrationCorrectionState_(value) {
+  if (!value) return { fields: {} };
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed.fields || typeof parsed.fields !== 'object') {
+      parsed.fields = {};
+    }
+    return parsed;
+  } catch (error) {
+    return { fields: {} };
+  }
+}
+
+function normalizeAttendanceGroupForRegistration_(value) {
+  const text = String(value || '').trim();
+  if (!text || text.includes('모르겠')) return '';
+  const group = text.charAt(0);
+  return ['석', '총', '신', '슬', '명', '전', '조', '영', '임']
+    .includes(group) ? group : '';
+}
+
+function normalizeAttendanceTeamForRegistration_(value) {
+  const text = String(value || '').trim();
+  if (!text || text.includes('모르겠')) return '';
+  return text.split('(')[0].trim();
+}
+
+function maskRegistrationPhone_(value) {
+  const phone = normalizeRegistrationPhone_(value);
+  if (phone.length < 7) return '번호 확인 필요';
+  return phone.slice(0, 3) + '-****-' + phone.slice(-4);
+}
+
+function createDetailedRegistrationMaintenanceText_(result, label) {
+  const correction = result.reconciliation;
+  const reviewCount = correction.review.length +
+    result.dashboard.review.length;
+  const changeLabel = result.dryRun || !result.autoCorrectionEnabled
+    ? '변경 예정' : '자동 수정';
+
+  let text = '';
+  text += '[실행 정보]\n';
+  text += '구분: ' + label + '\n';
+  text += '실제 반영 여부: ' +
+    (result.dryRun ? '미리보기(시트 변경 없음)' : '실제 반영') + '\n';
+  text += '교육 출석 기준 자동 보정: ' +
+    (result.autoCorrectionEnabled ? '활성' : '테스트 중(비활성)') + '\n\n';
+
+  text += '[등록 정보 자동 보정]\n';
+  text += '등록자 확인: ' + correction.registrations + '명\n';
+  text += '교육 출석 매칭: ' + correction.matched + '명\n';
+  text += '교육 출석 미매칭: ' + correction.unmatched + '명\n';
+  text += changeLabel + ': ' + correction.changes.length + '건\n';
+  text += '수동 수정 보호: ' + correction.protected.length + '건\n';
+  text += '매칭 검토 필요: ' + correction.review.length + '건\n\n';
+
+  if (correction.changes.length) {
+    text += '[' + changeLabel + ' 상세]\n';
+    correction.changes.slice(0, 100).forEach(function (item) {
+      text += '- 등록 ' + item.registrationRow + '행 / ' + item.name +
+        ' / ' + item.field + ': ' + item.before + ' → ' + item.after +
+        ' / 근거: 교육 출석 ' + item.attendanceAt +
+        ' (' + item.matchStrategy + ')\n';
+    });
+    text += '\n';
+  }
+
+  text += '[군 현황판]\n';
+  text += '정상 배치 인원: ' + result.dashboard.processed + '명\n';
+  text += '출력 행 수: ' + result.dashboard.outputRows +
+    '행 (인원 수가 아닌 화면 배치 행 수)\n';
+  text += '검토 필요: ' + result.dashboard.review.length + '건\n\n';
+
+  if (reviewCount) {
+    text += '[검토 필요 상세]\n';
+    correction.review.concat(
+      result.dashboard.review
+    ).slice(0, 100).forEach(function (item) {
+      text += '- 등록 ' + (item.registrationRow || item.row || '?') +
+        '행 / ' + (item.name || '이름 없음') +
+        ' / ' + item.reason + '\n';
+    });
+  }
+
+  text += '\n등록 시트: https://docs.google.com/spreadsheets/d/' +
+    REGISTRATION_AUTOMATION.registrationSpreadsheetId + '/edit#gid=0\n';
+  text += '교육 출석 시트: https://docs.google.com/spreadsheets/d/' +
+    REGISTRATION_AUTOMATION.attendanceSpreadsheetId +
+    '/edit#gid=679249123\n';
+  return text;
+}
+
+function createDetailedRegistrationMaintenanceHtml_(result, label) {
+  const correction = result.reconciliation;
+  const reviewItems = correction.review.concat(
+    result.dashboard.review
+  );
+  const changeLabel = result.dryRun || !result.autoCorrectionEnabled
+    ? '변경 예정' : '자동 수정';
+
+  let html = '<div style="max-width:980px;margin:0 auto;' +
+    'font-family:Malgun Gothic,Arial,sans-serif;color:#1f2937">';
+  html += '<h2 style="margin-bottom:8px">새가족 자동화 상세 결과</h2>';
+  html += '<p style="margin-top:0;color:#6b7280">' +
+    escapeRegistrationHtml_(label) + ' · ' +
+    (result.dryRun ? '미리보기(시트 변경 없음)' : '실제 반영') +
+    '</p>';
+
+  html += '<h3>1. 등록 정보 자동 보정</h3>';
+  html += createRegistrationSummaryTable_([
+    ['등록자', correction.registrations + '명'],
+    ['교육 출석 매칭', correction.matched + '명'],
+    ['미매칭', correction.unmatched + '명'],
+    [changeLabel, correction.changes.length + '건'],
+    ['수동 수정 보호', correction.protected.length + '건'],
+    ['매칭 검토', correction.review.length + '건']
+  ]);
+
+  if (correction.changes.length) {
+    html += '<h4>' + changeLabel + ' 상세</h4>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<tr style="background:#eef2ff"><th>등록 행</th><th>이름</th>' +
+      '<th>항목</th><th>기존 값</th><th>교육 최신 값</th>' +
+      '<th>판단 근거</th></tr>';
+    correction.changes.slice(0, 100).forEach(function (item) {
+      html += '<tr>' +
+        createRegistrationTableCell_(item.registrationRow) +
+        createRegistrationTableCell_(item.name) +
+        createRegistrationTableCell_(item.field) +
+        createRegistrationTableCell_(item.before) +
+        createRegistrationTableCell_(item.after) +
+        createRegistrationTableCell_(
+          item.attendanceAt + ' / ' + item.matchStrategy
+        ) + '</tr>';
+    });
+    html += '</table>';
+  }
+
+  html += '<h3>2. 군 현황판</h3>';
+  html += '<p>등록자 <b>' + result.dashboard.processed +
+    '명</b>을 정상 배치해 <b>' + result.dashboard.outputRows +
+    '행</b>을 구성했습니다. 출력 행 수는 인원 수가 아니라 날짜별 최대 인원을 맞춘 화면 배치 행 수입니다.</p>';
+
+  if (reviewItems.length) {
+    html += '<h3>3. 검토 필요 상세</h3>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<tr style="background:#fff7ed"><th>행</th><th>이름</th><th>사유</th></tr>';
+    reviewItems.slice(0, 100).forEach(function (item) {
+      html += '<tr>' +
+        createRegistrationTableCell_(
+          item.registrationRow || item.row || '?'
+        ) +
+        createRegistrationTableCell_(item.name || '이름 없음') +
+        createRegistrationTableCell_(item.reason) + '</tr>';
+    });
+    html += '</table>';
+  }
+
+  html += '<p style="margin-top:24px"><a href="https://docs.google.com/spreadsheets/d/' +
+    REGISTRATION_AUTOMATION.registrationSpreadsheetId +
+    '/edit#gid=0">등록 새가족 시트 열기</a> · ' +
+    '<a href="https://docs.google.com/spreadsheets/d/' +
+    REGISTRATION_AUTOMATION.attendanceSpreadsheetId +
+    '/edit#gid=679249123">교육 출석 시트 열기</a></p>';
+  html += '<p style="color:#6b7280;font-size:12px">수료현황·군별 통계 메일 수신자 설정은 변경하지 않았습니다.</p>';
+  return html + '</div>';
+}
+
+function createRegistrationSummaryTable_(items) {
+  let html = '<table style="width:100%;border-collapse:collapse;margin:8px 0 16px">';
+  html += '<tr>';
+  items.forEach(function (item) {
+    html += '<td style="padding:12px 8px;border:1px solid #dbeafe;' +
+      'background:#eff6ff;text-align:center"><div style="font-size:12px;' +
+      'color:#6b7280">' + escapeRegistrationHtml_(item[0]) +
+      '</div><div style="font-size:19px;font-weight:700;margin-top:4px">' +
+      escapeRegistrationHtml_(item[1]) + '</div></td>';
+  });
+  return html + '</tr></table>';
+}
+
+function createRegistrationTableCell_(value) {
+  return '<td style="padding:8px;border:1px solid #e5e7eb;text-align:center">' +
+    escapeRegistrationHtml_(value) + '</td>';
 }
 
 function sendRegistrationEmail_(message) {
@@ -441,21 +780,7 @@ function getRegistrationSpreadsheet_() {
 }
 
 function writeRegistrationLog_(functionName, result) {
-  const ss = getRegistrationSpreadsheet_();
-  let sheet = ss.getSheetByName(REGISTRATION_AUTOMATION.logSheetName);
-  if (!sheet) {
-    sheet = ss.insertSheet(REGISTRATION_AUTOMATION.logSheetName);
-    sheet.appendRow([
-      '실행시각', '함수', '모드', '현황인원', '현황검토',
-      '방문추가', '방문표시', '방문검토'
-    ]);
-  }
-  sheet.appendRow([
-    new Date(), functionName, REGISTRATION_AUTOMATION.mode,
-    result.dashboard.processed, result.dashboard.review.length,
-    result.visitors.added, result.visitors.updated,
-    result.visitors.review.length
-  ]);
+  return { disabled: true };
 }
 
 function ensureRegistrationRows_(sheet, requiredLastRow) {

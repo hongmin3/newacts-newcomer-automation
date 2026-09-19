@@ -8,3 +8,4 @@ coverage/
 
 .akela/
 akela/.cache/
+akela/learnings-log.jsonl
