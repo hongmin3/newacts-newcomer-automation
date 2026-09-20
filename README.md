@@ -44,7 +44,7 @@ npm run push      # 저장소 코드를 운영에 반영
        ▼
 2026년 뉴액츠 청년부 등록 새가족 현황
   ├─ 등록 새가족       ← 월: 교육 출석 기준 자동 보정
-  ├─ 등록 새가족 군 현황   (날짜 / 군 9개 / 스스로 4부·5부 / 미배정 / 합계 = 14열)
+  ├─ 등록 새가족 군 현황   (14열 · 1~2행 머리글 / 3행 합계 / 4행부터 명단)
   ├─ 상반기 방문 새가족 (동기화 중지)
   ├─ 새가족교육 수료현황
   ├─ 상반기 결산
@@ -170,7 +170,7 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 |---|---|
 | `runEducationTest` | 직전 일요일 응답을 미리보기로 처리하고 테스트 수신자 1명에게만 발송 |
 | `runNewcomerNotificationTest` | 문자공지 메일을 테스트 수신자 1명에게만 발송 |
-| `runRegistrationMaintenanceTest` | 시트 변경 없이 등록 유지관리 결과를 테스트 수신자 1명에게만 발송 |
+| `runRegistrationMaintenanceTest` | 시트 변경 없이 등록 유지관리 결과를 테스트 수신자 1명에게만 발송. **시트 메뉴에는 없으며 Apps Script 편집기에서 실행한다** |
 | `runRegistrationReportingTest` | 시트 변경 없이 수료 리포트를 테스트 수신자 1명에게 1통만 발송 |
 
 이 함수들은 모두 `mode`를 `TEST`로 바꾸지 않아도 안전합니다. 예전에는 이름과 달리 운영 수신자 전체에게 실제 메일이 나갔습니다.

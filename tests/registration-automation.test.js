@@ -264,7 +264,9 @@ assert.equal(place('신1팀', '', 4).column, place('신', '', 4).column);
 });
 
 // 머리글은 열 구성 상수와 같은 자리에 놓입니다.
-const header = context.__header();
+// vm 경계에서 한 번만 호스트 배열로 옮깁니다. 샌드박스가 만든 배열은
+// 프로토타입이 달라 deepStrictEqual이 "같아 보이는데" 실패합니다.
+const header = Array.from(context.__header()).map((row) => Array.from(row));
 assert.equal(header.length, layout.headerRows);
 assert.equal(header[0].length, layout.columns);
 layout.groupOrder.forEach((group, index) => {
@@ -273,8 +275,21 @@ layout.groupOrder.forEach((group, index) => {
 });
 assert.equal(header[1][layout.selfColumns['4']], '4부');
 assert.equal(header[1][layout.selfColumns['5']], '5부');
-assert.equal(header[0][layout.unassignedColumn], '미배정');
-assert.equal(header[0][layout.totalColumn], '합계');
+
+// 1행은 여러 열을 묶는 이름만 담습니다. 한 열짜리 제목을 1행에도 적으면
+// 세로 병합을 못 하는 시트에서 2행과 같은 글자가 두 번 보입니다.
+assert.equal(header[1][layout.dateColumn], '날짜');
+assert.equal(header[1][layout.unassignedColumn], '미배정');
+assert.equal(header[1][layout.totalColumn], '합계');
+[layout.dateColumn, layout.unassignedColumn, layout.totalColumn].forEach((column) => {
+  assert.equal(header[0][column], '',
+    `한 열짜리 제목은 1행에 적지 않습니다(중복으로 보입니다): ${column}열`);
+});
+// 1행에 있는 값은 묶음 이름 두 개뿐입니다.
+assert.deepEqual(
+  header[0].map((cell, index) => (cell ? index : -1)).filter((index) => index >= 0),
+  [layout.groupStartColumn, layout.selfColumns['4']],
+  '1행에는 묶음 이름만 있어야 합니다');
 
 // --- 등록자 누락 없음 (TEST-REG-003) --------------------------------------
 // Validates: REQ-REG-002
@@ -387,6 +402,10 @@ assert.equal(dashboardResult.unassigned, 2,
 
 const written = dashboardSheet.grid.slice(layout.startRow - 1)
   .map((row) => row.map((cell) => String(cell || '')));
+// `cell || ''`를 쓰면 숫자 0이 빈칸으로 바뀝니다(0은 falsy).
+// 합계 행에서 0은 의미 있는 값이므로 null/undefined만 빈칸으로 봅니다.
+const totalsRowCells = (dashboardSheet.grid[layout.totalsRow - 1] || [])
+  .map((cell) => (cell === undefined || cell === null ? '' : String(cell)));
 const placedNames = new Set();
 written.forEach((row) => row.forEach((cell) => {
   if (cell) placedNames.add(cell);
@@ -465,9 +484,13 @@ assert.equal(verticalMerges.length, 0,
 const filteredHeader = filtered.dash.grid.slice(0, layout.headerRows)
   .map((row) => row.map((cell) => String(cell || '')));
 assert.equal(filteredHeader[1][layout.dateColumn], '날짜',
-  '병합을 못 하면 2행에도 제목이 있어야 합니다');
+  '병합을 못 해도 2행에는 모든 열 제목이 있어야 합니다');
 assert.equal(filteredHeader[1][layout.unassignedColumn], '미배정');
 assert.equal(filteredHeader[1][layout.totalColumn], '합계');
+assert.equal(filteredHeader[0][layout.dateColumn], '',
+  '1행에 같은 제목을 또 적으면 겹쳐 보입니다');
+assert.equal(filteredHeader[0][layout.unassignedColumn], '');
+assert.equal(filteredHeader[0][layout.totalColumn], '');
 layout.groupOrder.forEach((group, index) => {
   assert.equal(filteredHeader[1][layout.groupStartColumn + index], group);
 });
@@ -486,6 +509,106 @@ registrationRows.forEach((row) => {
   assert.ok(brokenNames.has(row[5]),
     `머리글이 실패했다고 명단이 빠지면 안 됩니다: ${row[5]}`);
 });
+
+// --- 시트 메뉴 구성 -------------------------------------------------------
+// 운영에서 쓰지 않는 미리보기·테스트 실행은 메뉴에 두지 않습니다.
+// 함수 자체는 편집기에서 쓸 수 있도록 남겨 둡니다.
+const menuBlock = maintenanceSource.slice(
+  maintenanceSource.indexOf('function onOpen'),
+  maintenanceSource.indexOf('function runRegistrationMaintenanceTrigger')
+);
+assert.doesNotMatch(menuBlock, /addItem\('변경 예정 미리보기'/,
+  '미리보기는 메뉴에서 빠져야 합니다');
+assert.doesNotMatch(menuBlock, /addItem\('승인된 테스트 실행'/,
+  '테스트 실행은 메뉴에서 빠져야 합니다');
+assert.match(menuBlock, /addItem\('군 현황판만 업데이트'/,
+  '군 현황판 갱신은 메뉴에 남아야 합니다');
+assert.match(maintenanceSource, /function previewRegistrationMaintenance/,
+  '함수 자체는 편집기용으로 남겨 둡니다');
+assert.match(maintenanceSource, /function runRegistrationMaintenanceTest/);
+
+// --- 합계 행과 인원 대조 (TEST-REG-006) ----------------------------------
+// Validates: REQ-REG-004
+// 합계 행은 3행, 명단은 4행부터입니다.
+assert.equal(layout.totalsRow, 3);
+assert.equal(layout.startRow, layout.totalsRow + 1,
+  '명단은 합계 행 바로 다음 행부터 시작해야 합니다');
+assert.equal(totalsRowCells[layout.dateColumn], '합계',
+  '합계 행임을 A열에 적어야 합니다');
+
+// 군별 총합이 실제 배치와 맞아야 합니다.
+const columnCount = (column) => written
+  .map((row) => String(row[column] || ''))
+  .filter((value) => value).length;
+// 인원이 0인 군도 빈칸이 아니라 0으로 적혀야 합니다.
+layout.groupOrder.forEach((group, index) => {
+  const column = layout.groupStartColumn + index;
+  assert.notEqual(totalsRowCells[column], '',
+    `${group}군 합계가 비어 있습니다 - 0도 적어야 합니다`);
+  assert.equal(Number(totalsRowCells[column]), columnCount(column),
+    `${group}군 합계가 실제 배치와 다릅니다`);
+});
+[layout.selfColumns['4'], layout.selfColumns['5'], layout.unassignedColumn]
+  .forEach((column) => {
+    assert.notEqual(totalsRowCells[column], '',
+      `${column}열 합계가 비어 있습니다`);
+    assert.equal(Number(totalsRowCells[column]), columnCount(column),
+      `${column}열 합계가 실제 배치와 다릅니다`);
+  });
+
+// 합계 열의 총합 = 전체 인원. 주별 합계를 따로 더한 값과도 같아야 합니다.
+assert.equal(Number(totalsRowCells[layout.totalColumn]), registrationRows.length,
+  '합계 열의 총합이 전체 인원과 달라졌습니다');
+const weeklySum = written
+  .map((row) => Number(row[layout.totalColumn]))
+  .filter((value) => !Number.isNaN(value))
+  .reduce((a, b) => a + b, 0);
+assert.equal(weeklySum, registrationRows.length,
+  '주별 합계를 더한 값이 전체 인원과 다릅니다');
+
+// 정상 데이터에서는 대조가 통과해야 합니다.
+const check = dashboardResult.verification;
+assert.equal(check.matched, true, `인원 대조가 실패했습니다: ${check.message}`);
+assert.equal(check.registrationPeople, registrationRows.length);
+assert.equal(check.renderedNames, registrationRows.length);
+assert.equal(check.weeklyTotalSum, registrationRows.length);
+// "이상 없음"만 적으면 무엇을 봤는지 알 수 없으므로 근거 숫자를 함께 냅니다.
+assert.match(check.message, new RegExp(String(registrationRows.length)),
+  '대조 결과에 근거가 된 인원 수가 나와야 합니다');
+
+// 합계 행이 명단으로 오인돼 이름 수집에 섞이면 안 됩니다.
+assert.ok(!placedNames.has('합계'), '합계 행이 명단 영역에 섞였습니다');
+
+// --- 대조가 불일치를 실제로 잡는가 (TEST-REG-006) -------------------------
+// 등록일을 해석할 수 없는 행은 현황판에 배치할 자리가 없습니다.
+// 그 사람이 조용히 사라지지 않고 대조에 걸려야 합니다.
+const brokenDateRows = registrationRows.concat([
+  ['99', '날짜아님', 4, '신', '', '누락될사람', '', '', '', '', '']
+]);
+const mismatchSource = createGridSheet('등록 새가족',
+  [registrationHeader].concat(brokenDateRows));
+const mismatchDash = createGridSheet('등록 새가족 군 현황',
+  [new Array(20).fill(''), new Array(20).fill(''), new Array(20).fill('')]);
+context.SpreadsheetApp = {
+  openById: () => ({
+    getSheetByName: (wanted) => [mismatchSource, mismatchDash]
+      .find((sheet) => sheet.name === wanted) || null
+  })
+};
+const mismatch = context.__dashboard({ dryRun: false });
+assert.equal(mismatch.verification.matched, false,
+  '배치하지 못한 사람이 있는데 대조가 통과했습니다');
+assert.equal(mismatch.verification.registrationPeople, brokenDateRows.length);
+assert.equal(mismatch.verification.renderedNames, registrationRows.length);
+assert.equal(mismatch.verification.difference, 1);
+assert.match(mismatch.verification.message, /누락될사람/,
+  '누가 빠졌는지 이름으로 알려 줘야 합니다');
+assert.match(mismatch.verification.message, /등록 \d+행/,
+  '등록 시트에서 찾을 수 있게 행 번호를 알려 줘야 합니다');
+assert.ok(
+  Array.from(mismatch.review).some((item) => /인원 불일치/.test(item.reason)),
+  '불일치는 검토 내역으로도 보고돼야 합니다'
+);
 
 // --- 스스로·미배정 명단 메일 (TEST-REG-004) ------------------------------
 // Validates: REQ-REG-003

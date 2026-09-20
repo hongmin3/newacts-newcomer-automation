@@ -55,7 +55,8 @@ const DASHBOARD_LAYOUT = (function () {
   const self4 = groupStartColumn + groups.length;
   return Object.freeze({
     headerRows: 2,
-    startRow: 3,
+    totalsRow: 3,
+    startRow: 4,
     // 날짜 + 군 + 스스로(4부·5부) + 미배정 + 합계
     columns: groups.length + 5,
     legacyColumns: 20,
@@ -71,9 +72,8 @@ const DASHBOARD_LAYOUT = (function () {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('⛪ 새가족 자동화 시스템')
-    .addItem('변경 예정 미리보기', 'previewRegistrationMaintenance')
-    .addItem('승인된 테스트 실행', 'runRegistrationMaintenanceTest')
-    .addSeparator()
+    // 미리보기·테스트 실행은 메뉴에서 뺐습니다(2026-09-20, 운영에서 쓰지 않음).
+    // 함수는 그대로 있으므로 필요하면 Apps Script 편집기에서 실행합니다.
     .addItem('군 현황판만 업데이트', 'updateNewFamilyStatusMenu')
     .addItem('방문자 명단만 동기화', 'syncRegisteredToVisitedMenu')
     .addToUi();
@@ -161,7 +161,8 @@ function runRegistrationMaintenance_(options) {
         changeLabel + ' ' + reconciliation.changes.length +
         '건 · 스스로/미배정 ' +
         (dashboard.attention || []).length + '명 · 검토 ' +
-        reviewCount + '건',
+        reviewCount + '건' +
+        (dashboard.verification.matched ? '' : ' · ⚠ 인원 불일치'),
       body: createDetailedRegistrationMaintenanceText_(result, options.label),
       htmlBody: createDetailedRegistrationMaintenanceHtml_(result, options.label),
       forceTestRecipient: Boolean(options.forceTestRecipient)
@@ -180,8 +181,9 @@ function updateNewFamilyStatusMenu() {
   });
   SpreadsheetApp.getUi().alert(
     '군 현황판 업데이트 완료\n배치: ' + result.processed +
-    '명 (미배정 열: ' + result.unassigned +
-    '명)\n검토 필요: ' + result.review.length + '건'
+    '명 (미배정 열: ' + result.unassigned + '명)\n' +
+    result.verification.message + '\n검토 필요: ' +
+    result.review.length + '건'
   );
   return result;
 }
@@ -246,21 +248,19 @@ function buildNewFamilyStatusHeader_() {
   const top = new Array(width).fill('');
   const bottom = new Array(width).fill('');
 
-  top[DASHBOARD_LAYOUT.dateColumn] = '날짜';
+  // 1행은 여러 열을 묶는 이름만 담습니다. 필터가 걸린 시트에서는 1행이 필터
+  // 머리글이라 세로 병합이 거부되므로, 한 열짜리 제목을 1행에도 적으면 2행과
+  // 같은 글자가 두 번 나와 겹쳐 보입니다. 그래서 1행은 묶음 전용으로 둡니다.
   top[DASHBOARD_LAYOUT.groupStartColumn] = '군 배정 (4·5부 통합)';
   top[DASHBOARD_LAYOUT.selfColumns['4']] = '스스로';
-  top[DASHBOARD_LAYOUT.unassignedColumn] = '미배정';
-  top[DASHBOARD_LAYOUT.totalColumn] = '합계';
 
+  // 2행이 열 이름 행입니다. 모든 열의 이름이 여기 한 줄에 모입니다.
+  bottom[DASHBOARD_LAYOUT.dateColumn] = '날짜';
   DASHBOARD_LAYOUT.groupOrder.forEach(function (group, index) {
     bottom[DASHBOARD_LAYOUT.groupStartColumn + index] = group;
   });
   bottom[DASHBOARD_LAYOUT.selfColumns['4']] = '4부';
   bottom[DASHBOARD_LAYOUT.selfColumns['5']] = '5부';
-
-  // 세로 병합을 쓰지 않으므로 단일 열 제목은 두 행에 모두 적습니다.
-  // 필터가 걸린 시트에서는 1행이 필터 머리글이라 세로 병합이 거부됩니다.
-  bottom[DASHBOARD_LAYOUT.dateColumn] = '날짜';
   bottom[DASHBOARD_LAYOUT.unassignedColumn] = '미배정';
   bottom[DASHBOARD_LAYOUT.totalColumn] = '합계';
 
@@ -337,12 +337,16 @@ function updateNewFamilyStatus_(options) {
   const review = [];
   // 담당자가 직접 군을 정해 줘야 하는 사람들 - 스스로 등록자와 미배정자.
   const attention = [];
+  // 대조용: 등록 명단에서 이름이 있는 행 수. 현황판 집계와 독립적으로 셉니다.
+  let registrationPeople = 0;
+  const unplaced = [];
   let processed = 0;
   let unassigned = 0;
 
   data.forEach(function (row, index) {
     const name = String(row[5] || '').trim();
     if (!name) return;
+    registrationPeople += 1;
 
     const serviceText = String(row[2] || '').trim() || '미상';
     const groupText = String(row[3] || '').trim() || '빈값';
@@ -354,6 +358,7 @@ function updateNewFamilyStatus_(options) {
       const dateReason = '등록일을 해석할 수 없어 현황판에 배치하지 못함: ' +
         (String(row[1] || '').trim() || '빈값');
       review.push({ row: index + 2, name: name, reason: dateReason });
+      unplaced.push({ row: index + 2, name: name, reason: dateReason });
       attention.push({
         kind: '미배정',
         row: index + 2,
@@ -439,18 +444,74 @@ function updateNewFamilyStatus_(options) {
     output[start][DASHBOARD_LAYOUT.totalColumn] = dayTotal;
   });
 
+  // --- 합계 행 -------------------------------------------------------------
+  // 명단이 다 그려진 뒤, 출력 배열에서 직접 세어 만듭니다. 집계 변수를 다시
+  // 쓰지 않는 이유는 그러면 같은 수를 두 번 적는 것일 뿐 대조가 되지 않기
+  // 때문입니다. 아래 검증이 이 둘을 실제로 맞춰 봅니다.
+  const columnTotals = countDashboardColumns_(output);
+  const totalsRow = new Array(width).fill('');
+  totalsRow[DASHBOARD_LAYOUT.dateColumn] = '합계';
+  let renderedNames = 0;
+  // 인원이 없는 군도 빈칸이 아니라 0으로 적습니다. 합계 행의 빈칸은
+  // "없음"과 "세지 않음"을 구분하지 못합니다.
+  for (let column = 0; column < width; column++) {
+    if (column === DASHBOARD_LAYOUT.dateColumn) continue;
+    if (column === DASHBOARD_LAYOUT.totalColumn) continue;
+    const count = columnTotals[column] || 0;
+    totalsRow[column] = count;
+    renderedNames += count;
+  }
+  totalsRow[DASHBOARD_LAYOUT.totalColumn] = renderedNames;
+
+  // 주별 합계 열을 따로 더해 본 값. 위와 다른 경로로 얻은 같은 수여야 합니다.
+  const weeklyTotalSum = output.reduce(function (sum, row) {
+    const value = Number(row[DASHBOARD_LAYOUT.totalColumn]);
+    return sum + (isNaN(value) ? 0 : value);
+  }, 0);
+
+  // --- 인원 대조 -----------------------------------------------------------
+  // 서로 다른 세 경로로 얻은 수가 모두 같아야 합니다.
+  //   registrationPeople : 등록 명단에서 이름이 있는 행 수
+  //   processed          : 배치 단계에서 센 수
+  //   renderedNames      : 실제로 출력된 칸을 다시 세어 얻은 수
+  const verification = {
+    registrationPeople: registrationPeople,
+    processed: processed,
+    renderedNames: renderedNames,
+    weeklyTotalSum: weeklyTotalSum,
+    unplaced: unplaced,
+    matched: registrationPeople === processed &&
+      processed === renderedNames &&
+      renderedNames === weeklyTotalSum,
+    difference: registrationPeople - renderedNames,
+    message: ''
+  };
+  verification.message = describeDashboardVerification_(verification);
+  if (!verification.matched) {
+    review.push({
+      row: '-',
+      name: '(인원 대조)',
+      reason: verification.message
+    });
+  }
+
   if (!options.dryRun) {
+    const totalsRowIndex = DASHBOARD_LAYOUT.totalsRow;
     const startRow = DASHBOARD_LAYOUT.startRow;
     ensureRegistrationColumns_(targetSheet, width);
 
-    // 이전 20열 배치가 남긴 내용과 배경색을 먼저 지웁니다.
+    // 합계 행부터 아래로, 이전 배치가 남긴 내용과 배경색을 먼저 지웁니다.
     const clearWidth = Math.min(
       Math.max(DASHBOARD_LAYOUT.legacyColumns, width),
       targetSheet.getMaxColumns()
     );
-    const oldRows = Math.max(targetSheet.getLastRow() - startRow + 1, 0);
+    const oldRows = Math.max(
+      targetSheet.getLastRow() - totalsRowIndex + 1, 0
+    );
     if (oldRows > 0) {
-      const oldRange = targetSheet.getRange(startRow, 1, oldRows, clearWidth);
+      const oldRange = targetSheet.getRange(
+        totalsRowIndex, 1, oldRows, clearWidth
+      );
       oldRange.clearContent();
       oldRange.setBackground(null);
     }
@@ -464,6 +525,14 @@ function updateNewFamilyStatus_(options) {
         .setVerticalAlignment('middle');
     }
 
+    // 합계 행은 명단을 다 쓴 뒤에 씁니다.
+    targetSheet.getRange(totalsRowIndex, 1, 1, width)
+      .setValues([totalsRow])
+      .setBackgrounds([new Array(width).fill('#FFF2CC')])
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle')
+      .setFontWeight('bold');
+
     // 머리글은 마지막에 씁니다. 머리글 쪽 문제로 명단 기록이 막히면 안 됩니다
     // (필터가 걸린 시트에서 병합이 거부되던 실제 사고).
     writeNewFamilyStatusHeader_(targetSheet);
@@ -474,8 +543,52 @@ function updateNewFamilyStatus_(options) {
     unassigned: unassigned,
     outputRows: output.length,
     review: review,
-    attention: attention
+    attention: attention,
+    totals: columnTotals,
+    verification: verification
   };
+}
+
+/**
+ * 출력 배열에서 이름이 들어간 칸을 열별로 셉니다.
+ * 날짜 열과 합계 열은 이름이 아니므로 세지 않습니다.
+ */
+function countDashboardColumns_(output) {
+  const totals = {};
+  output.forEach(function (row) {
+    for (let column = 0; column < DASHBOARD_LAYOUT.columns; column++) {
+      if (column === DASHBOARD_LAYOUT.dateColumn) continue;
+      if (column === DASHBOARD_LAYOUT.totalColumn) continue;
+      if (!String(row[column] || '').trim()) continue;
+      totals[column] = (totals[column] || 0) + 1;
+    }
+  });
+  return totals;
+}
+
+/**
+ * 인원 대조 결과를 사람이 읽을 한 문장으로 만듭니다.
+ * 맞으면 근거가 된 수를 함께 적습니다 - "이상 없음"만으로는
+ * 검사가 실제로 무엇을 봤는지 알 수 없기 때문입니다.
+ */
+function describeDashboardVerification_(verification) {
+  if (verification.matched) {
+    return '인원 일치: 등록 명단 ' + verification.registrationPeople +
+      '명 = 현황판 기록 ' + verification.renderedNames +
+      '명 = 주별 합계 총합 ' + verification.weeklyTotalSum + '명';
+  }
+  let text = '인원 불일치 - 등록 명단 ' + verification.registrationPeople +
+    '명 / 배치 집계 ' + verification.processed +
+    '명 / 현황판 기록 ' + verification.renderedNames +
+    '명 / 주별 합계 총합 ' + verification.weeklyTotalSum + '명';
+  if (verification.unplaced.length) {
+    text += ' · 현황판에 배치하지 못한 사람 ' +
+      verification.unplaced.length + '명: ' +
+      verification.unplaced.map(function (item) {
+        return item.name + '(등록 ' + item.row + '행)';
+      }).join(', ');
+  }
+  return text;
 }
 
 function syncRegisteredToVisited_(options) {
@@ -489,6 +602,7 @@ function createRegistrationMaintenanceText_(result) {
   let text = '';
   text += '군 현황 배치: ' + result.dashboard.processed + '명\n';
   text += '미배정 열: ' + (result.dashboard.unassigned || 0) + '명\n';
+  text += result.dashboard.verification.message + '\n';
   text += '군 현황 출력: ' + result.dashboard.outputRows + '행\n';
   text += '검토 필요: ' + result.dashboard.review.length + '건\n';
   return text;
@@ -836,6 +950,7 @@ function createDetailedRegistrationMaintenanceText_(result, label) {
     '명 (군을 확정하지 못했지만 현황판에는 이름이 있습니다)\n';
   text += '출력 행 수: ' + result.dashboard.outputRows +
     '행 (인원 수가 아닌 화면 배치 행 수)\n';
+  text += '인원 대조: ' + result.dashboard.verification.message + '\n';
   text += '검토 필요: ' + result.dashboard.review.length + '건\n\n';
 
   const attention = result.dashboard.attention || [];
@@ -919,11 +1034,18 @@ function createDetailedRegistrationMaintenanceHtml_(result, label) {
   }
 
   html += '<h3>2. 군 현황판</h3>';
+  const verification = result.dashboard.verification;
   html += createRegistrationSummaryTable_([
-    ['현황판 배치', result.dashboard.processed + '명'],
+    ['등록 명단', verification.registrationPeople + '명'],
+    ['현황판 기록', verification.renderedNames + '명'],
     ['미배정 열', (result.dashboard.unassigned || 0) + '명'],
     ['출력 행', result.dashboard.outputRows + '행']
   ]);
+  html += '<p style="padding:10px;border-radius:6px;background:' +
+    (verification.matched ? '#ecfdf5' : '#fef2f2') + ';border:1px solid ' +
+    (verification.matched ? '#a7f3d0' : '#fecaca') + '">' +
+    (verification.matched ? '✅ ' : '⚠️ ') +
+    escapeRegistrationHtml_(verification.message) + '</p>';
   html += '<p style="color:#6b7280;font-size:13px">군 배정은 4부·5부를 나누지 않고 ' +
     '하나의 군 열에 모읍니다. "스스로"만 4부·5부 열로 나눠 표시합니다. ' +
     '군을 확정하지 못한 사람도 <b>미배정</b> 열에 이름이 남으므로 현황판에서 누락되지 ' +
