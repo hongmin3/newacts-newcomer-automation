@@ -46,6 +46,49 @@ function main() {
 }
 
 /**
+ * 2026-09-19 결정: 교육 출석 반영은 화요일 하루 한 번이면 충분하므로 금요일의
+ * `main` 클록 트리거를 삭제한다.
+ *
+ * 삭제 대상은 handler가 `main`인 CLOCK 트리거 중 요일이 FRIDAY인 것뿐이다.
+ * 화요일 등 나머지 트리거는 건드리지 않으며, 이미 없으면 삭제 목록이 비어 있다
+ * (여러 번 실행해도 같은 결과).
+ */
+function removeFridayEducationTrigger() {
+  const removed = [];
+  const keptMainClockTriggers = [];
+  for (const trigger of ScriptApp.getProjectTriggers()) {
+    if (trigger.getHandlerFunction() !== 'main') continue;
+    if (trigger.getTriggerSource() !== ScriptApp.TriggerSource.CLOCK) continue;
+    let day = null;
+    try {
+      day = trigger.getDayOfWeek();
+    } catch (error) {
+      day = null;
+    }
+    if (day === ScriptApp.WeekDay.FRIDAY) {
+      ScriptApp.deleteTrigger(trigger);
+      removed.push({
+        uniqueId: trigger.getUniqueId(),
+        handler: trigger.getHandlerFunction(),
+        day: 'FRIDAY'
+      });
+    } else {
+      keptMainClockTriggers.push({
+        uniqueId: trigger.getUniqueId(),
+        handler: trigger.getHandlerFunction(),
+        day: day === null ? 'UNKNOWN' : String(day)
+      });
+    }
+  }
+  const result = {
+    removed: removed,
+    keptMainClockTriggers: keptMainClockTriggers
+  };
+  console.log(JSON.stringify(result));
+  return result;
+}
+
+/**
  * 실행 전 변경 예정 건수만 확인합니다. 시트/속성/메일을 변경하지 않습니다.
  */
 function previewPendingAttendance() {

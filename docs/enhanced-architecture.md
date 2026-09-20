@@ -27,7 +27,7 @@ Google Form 응답 시트
 
 | 항목 | 원본 | 개선본 |
 |---|---|---|
-| 중복 실행 | 동일한 일요일 응답을 화·금요일 모두 재탐색 | 마지막 처리 행 이후의 신규 응답만 처리 |
+| 중복 실행 | 동일한 일요일 응답을 화·금요일 모두 재탐색 | 저장한 타임스탬프 커서 이후의 신규 응답만 처리 |
 | 동시 실행 | 보호 없음 | 프로젝트 잠금으로 중복 실행 차단 |
 | 사람 매칭 | 이름 또는 전화번호 혼용 | 정규화된 전화번호가 한 명과 일치할 때만 자동 반영 |
 | 불일치 처리 | 일부 값을 자동 덮어씀 | 기존 값을 보존하고 검토 로그에 기록 |
@@ -63,7 +63,13 @@ Google Form 응답 시트
 - 문자 명단 메일: `runNewcomerNotificationTest`
 - 등록 군 현황/방문자 동기화: `runRegistrationMaintenanceTest`
 - 등록 수료현황/보고 메일: `runRegistrationReportingTest`
-- 집중교육 반영: `runIntensiveTrainingTest`
+
+### 승인 후 실제 반영(메일 없음, 시트 변경)
+
+- 집중교육 반영: `applyIntensiveTrainingNow` — 미리보기(`previewIntensiveTraining`)로 확인한 뒤 실행합니다.
+- 상반기 결산: `generateSettlementReport` — 미리보기(`previewSettlementReport`)로 확인한 뒤 실행합니다.
+
+이름은 검토 대상입니다. 등록 명단의 이름이 교육 출석 이름과 다르면 자동으로 고치지 않고 검토 내역으로만 보고합니다.
 
 ### 운영 트리거 진입점
 
@@ -99,6 +105,9 @@ Google Form 응답 시트
 |---|---|---|---|
 | 등록 | `runRegistrationMaintenanceTrigger` | 매주 월요일 08:00~09:00 | 즉시 |
 | 등록 | `runRegistrationReportingTrigger` | 매주 금요일 11:00~12:00 | 즉시 |
-| 교육 | `processPendingAttendanceTrigger` | 매주 월요일 07:00~08:00 | 즉시 |
-| 교육 | `processPendingAttendanceTrigger` | 매주 금요일 09:00~10:00 | 즉시 |
+| 교육 | `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00 | 즉시 |
 | 교육 | `sendNewcomerNotificationsTrigger` | 매주 토요일 08:00~09:00 | 즉시 |
+
+교육 출석 반영은 하루 한 번이면 충분하므로 **화요일 한 번만** 둡니다. 2026-09-19 결정이며,
+당시 운영 트리거에 남아 있던 금요일 09:00~10:00 트리거는 삭제 대상입니다(웹앱과 달리 코드
+반영으로는 바뀌지 않습니다).

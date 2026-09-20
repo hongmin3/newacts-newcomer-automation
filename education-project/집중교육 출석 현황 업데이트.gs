@@ -16,9 +16,12 @@ function syncIntensiveTraining() {
 }
 
 /**
- * 사용자 승인 후 실제 시트 반영 테스트에 사용합니다.
+ * 사용자 승인 후 집중교육 출석을 실제 교육 출석 현황 시트에 반영합니다.
+ *
+ * 메일은 보내지 않지만 **미리보기가 아니라 실제 시트 변경**입니다. 먼저
+ * `previewIntensiveTraining`으로 바뀔 내용을 확인한 뒤 실행하세요(REQ-EDU-003).
  */
-function runIntensiveTrainingTest() {
+function applyIntensiveTrainingNow() {
   return withEducationLock_(function () {
     return syncIntensiveTraining_({ dryRun: false });
   });

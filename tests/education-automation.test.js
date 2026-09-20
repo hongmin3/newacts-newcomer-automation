@@ -67,6 +67,30 @@ const sentBefore = sent.length;
 call("sendEducationEmail_({ subject: '토요일 문자공지', body: 'b', forceTestRecipient: false });");
 assert.equal(sent[sentBefore].to.split(',').length, 5);
 
+// --- 집중교육 반영은 실제 시트를 바꾼다 (TEST-EDU-003) --------------------
+// Validates: REQ-EDU-003
+// 'run*Test'라는 이름이 붙으면 미리보기로 오해되므로 실제 반영 함수는 이름을 분리했습니다.
+assert.match(intensiveSource, /function previewIntensiveTraining\(\)[\s\S]{0,120}dryRun: true/);
+assert.match(
+  intensiveSource,
+  /function applyIntensiveTrainingNow\(\)[\s\S]{0,200}dryRun: false/
+);
+assert.doesNotMatch(intensiveSource, /function runIntensiveTrainingTest\(/);
+assert.match(intensiveSource, /previewIntensiveTraining/);
+
+// --- 금요일 교육 트리거 삭제 도우미 (NFR-OPS-001) -------------------------
+// Validates: NFR-OPS-001
+// 삭제 도우미는 금요일 `main` CLOCK 트리거만 지우고 나머지는 건드리지 않아야 합니다.
+assert.match(educationSource, /function removeFridayEducationTrigger\(\)/);
+assert.match(
+  educationSource,
+  /getHandlerFunction\(\) !== 'main'[\s\S]{0,120}getTriggerSource\(\) !== ScriptApp\.TriggerSource\.CLOCK/
+);
+assert.match(
+  educationSource,
+  /day === ScriptApp\.WeekDay\.FRIDAY[\s\S]{0,160}ScriptApp\.deleteTrigger\(trigger\)/
+);
+
 // --- 숨김 로그 시트 -------------------------------------------------------
 function createFakeSheet(name, { hidden = false } = {}) {
   return {
