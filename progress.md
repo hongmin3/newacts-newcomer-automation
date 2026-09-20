@@ -1,14 +1,22 @@
 # Progress
 
-- 현재 목표: 없음
-- 완료한 작업: 운영 Apps Script ↔ 저장소 드리프트 해소, 메일 안전장치·숨김 로그 복구, 동기화 도구 도입, 운영 반영(웹앱 버전 7), README 최신화
+- 현재 목표: 없음 (군 현황판 4·5부 통합 + 미배정 보장 + 스스로/미배정 메일 완료, 운영 배포 대기)
+- 완료한 작업: 운영 Apps Script ↔ 저장소 드리프트 해소, 메일 안전장치·숨김 로그 복구, 동기화 도구 도입, 운영 반영(웹앱 버전 7), README 최신화, 2026-09-19 미확정 8건 결정 반영(SPEC·README·코드·테스트), education·registration 코드 운영 push·확인, 금요일 트리거 삭제 함수 `removeFridayEducationTrigger` 반영, README 개인정보(운영 수신자 주소) 제거
 - 진행 중 작업: 없음
-- 남은 작업: 없음
+- 남은 작업: 교육 프로젝트 편집기에서 `removeFridayEducationTrigger` 1회 실행(금요일 `main` 클록 트리거 실제 삭제). API 원격 실행이 계정 전역 저장소 오류(NOT_FOUND)로 막혀 편집기 수동 실행이 필요하다.
 - 중요한 설계 결정:
   - 저장소가 운영보다 뒤처져 있었으므로 운영 코드를 기준으로 맞춘 뒤 그 위에서 고도화했다.
   - 자동화 로그는 기록하되 시트를 숨겨 운영 화면에 노출하지 않는다.
   - 월요일 메일 1명 수신과 상반기 방문자 동기화 중지는 의도된 설정이라 유지한다.
   - `scripts/apps-script.mjs`로 diff/pull/push/deploy를 수행해 드리프트 재발을 막는다.
-- 변경 파일: 네 프로젝트의 `.gs`/`appsscript.json`, `scripts/`, `tests/`, `package.json`, `README.md`, `docs/current-triggers.md`
-- 알려진 문제: 없음
+  - 등록 보정은 이름을 자동 수정하지 않는다. 이름이 교육 출석과 다르면 검토 내역으로 보고하고 사람이 확인한다(2026-09-19).
+  - 집중교육 반영의 실제 실행 함수는 `applyIntensiveTrainingNow`다. `run*Test` 이름을 쓰지 않아 미리보기로 오해되지 않게 한다.
+  - 교육 출석 반영 트리거는 화요일 17:00~18:00 하루 한 번만 둔다(2026-09-19).
+  - 데이터 보존은 자동 삭제 없이 유지한다(NFR-DATA-001). 정리 기준이 필요하면 사양을 먼저 정한다.
+  - 군 현황판은 예배 구분으로 군을 나누지 않는다. 4·5부를 나누면 `신`·`조`는 4부에만, `임`은 5부에만 열이 있어 반대 부 등록자가 조용히 누락됐다(2026-09-20).
+  - 배정 함수는 전함수(total function)다. 어떤 입력에서도 유효한 열 번호를 돌려주고, 확정하지 못하면 `미배정` 열로 보낸 뒤 보고한다. 보고를 끄는 것이 아니라 처리되지 않는 경로를 없앴다.
+  - 군 목록은 회기마다 바뀐다. 등록·보고 프로젝트 안에서는 `REGISTRATION_AUTOMATION.groups` 한 곳이 유일한 출처이고, 프로젝트 사이의 나머지 5곳은 SPEC 8.1의 절차로 관리한다. 시트는 매년 복사해서 쓴다.
+- 변경 파일: 네 프로젝트의 `.gs`/`appsscript.json`, `scripts/`, `tests/`, `package.json`, `README.md`, `SPEC.md`, `CHANGELOG.md`, `docs/current-triggers.md`, `docs/enhanced-architecture.md`, `docs/attendance-webapp-hardening.md`
+- 알려진 문제: 이 계정의 Apps Script 프로젝트는 `scripts.run` 원격 실행이 "reading from storage, NOT_FOUND"로 차단된다(교육·등록 모두 동일, 최소 probe 함수도 실패). diff/pull/push/deploy는 정상 동작하므로 실행성 작업만 편집기에서 수동으로 한다.
+- 배포 대기: `registration-project/등록새가족-군현황 자동 배치.gs` 변경이 아직 운영에 push되지 않았다. 첫 실행이 `등록 새가족 군 현황` 시트의 1~2행 머리글과 3행 이하를 다시 쓴다.
 - 다음 세션 시작점: `npm run diff`로 운영과의 일치 확인 후 대상 프로젝트 선택

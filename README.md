@@ -17,7 +17,7 @@ npm run push      # 저장소 코드를 운영에 반영
 | 교육 출석 입력 웹앱 | `doGet`, `searchUser`, `submitAttendance` | 웹앱에서 수시 실행 | 이름·전화번호 확인 후 교육 주차 출석 응답을 시트 **2행에 최신순으로** 저장 | `attendance-webapp/` |
 | 등록 명단 유지관리 | `runAllAutomationTrigger` → `runRegistrationMaintenanceTrigger` | 매주 월요일 08:00~09:00 | 교육 출석 기준 등록정보 자동 보정, 군 현황판 갱신, 결과 메일 | `registration-project/등록새가족-군현황 자동 배치.gs` |
 | 교육 수료현황·주간 메일 | `runSystem` → `runRegistrationReportingTrigger` | 매주 금요일 11:00~12:00 | 등록 명단과 교육 출석 결합, 수료현황 재작성, 전체·군별 주간 메일 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` |
-| 교육 출석 반영 | `main` → `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00, 금요일 09:00~10:00 | 새 설문 응답을 **타임스탬프 커서** 기준으로 증분 반영하고 상세 결과 메일 | `education-project/교육 출석 현황 업데이트.gs` |
+| 교육 출석 반영 | `main` → `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00 | 새 설문 응답을 **타임스탬프 커서** 기준으로 증분 반영하고 상세 결과 메일 | `education-project/교육 출석 현황 업데이트.gs` |
 | 교육 문자공지 명단 | `sendNewcomerNotifications` → `sendNewcomerNotificationsTrigger` | 매주 토요일 08:00~09:00 | 교육 진행 중·미진행 명단과 문자 발송용 번호를 메일로 전송 | `education-project/문자 명단 리스트.gs` |
 | 집중교육 신청 접수 | `onFormSubmitHandler` | Form 제출 즉시 | 군→팀 분기 신청, 전화번호 정규화, 관리자·공개 명단 동기화 | `intensive-training-application/` |
 | 집중교육 출석 반영 | `syncIntensiveTraining` | 필요할 때 수동 실행 | `26년 집중교육` 참석자를 일반 교육 출석 현황에 반영 | `education-project/집중교육 출석 현황 업데이트.gs` |
@@ -44,7 +44,7 @@ npm run push      # 저장소 코드를 운영에 반영
        ▼
 2026년 뉴액츠 청년부 등록 새가족 현황
   ├─ 등록 새가족       ← 월: 교육 출석 기준 자동 보정
-  ├─ 등록 새가족 군 현황
+  ├─ 등록 새가족 군 현황   (날짜 / 군 9개 / 스스로 4부·5부 / 미배정 / 합계 = 14열)
   ├─ 상반기 방문 새가족 (동기화 중지)
   ├─ 새가족교육 수료현황
   ├─ 상반기 결산
@@ -92,6 +92,7 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 ### `registration-project/`
 
 - `등록새가족-군현황 자동 배치.gs`: 등록 자동화 설정, 교육 출석 기준 자동 보정, 군 현황판, 숨김 로그, 공통 함수
+  - 군 목록은 `REGISTRATION_AUTOMATION.groups` 한 곳에서만 정의합니다. 현황판 열 순서·열 수·군 표기 정규화가 모두 여기서 파생되므로 열 번호를 손으로 세지 않습니다. **군은 회기마다 바뀝니다 — 바꾸는 절차는 `SPEC.md` 8.1에 있습니다.**
 - `등록 새가족 새가족교육 수료현황 자동화.gs`: 수료현황 동기화 및 전체·군별 메일
 - `제목 없음.gs`: 상반기 결산 집계. Apps Script 파일명도 현재 동일하게 유지해야 관리가 쉽습니다.
 - 연결 대상: `2026년 뉴액츠 청년부 등록 새가족 현황`
@@ -125,10 +126,11 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 
 수신자는 `REGISTRATION_AUTOMATION.testRecipient` **1명**입니다. 관리자 전체 발송이 필요해지면 `runRegistrationMaintenance_`의 `recipients`를 `productionAdminRecipients`로 바꿉니다.
 
-- 제목: `[새가족 자동화] 정기 실행 | 자동 수정 N건 · 검토 M건`
-- 내용: 등록정보 자동 보정 요약(등록자·매칭·미매칭·자동수정·수동수정 보호·검토) → 자동수정 상세(행/이름/항목/기존값→교육 최신값/판단 근거) → 군 현황판 결과 → 검토 필요 상세 → 시트 링크
+- 제목: `[새가족 자동화] 정기 실행 | 자동 수정 N건 · 스스로/미배정 K명 · 검토 M건`
+- 내용: 등록정보 자동 보정 요약(등록자·매칭·미매칭·자동수정·수동수정 보호·검토) → 자동수정 상세(행/이름/항목/기존값→교육 최신값/판단 근거) → 군 현황판 결과 → **스스로 등록·군 미배정 명단** → 검토 필요 상세 → 시트 링크
+- 스스로 등록·군 미배정 명단은 담당자가 직접 군을 정해 줘야 하는 사람만 모은 표입니다. 등록 시트 행 번호가 있어 그 행을 바로 찾아 고칠 수 있습니다(REQ-REG-003).
 
-### 화·금 — 교육 출석 반영 (`main`)
+### 화요일 17:00 — 교육 출석 반영 (`main`)
 
 운영 수신자 5명. 제목에 신규·출석·중복·검토 건수가 들어가고, 본문에는 신규 추가 / 출석 반영 / 중복 / 군·팀 최신화 / 검토 필요를 각각 표로 정리합니다.
 
@@ -140,13 +142,8 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 
 제목은 `[뉴액츠 새가족부] 금주 새가족 교육 문자공지 명단 (날짜)`이고 운영 수신자 5명에게 발송합니다.
 
-```text
-ksj747172@gmail.com
-kimth6805@gmail.com
-rnrnwkddn@naver.com
-wnehdrms123@naver.com
-whduswn94@naver.com
-```
+운영 수신자 주소는 저장소에 두지 않습니다. 실제 목록은 `EDUCATION_AUTOMATION.productionRecipients`
+설정 객체 한 곳에서만 관리합니다(REQ-MAIL-001).
 
 대상자 선정 기준:
 
@@ -164,7 +161,8 @@ whduswn94@naver.com
 - `forceTestRecipient`: **현재 모드와 무관하게** 테스트 수신자 한 명으로 고정하고 제목에 `[TEST]`를 붙입니다. 아래 테스트 함수들이 이 옵션을 켭니다.
 - `LockService`: 동시에 실행된 작업이 같은 시트를 중복 수정하지 않도록 차단
 - 교육 응답 커서: `EDUCATION_LAST_RESPONSE_AT`(타임스탬프) 이후의 새 응답만 처리. 과거 행 번호 커서 `EDUCATION_LAST_RESPONSE_ROW`는 자동으로 이전됩니다.
-- 등록정보 자동 보정: 자동 수정한 값을 스크립트 속성에 기록해 두고, 사람이 그 값을 다시 고치면 이후 자동 수정 대상에서 **보호**합니다.
+- 등록정보 자동 보정: **군·팀·전화번호만** 자동으로 고칩니다. 이름이 교육 출석과 다르면 고치지 않고 검토 내역으로 보고합니다. 자동 수정한 값을 스크립트 속성에 기록해 두고, 사람이 그 값을 다시 고치면 이후 자동 수정 대상에서 **보호**합니다.
+- 데이터 보존: 출석 원본·실행 로그·보정 상태를 자동으로 삭제하지 않습니다. 정리 기준이 필요해지면 코드보다 사양을 먼저 정합니다.
 
 ### 테스트 함수 (운영 발송 없음)
 
@@ -175,7 +173,15 @@ whduswn94@naver.com
 | `runRegistrationMaintenanceTest` | 시트 변경 없이 등록 유지관리 결과를 테스트 수신자 1명에게만 발송 |
 | `runRegistrationReportingTest` | 시트 변경 없이 수료 리포트를 테스트 수신자 1명에게 1통만 발송 |
 
-세 함수 모두 `mode`를 `TEST`로 바꾸지 않아도 안전합니다. 예전에는 이름과 달리 운영 수신자 전체에게 실제 메일이 나갔습니다.
+이 함수들은 모두 `mode`를 `TEST`로 바꾸지 않아도 안전합니다. 예전에는 이름과 달리 운영 수신자 전체에게 실제 메일이 나갔습니다.
+
+### 승인 후 실제 반영 (메일 없음, 시트 변경)
+
+| 함수 | 동작 |
+|---|---|
+| `applyIntensiveTrainingNow` | 집중교육 참석자를 교육 출석 현황에 실제 반영. 먼저 `previewIntensiveTraining`으로 확인 |
+| `generateSettlementReport` | 상반기 결산 시트를 다시 계산. 먼저 `previewSettlementReport`으로 확인 |
+| `syncIntensiveTraining` | 활성 상태에서 집중교육 반영을 실행하는 정식 경로(위와 같은 작업) |
 
 ### 자동화 로그 (숨김 시트)
 
@@ -210,7 +216,7 @@ node scripts/apps-script.mjs pull                # 운영 코드를 저장소로
 | 목적 | 미리보기/안전 확인 | 실제 실행 |
 |---|---|---|
 | 새 교육 응답 반영 | `previewPendingAttendance`, `previewEducationDetailedReport` | `processPendingAttendanceTrigger` |
-| 집중교육 병합 | `previewIntensiveTraining` | `syncIntensiveTraining` |
+| 집중교육 병합 | `previewIntensiveTraining` | `applyIntensiveTrainingNow` (메일 없음, 시트 변경) |
 | 등록 보정·군 현황 갱신 | `previewRegistrationMaintenance` | `runRegistrationMaintenanceTrigger` |
 | 수료현황·주간 메일 | `previewRegistrationReporting` | `runRegistrationReportingTrigger` |
 | 상반기 결산 | `previewSettlementReport` | `generateSettlementReport` |
