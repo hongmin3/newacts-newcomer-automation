@@ -1,6 +1,6 @@
 # Progress
 
-- 현재 목표: 없음 (군 현황판 4·5부 통합 + 미배정 보장 + 스스로/미배정 메일 완료, 운영 배포 대기)
+- 현재 목표: 없음 (군 현황판 4·5부 통합 + 미배정 보장 + 스스로/미배정 메일 — 코드·문서·운영 배포·git push 완료, 실제 시트 1회 실행만 남음)
 - 완료한 작업: 운영 Apps Script ↔ 저장소 드리프트 해소, 메일 안전장치·숨김 로그 복구, 동기화 도구 도입, 운영 반영(웹앱 버전 7), README 최신화, 2026-09-19 미확정 8건 결정 반영(SPEC·README·코드·테스트), education·registration 코드 운영 push·확인, 금요일 트리거 삭제 함수 `removeFridayEducationTrigger` 반영, README 개인정보(운영 수신자 주소) 제거
 - 진행 중 작업: 없음
 - 남은 작업: 교육 프로젝트 편집기에서 `removeFridayEducationTrigger` 1회 실행(금요일 `main` 클록 트리거 실제 삭제). API 원격 실행이 계정 전역 저장소 오류(NOT_FOUND)로 막혀 편집기 수동 실행이 필요하다.
@@ -17,6 +17,7 @@
   - 배정 함수는 전함수(total function)다. 어떤 입력에서도 유효한 열 번호를 돌려주고, 확정하지 못하면 `미배정` 열로 보낸 뒤 보고한다. 보고를 끄는 것이 아니라 처리되지 않는 경로를 없앴다.
   - 군 목록은 회기마다 바뀐다. 등록·보고 프로젝트 안에서는 `REGISTRATION_AUTOMATION.groups` 한 곳이 유일한 출처이고, 프로젝트 사이의 나머지 5곳은 SPEC 8.1의 절차로 관리한다. 시트는 매년 복사해서 쓴다.
 - 변경 파일: 네 프로젝트의 `.gs`/`appsscript.json`, `scripts/`, `tests/`, `package.json`, `README.md`, `SPEC.md`, `CHANGELOG.md`, `docs/current-triggers.md`, `docs/enhanced-architecture.md`, `docs/attendance-webapp-hardening.md`
-- 알려진 문제: 이 계정의 Apps Script 프로젝트는 `scripts.run` 원격 실행이 "reading from storage, NOT_FOUND"로 차단된다(교육·등록 모두 동일, 최소 probe 함수도 실패). diff/pull/push/deploy는 정상 동작하므로 실행성 작업만 편집기에서 수동으로 한다.
-- 배포 대기: `registration-project/등록새가족-군현황 자동 배치.gs` 변경이 아직 운영에 push되지 않았다. 첫 실행이 `등록 새가족 군 현황` 시트의 1~2행 머리글과 3행 이하를 다시 쓴다.
+- 알려진 문제: 이 계정의 Apps Script 프로젝트는 `scripts.run` 원격 실행이 "reading from storage, NOT_FOUND"로 차단된다(교육·등록 모두 동일, 최소 probe 함수도 실패). 2026-09-20 재확인 — 일시적 장애가 아니라 지속 상태다. 대안으로 Sheets API 직접 접근도 막혀 있다(clasp OAuth 프로젝트에서 Sheets API 비활성, 토큰에 `spreadsheets` 스코프 없음). diff/pull/push/deploy는 정상 동작하므로 **실행·시트 확인 작업은 스프레드시트 메뉴나 편집기에서 사람이 한다.**
+- 2026-09-20 운영 반영 완료: `npm run push registration` 후 `npm run diff`로 네 프로젝트 모두 운영과 동일함을 확인했다. git `main`에 2건 커밋·push 완료(3a68771 이전 세션 미커밋분, 915685a 이번 작업).
+- **남은 수동 1단계**: 등록 스프레드시트 메뉴 `⛪ 새가족 자동화 시스템 → 군 현황판만 업데이트`를 1회 실행해야 새 14열 배치가 실제 시트에 반영된다. 첫 실행이 `등록 새가족 군 현황`의 1~2행 머리글과 3행 이하를 다시 쓴다(이전 서식·병합은 대체됨). 실행하지 않아도 월요일 08:00 정기 트리거가 같은 일을 한다.
 - 다음 세션 시작점: `npm run diff`로 운영과의 일치 확인 후 대상 프로젝트 선택
