@@ -278,12 +278,20 @@ assert.equal(header[0][layout.totalColumn], '합계');
 
 // --- 등록자 누락 없음 (TEST-REG-003) --------------------------------------
 // Validates: REQ-REG-002
-function createGridSheet(name, values, maxColumns) {
+// 가짜 시트는 실제 Google Sheets가 **거부하는 조건**까지 흉내내야 의미가 있습니다.
+// 2026-09-20: merge()를 항상 성공하는 빈 함수로 둔 탓에, 필터가 걸린 운영 시트에서
+// 세로 병합이 거부되는 사고를 테스트가 통과시켰습니다.
+// options.filterHeaderRow: 그 행이 필터 머리글이면 그 행을 포함한 세로 병합을 거부합니다.
+function createGridSheet(name, values, options) {
+  const opts = options || {};
   const grid = values.map((row) => row.slice());
   const sheet = {
     name,
     grid,
-    maxColumns: maxColumns || 20,
+    filterHeaderRow: opts.filterHeaderRow || null,
+    mergeCalls: [],
+    failHeaderValues: Boolean(opts.failHeaderValues),
+    maxColumns: opts.maxColumns || 20,
     getName: () => name,
     getDataRange: () => ({ getValues: () => grid.map((row) => row.slice()) }),
     getLastRow: () => grid.length,
@@ -300,6 +308,9 @@ function createGridSheet(name, values, maxColumns) {
     getRange(row, column, numRows, numColumns) {
       const api = {
         setValues(block) {
+          if (sheet.failHeaderValues && row === 1) {
+            throw new Error('머리글 쓰기 실패(모의)');
+          }
           block.forEach((line, r) => {
             const target = row - 1 + r;
             while (grid.length <= target) grid.push([]);
@@ -320,7 +331,17 @@ function createGridSheet(name, values, maxColumns) {
         setHorizontalAlignment: () => api,
         setVerticalAlignment: () => api,
         setFontWeight: () => api,
-        merge: () => api,
+        merge() {
+          sheet.mergeCalls.push({ row, column, numRows, numColumns });
+          const filterRow = sheet.filterHeaderRow;
+          const coversFilterHeader = filterRow !== null &&
+            row <= filterRow && row + numRows - 1 >= filterRow;
+          if (numRows > 1 && coversFilterHeader) {
+            // 실제 Google Sheets가 내는 메시지와 같은 문구입니다.
+            throw new Error('필터 헤더 위에는 수직 병합을 만들 수 없습니다.');
+          }
+          return api;
+        },
         breakApart: () => api
       };
       return api;
@@ -399,6 +420,71 @@ assert.deepEqual(unassignedNames.slice().sort(), ['마바사', '카타파'].sort
 assert.equal(dashboardResult.review.length, 2);
 dashboardResult.review.forEach((item) => {
   assert.match(item.reason, /미배정 열로 배치/);
+});
+
+// --- 필터가 걸린 운영 시트 (TEST-REG-005) --------------------------------
+// Validates: REQ-REG-002
+// 2026-09-20 운영 사고 재현: 1행에 필터가 걸린 시트에서 머리글 세로 병합이
+// "필터 헤더 위에는 수직 병합을 만들 수 없습니다"로 거부되고, 그 예외가
+// 명단 기록 전에 터져 머리글만 새 배치 / 데이터는 옛 배치로 남았다.
+function runDashboardOnFilteredSheet(sheetOptions) {
+  const src = createGridSheet('등록 새가족',
+    [registrationHeader].concat(registrationRows));
+  const dash = createGridSheet('등록 새가족 군 현황',
+    [new Array(20).fill('옛머리글'), new Array(20).fill('옛머리글'),
+      ['3/22'].concat(new Array(19).fill('옛값'))],
+    Object.assign({ filterHeaderRow: 1 }, sheetOptions || {}));
+  context.SpreadsheetApp = {
+    openById: () => ({
+      getSheetByName: (wanted) => [src, dash].find((s2) => s2.name === wanted) || null
+    })
+  };
+  return { dash, run: () => context.__dashboard({ dryRun: false }) };
+}
+
+const filtered = runDashboardOnFilteredSheet();
+const filteredResult = filtered.run();   // 예외 없이 끝나야 합니다
+assert.equal(filteredResult.processed, registrationRows.length,
+  '필터가 걸린 시트에서도 등록자 전원이 배치돼야 합니다');
+
+const filteredNames = new Set();
+filtered.dash.grid.slice(layout.startRow - 1).forEach((row) =>
+  row.forEach((cell) => { if (cell) filteredNames.add(String(cell)); }));
+registrationRows.forEach((row) => {
+  assert.ok(filteredNames.has(row[5]),
+    `필터가 걸린 시트에서 누락된 등록자가 있습니다: ${row[5]}`);
+});
+assert.ok(!filteredNames.has('옛값'), '이전 배치의 데이터가 남아 있습니다');
+
+// 세로 병합은 아예 시도하지 않습니다 — 필터가 걸리면 항상 거부되기 때문입니다.
+const verticalMerges = filtered.dash.mergeCalls.filter((call) => call.numRows > 1);
+assert.equal(verticalMerges.length, 0,
+  `세로 병합을 시도하면 필터가 걸린 시트에서 실패합니다: ${JSON.stringify(verticalMerges)}`);
+
+// 병합이 없어도 모든 열에 제목이 있어야 사람이 읽을 수 있습니다.
+const filteredHeader = filtered.dash.grid.slice(0, layout.headerRows)
+  .map((row) => row.map((cell) => String(cell || '')));
+assert.equal(filteredHeader[1][layout.dateColumn], '날짜',
+  '병합을 못 하면 2행에도 제목이 있어야 합니다');
+assert.equal(filteredHeader[1][layout.unassignedColumn], '미배정');
+assert.equal(filteredHeader[1][layout.totalColumn], '합계');
+layout.groupOrder.forEach((group, index) => {
+  assert.equal(filteredHeader[1][layout.groupStartColumn + index], group);
+});
+assert.ok(!filteredHeader.some((row) => row.includes('옛머리글')),
+  '이전 배치의 머리글이 남아 있습니다');
+
+// 머리글 쪽이 어떤 이유로든 실패해도 명단은 이미 기록돼 있어야 합니다.
+// 머리글은 꾸미기이고 명단이 본체이므로 기록 순서가 이 성질을 보장해야 합니다.
+const broken = runDashboardOnFilteredSheet({ failHeaderValues: true });
+assert.throws(() => broken.run(), /머리글 쓰기 실패/,
+  '머리글 실패는 감추지 않고 드러나야 합니다');
+const brokenNames = new Set();
+broken.dash.grid.slice(layout.startRow - 1).forEach((row) =>
+  row.forEach((cell) => { if (cell) brokenNames.add(String(cell)); }));
+registrationRows.forEach((row) => {
+  assert.ok(brokenNames.has(row[5]),
+    `머리글이 실패했다고 명단이 빠지면 안 됩니다: ${row[5]}`);
 });
 
 // --- 스스로·미배정 명단 메일 (TEST-REG-004) ------------------------------

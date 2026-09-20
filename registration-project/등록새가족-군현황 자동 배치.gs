@@ -258,7 +258,28 @@ function buildNewFamilyStatusHeader_() {
   bottom[DASHBOARD_LAYOUT.selfColumns['4']] = '4부';
   bottom[DASHBOARD_LAYOUT.selfColumns['5']] = '5부';
 
+  // 세로 병합을 쓰지 않으므로 단일 열 제목은 두 행에 모두 적습니다.
+  // 필터가 걸린 시트에서는 1행이 필터 머리글이라 세로 병합이 거부됩니다.
+  bottom[DASHBOARD_LAYOUT.dateColumn] = '날짜';
+  bottom[DASHBOARD_LAYOUT.unassignedColumn] = '미배정';
+  bottom[DASHBOARD_LAYOUT.totalColumn] = '합계';
+
   return [top, bottom];
+}
+
+/**
+ * 머리글의 병합은 보기 좋으라고 하는 것뿐입니다. 시트에 필터가 걸려 있으면
+ * Google Sheets가 "필터 헤더 위에는 수직 병합을 만들 수 없습니다"로 거부하므로,
+ * 실패해도 이름 배치는 그대로 두고 넘어갑니다. 꾸미기가 데이터 기록을 막으면 안 됩니다.
+ */
+function tryMergeHeaderRange_(sheet, row, column, numRows, numColumns) {
+  try {
+    sheet.getRange(row, column, numRows, numColumns).merge();
+    return true;
+  } catch (error) {
+    console.log('머리글 병합 생략: ' + error.message);
+    return false;
+  }
 }
 
 function writeNewFamilyStatusHeader_(sheet) {
@@ -270,7 +291,11 @@ function writeNewFamilyStatusHeader_(sheet) {
     sheet.getMaxColumns()
   );
   const stale = sheet.getRange(1, 1, DASHBOARD_LAYOUT.headerRows, staleWidth);
-  stale.breakApart();
+  try {
+    stale.breakApart();
+  } catch (error) {
+    console.log('머리글 병합 해제 생략: ' + error.message);
+  }
   stale.clearContent();
   stale.setBackground(null);
 
@@ -281,16 +306,13 @@ function writeNewFamilyStatusHeader_(sheet) {
     .setFontWeight('bold')
     .setBackground('#D9EAD3');
 
-  // 세로 병합(2행짜리 단일 열)과 가로 병합(1행짜리 여러 열)을 나눠 적용합니다.
-  sheet.getRange(1, DASHBOARD_LAYOUT.dateColumn + 1,
-    DASHBOARD_LAYOUT.headerRows, 1).merge();
-  sheet.getRange(1, DASHBOARD_LAYOUT.unassignedColumn + 1,
-    DASHBOARD_LAYOUT.headerRows, 1).merge();
-  sheet.getRange(1, DASHBOARD_LAYOUT.totalColumn + 1,
-    DASHBOARD_LAYOUT.headerRows, 1).merge();
-  sheet.getRange(1, DASHBOARD_LAYOUT.groupStartColumn + 1,
-    1, DASHBOARD_LAYOUT.groupOrder.length).merge();
-  sheet.getRange(1, DASHBOARD_LAYOUT.selfColumns['4'] + 1, 1, 2).merge();
+  // 가로 병합(1행짜리 여러 열)만 시도합니다. 세로 병합은 필터가 걸린 시트에서
+  // 항상 거부되므로 아예 하지 않고, 대신 단일 열 제목을 두 행에 모두 씁니다.
+  const merged =
+    tryMergeHeaderRange_(sheet, 1, DASHBOARD_LAYOUT.groupStartColumn + 1,
+      1, DASHBOARD_LAYOUT.groupOrder.length) &&
+    tryMergeHeaderRange_(sheet, 1, DASHBOARD_LAYOUT.selfColumns['4'] + 1, 1, 2);
+  return merged;
 }
 
 function ensureRegistrationColumns_(sheet, requiredColumns) {
@@ -420,7 +442,6 @@ function updateNewFamilyStatus_(options) {
   if (!options.dryRun) {
     const startRow = DASHBOARD_LAYOUT.startRow;
     ensureRegistrationColumns_(targetSheet, width);
-    writeNewFamilyStatusHeader_(targetSheet);
 
     // 이전 20열 배치가 남긴 내용과 배경색을 먼저 지웁니다.
     const clearWidth = Math.min(
@@ -442,6 +463,10 @@ function updateNewFamilyStatus_(options) {
         .setHorizontalAlignment('center')
         .setVerticalAlignment('middle');
     }
+
+    // 머리글은 마지막에 씁니다. 머리글 쪽 문제로 명단 기록이 막히면 안 됩니다
+    // (필터가 걸린 시트에서 병합이 거부되던 실제 사고).
+    writeNewFamilyStatusHeader_(targetSheet);
   }
 
   return {
