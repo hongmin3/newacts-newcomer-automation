@@ -17,7 +17,23 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 
 ## [Unreleased]
 
+### Added
+
+- NFR-DATA-001 / NFR-SYNC-001: 보존·동기화 계약 검사
+  (`tests/data-retention-and-sync.test.js`, TEST-DATA-001 · TEST-SYNC-001). 여섯 개
+  `.gs`에 자동 삭제·만료 코드가 없는지, 매니페스트의 네 프로젝트와 clasp 인증 파일
+  비추적, push 후 재확인 경로가 남아 있는지 본다.
+- REQ-EDU-003 · REQ-NOTI-001 · NFR-OPS-001: 이미 있던 자동 테스트를 추적성 표에
+  연결하는 TEST 절을 추가했다(TEST-EDU-003 · TEST-NOTI-001 · TEST-OPS-001).
+  `tests/education-automation.test.js`는 본문 주석에 `TEST-EDU-003`을 적고 있었는데
+  SPEC에는 그 ID가 없었다.
+- REQ-EDU-001 · REQ-EDU-002 · REQ-REPORT-001: 운영 시트가 있어야 관찰되는 요구사항의
+  수동 절차를 추가했다. 시트를 바꾸지 않는 미리보기 함수만 쓴다.
+
 ### Changed
+
+- 추적성 표의 한글 `.gs` 경로가 backtick 없이 적혀 있어 검사기가 구현 참조로 인정하지
+  못하던 것을 14행 고쳤다. 경로 자체는 처음부터 맞았다.
 
 - 시트 메뉴에서 `변경 예정 미리보기`·`승인된 테스트 실행`을 제거(운영에서 쓰지 않음).
   두 함수는 Apps Script 편집기에서 쓸 수 있도록 그대로 둔다

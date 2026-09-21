@@ -551,7 +551,8 @@ TEST-SEC-001
   상태를 잃지 않는 방법을 함께 정한다.
 
 #### 관련 테스트
-(없음 — 보존 정책은 코드로 검증하지 않는다)
+TEST-DATA-001. 보존 **기간** 정책은 코드로 검증하지 않지만, 자동 삭제·만료 코드를 두지
+않는다는 금지는 검증한다 — 검증하지 않으면 누군가 정리 코드를 넣어도 드러나지 않는다.
 
 ### NFR-PERF-001
 
@@ -977,30 +978,170 @@ Node.js 18 이상.
 관리자 파일 비공개 설정과 공개 시트 링크 뷰어 설정이 모두 발견되고, 기대 헤더 목록에는
 전화번호·연락처·이메일·계정·응답 ID에 해당하는 열이 없다.
 
+### TEST-EDU-001
+
+#### 검증 대상
+REQ-EDU-001
+
+#### 선행 조건
+운영 Sheets 읽기 권한. 자동화하지 않는다 — 커서는 스크립트 속성에, 응답은 운영 시트에
+있어 두 외부 상태가 모두 필요하다. 아래 절차는 **시트·속성·메일을 바꾸지 않는** 미리보기
+함수만 쓴다.
+
+#### 절차
+1. `previewPendingAttendance()`를 실행해 예정 건수와 기준 시각을 확인한다.
+2. 응답 시트에서 그 기준 시각 이후 행 수를 직접 세어 예정 건수와 맞는지 본다.
+3. 한 번 더 실행해 같은 수가 나오는지(미리보기가 커서를 옮기지 않는지) 확인한다.
+4. 속성에 `EDUCATION_LAST_RESPONSE_ROW`(행 번호 커서)가 남아 있으면
+   `migrateEducationCursorAndProcessPending()`으로 환산되는지 확인한다.
+
+#### Expected Result
+커서보다 늦은 응답만, 타임스탬프 오름차순으로 예정된다. 미리보기는 커서를 바꾸지 않아
+반복 실행 결과가 같다. 커서가 없고 환산도 불가능하면 아무것도 처리하지 않고 초기화가
+필요하다고 보고한다.
+
+### TEST-EDU-002
+
+#### 검증 대상
+REQ-EDU-002
+
+#### 선행 조건
+TEST-EDU-001과 같다. 매칭 판정은 운영 교육 시트의 실제 전화번호 분포에 의존하므로
+합성 fixture로는 사양을 확인할 수 없다.
+
+#### 절차
+1. `previewPendingAttendance()`의 검토 대상 분류를 연다.
+2. 같은 전화번호가 여러 행인 응답, 2주차인데 전화번호로 못 찾은 응답, 일요일이 아닌 시각에
+   제출된 1주차 응답, 이미 값이 있는 주차 칸을 각각 하나씩 골라 분류를 확인한다.
+
+#### Expected Result
+네 경우 모두 자동 반영되지 않고 검토 대상·중복으로 분류된다. 자동 반영은 정규화된
+전화번호가 정확히 한 행과 일치할 때뿐이다.
+
+### TEST-EDU-003
+
+#### 검증 대상
+REQ-EDU-003
+
+#### 선행 조건
+Node.js 18 이상. 외부 접근 없음.
+
+#### 절차
+`tests/education-automation.test.js`를 실행한다(`npm test`). 집중교육 반영 절이 미리보기
+함수와 실제 반영 함수의 이름이 분리돼 있는지, `run*Test` 이름이 실제 반영에 쓰이지 않는지
+소스에서 확인한다.
+
+#### Expected Result
+`previewIntensiveTraining()`은 `dryRun: true`로 동작하고, 실제 반영 함수에는 미리보기로
+오해될 이름(`runIntensiveTrainingTest`)이 없다.
+
+### TEST-NOTI-001
+
+#### 검증 대상
+REQ-NOTI-001
+
+#### 선행 조건
+Node.js 18 이상. 메일은 가짜 발송기로 가로채므로 실제로 나가지 않는다.
+
+#### 절차
+`tests/education-notification.test.js`를 실행한다(`npm test`).
+
+#### Expected Result
+문자 명단 발송은 운영 수신자 5명에게 정확히 한 번 가고 중복이 없다. 제목에 `[TEST]`가
+붙지 않는다. 문자 명단 스크립트는 자체 수신자 목록을 들고 있지 않다 — 수신자는
+`EDUCATION_AUTOMATION.productionRecipients` 한 곳에서만 관리한다(이중 관리 방지).
+
+### TEST-REPORT-001
+
+#### 검증 대상
+REQ-REPORT-001
+
+#### 선행 조건
+등록·교육·수료현황 세 시트 읽기 권한. 자동화하지 않는다 — 세 시트의 결합 결과가 검증
+대상이다. 아래는 시트를 바꾸지 않는 미리보기만 쓴다.
+
+#### 절차
+1. `previewEducationDetailedReport()`를 실행해 결합 결과와 불일치 보고를 확인한다.
+2. 등록 시트의 군·팀·전화번호가 그대로인지(자동으로 덮어쓰지 않았는지) 확인한다.
+3. 테스트 실행이 메일을 한 통만 보내는지 확인한다.
+
+#### Expected Result
+전화번호 기준 결합 결과가 나오고 불일치는 보고만 된다. 미리보기는 시트를 바꾸지 않고
+테스트 실행은 메일이 한 통이다.
+
+### TEST-OPS-001
+
+#### 검증 대상
+NFR-OPS-001
+
+#### 선행 조건
+Node.js 18 이상. 외부 접근 없음.
+
+#### 절차
+`tests/education-automation.test.js`의 금요일 트리거 삭제 도우미 절을 실행한다(`npm test`).
+
+#### Expected Result
+`removeFridayEducationTrigger()`는 금요일 `main` CLOCK 트리거만 지우고 다른 트리거는
+건드리지 않는다.
+
+### TEST-DATA-001
+
+#### 검증 대상
+NFR-DATA-001
+
+#### 선행 조건
+Node.js 18 이상. 외부 접근 없음.
+
+#### 절차
+`tests/data-retention-and-sync.test.js`를 실행한다(`npm test`).
+
+#### Expected Result
+여섯 개 `.gs` 파일 어디에도 시트·행 삭제, 속성 일괄 삭제, 내용 비우기 호출이 없다.
+보존 기간 정책 자체는 코드로 검증하지 않지만, **자동 삭제 코드를 두지 않는다**는 금지는
+검증한다 — 검증하지 않으면 누군가 정리 코드를 넣어도 드러나지 않는다.
+
+### TEST-SYNC-001
+
+#### 검증 대상
+NFR-SYNC-001
+
+#### 선행 조건
+Node.js 18 이상. 매니페스트 검사는 외부 접근이 없다. 실제 `diff`/`push` 확인은 clasp
+자격 증명이 필요하므로 수동이다.
+
+#### 절차
+1. `tests/data-retention-and-sync.test.js`를 실행한다(`npm test`).
+2. (수동) `npm run diff`로 운영과 로컬의 동일·차이·한쪽 존재 상태를 확인한다.
+
+#### Expected Result
+매니페스트에 네 프로젝트가 있고 각 `scriptId` 형식과 `dir` 실재가 확인되며 중복이 없다.
+웹앱 프로젝트는 하나다. clasp 인증 파일은 추적되지 않는다. `push` 경로에 반영 후 다시 읽어
+일치를 검증하는 단계가 남아 있다. 수동 `diff`는 의도한 차이만 보여야 한다.
+
 ## 12. 요구사항 추적성
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
 | REQ-ATTEND-001 | `attendance-webapp/Code.gs` | TEST-ATTEND-001 | implemented |
 | REQ-ATTEND-002 | `attendance-webapp/Code.gs` | TEST-ATTEND-002 | implemented |
-| REQ-EDU-001 | education-project/교육 출석 현황 업데이트.gs | (없음) | implemented |
-| REQ-EDU-002 | education-project/교육 출석 현황 업데이트.gs | (없음) | implemented |
-| REQ-EDU-003 | education-project/집중교육 출석 현황 업데이트.gs | (없음) | implemented |
-| REQ-NOTI-001 | education-project/문자 명단 리스트.gs | (없음) | implemented |
-| REQ-REG-001 | registration-project/등록새가족-군현황 자동 배치.gs | TEST-REG-002 | implemented |
-| REQ-REG-002 | registration-project/등록새가족-군현황 자동 배치.gs | TEST-REG-001, TEST-REG-003, TEST-REG-005 | implemented |
-| REQ-REG-003 | registration-project/등록새가족-군현황 자동 배치.gs | TEST-REG-004 | implemented |
-| REQ-REG-004 | registration-project/등록새가족-군현황 자동 배치.gs | TEST-REG-006 | implemented |
-| REQ-REPORT-001 | registration-project/등록 새가족 새가족교육 수료현황 자동화.gs | (없음) | implemented |
-| REQ-SETTLE-001 | registration-project/제목 없음.gs | TEST-SETTLE-001 | implemented |
+| REQ-EDU-001 | `education-project/교육 출석 현황 업데이트.gs` | TEST-EDU-001 (수동) | implemented |
+| REQ-EDU-002 | `education-project/교육 출석 현황 업데이트.gs` | TEST-EDU-002 (수동) | implemented |
+| REQ-EDU-003 | `education-project/집중교육 출석 현황 업데이트.gs` | TEST-EDU-003 | implemented |
+| REQ-NOTI-001 | `education-project/문자 명단 리스트.gs` | TEST-NOTI-001 | implemented |
+| REQ-REG-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-002 | implemented |
+| REQ-REG-002 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-001, TEST-REG-003, TEST-REG-005 | implemented |
+| REQ-REG-003 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-004 | implemented |
+| REQ-REG-004 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-006 | implemented |
+| REQ-REPORT-001 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` | TEST-REPORT-001 (수동) | implemented |
+| REQ-SETTLE-001 | `registration-project/제목 없음.gs` | TEST-SETTLE-001 | implemented |
 | REQ-INTENSIVE-001 | `intensive-training-application/Code.gs` | TEST-INTENSIVE-001 | implemented |
-| REQ-MAIL-001 | education-project/교육 출석 현황 업데이트.gs, registration-project/등록새가족-군현황 자동 배치.gs | TEST-MAIL-001, TEST-MAIL-002 | implemented |
-| REQ-LOG-001 | education-project/교육 출석 현황 업데이트.gs, registration-project/등록새가족-군현황 자동 배치.gs | TEST-LOG-001 | implemented |
+| REQ-MAIL-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-MAIL-001, TEST-MAIL-002 | implemented |
+| REQ-LOG-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-LOG-001 | implemented |
 | NFR-SEC-001 | `intensive-training-application/Code.gs`, `.gitignore` | TEST-SEC-001 | implemented |
-| NFR-OPS-001 | education-project/교육 출석 현황 업데이트.gs, registration-project/등록새가족-군현황 자동 배치.gs | (없음) | implemented |
-| NFR-DATA-001 | 운영 Sheets·스크립트 속성 (구현 없음 — 자동 삭제 금지) | (없음) | implemented |
-| NFR-PERF-001 | registration-project/등록새가족-군현황 자동 배치.gs | TEST-PERF-001 | implemented |
-| NFR-SYNC-001 | `scripts/apps-script.mjs` | (없음) | implemented |
+| NFR-OPS-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-OPS-001 | implemented |
+| NFR-DATA-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` (자동 삭제 코드를 두지 않는다는 금지) | TEST-DATA-001 | implemented |
+| NFR-PERF-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-PERF-001 | implemented |
+| NFR-SYNC-001 | `scripts/apps-script.mjs`, `scripts/apps-script-projects.json` | TEST-SYNC-001 | implemented |
 
 Status 값: `draft` (사양만 있음) / `implemented` / `verified` (실제 실행까지 확인) /
 `deprecated`.
