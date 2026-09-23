@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="automation-workspace render-spec-html v2">
-<meta name="spec-html-renderer" content="v2">
-<meta name="spec-source-sha256" content="aea58121c1200fdc11a5723b3b93208162b3c4e66fd20766745196128fc62e4e">
+<meta name="generator" content="automation-workspace render-spec-html v3">
+<meta name="spec-html-renderer" content="v3">
+<meta name="spec-source-sha256" content="2d58f5b17fd2e28c8489f3e5527e596d48572a6c70ee0f2a6aba500d1c0a0d38">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;color-scheme:light}
@@ -47,6 +47,12 @@ details.history ul{margin:6px 0;padding-left:18px}.hist{color:var(--muted);font-
 tr.group th{background:var(--bg);text-align:left;font-size:14px;padding-top:12px}.gcode{font:600 12px/1.4 ui-monospace,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:6px;padding:1px 7px;margin-right:4px}
 table.index td:first-child{white-space:nowrap}table.index td:nth-child(2){min-width:10em}table.index td:nth-child(4){min-width:13em}.untitled{color:var(--muted);font-style:italic}
 .toc .toc-id span{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:var(--text)}
+figure.flow{margin:12px 0;overflow-x:auto}figure.flow svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.flow .node rect{fill:var(--panel);stroke:var(--accent);stroke-width:1.5}
+.flow text{font-size:13px;fill:var(--text);text-anchor:middle;dominant-baseline:central}
+.flow .edge{fill:none;stroke:var(--muted);stroke-width:1.5}.flow .edge.back{stroke-dasharray:5 4}.flow marker path{fill:var(--muted)}
+.flow .elabel{font-size:12px;fill:var(--muted);paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
+.nohist{color:var(--muted)}
 main img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
 .table-wrap{overflow-x:auto;margin:10px 0}
 table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;vertical-align:top}
@@ -272,7 +278,7 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 </table></div>
 <section class="card kind-req" id="REQ-ATTEND-001">
 <h3><span class="idtag">REQ-ATTEND-001</span> 출석 제출 검증</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>attendance-webapp/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>attendance-webapp/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
 <h4>목적</h4>
 <p>출석 웹앱이 잘못된 입력과 중복·변조된 제출을 시트에 남기지 않게 한다.</p>
 <h4>동작</h4>
@@ -682,7 +688,7 @@ Google Sheets가 세로 병합을 거부한다. 대신 두 행의 역할을 나�
 </section>
 <section class="card kind-req" id="REQ-INTENSIVE-001">
 <h3><span class="idtag">REQ-INTENSIVE-001</span> 집중교육 신청 접수</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
 <h4>목적</h4>
 <p>집중교육 신청을 Form 한 번 제출로 접수하고, 전화번호를 공개하지 않으면서 신청 현황을
 누구나 확인할 수 있게 한다.</p>
@@ -710,7 +716,7 @@ Google Sheets가 세로 병합을 거부한다. 대신 두 행의 역할을 나�
 </section>
 <section class="card kind-req" id="REQ-MAIL-001">
 <h3><span class="idtag">REQ-MAIL-001</span> 테스트 메일 오발송 방지</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-MAIL-001">TEST-MAIL-001</a>, <a class="idref" href="#TEST-MAIL-002">TEST-MAIL-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a>, <a class="idref" href="#TEST-MAIL-001">TEST-MAIL-001</a>, <a class="idref" href="#TEST-MAIL-002">TEST-MAIL-002</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-MAIL-001">TEST-MAIL-001</a>, <a class="idref" href="#TEST-MAIL-002">TEST-MAIL-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a>, <a class="idref" href="#TEST-MAIL-001">TEST-MAIL-001</a>, <a class="idref" href="#TEST-MAIL-002">TEST-MAIL-002</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
 <h4>목적</h4>
 <p>테스트 목적의 실행이 운영 수신자 전체에게 메일을 보내는 사고를 구조적으로 막는다.</p>
 <h4>동작</h4>
@@ -740,7 +746,7 @@ Google Sheets가 세로 병합을 거부한다. 대신 두 행의 역할을 나�
 </section>
 <section class="card kind-req" id="REQ-LOG-001">
 <h3><span class="idtag">REQ-LOG-001</span> 실행 로그 기록</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-LOG-001">TEST-LOG-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>, <a class="idref" href="#TEST-LOG-001">TEST-LOG-001</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-LOG-001">TEST-LOG-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>, <a class="idref" href="#TEST-LOG-001">TEST-LOG-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
 <h4>목적</h4>
 <p>실행 결과를 추적할 수 있게 남기되 운영 화면을 어지럽히지 않는다.</p>
 <h4>동작</h4>
@@ -766,7 +772,7 @@ Google Sheets가 세로 병합을 거부한다. 대신 두 행의 역할을 나�
 <h2>6. 비기능 요구사항</h2>
 <section class="card kind-nfr" id="NFR-SEC-001">
 <h3><span class="idtag">NFR-SEC-001</span> 개인정보·인증 정보 저장소 밖 보관</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code>, <code>.gitignore</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-SEC-001">TEST-SEC-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-SEC-001">TEST-SEC-001</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code>, <code>.gitignore</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-SEC-001">TEST-SEC-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-SEC-001">TEST-SEC-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
 <p>개인정보와 인증 정보는 저장소 밖에 둔다.</p>
 <ul>
 <li>개인 명단, 실행 결과, 시트 데이터, clasp 인증 파일을 저장소·Knowledge·Evidence·커밋
@@ -838,7 +844,7 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-nfr" id="NFR-PERF-001">
 <h3><span class="idtag">NFR-PERF-001</span> Apps Script 한도 내 실행</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-PERF-001">TEST-PERF-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-PERF-001">TEST-PERF-001</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-PERF-001">TEST-PERF-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-PERF-001">TEST-PERF-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
 <p>Apps Script 실행 시간과 호출 한도 안에서 동작해야 한다.</p>
 <ul>
 <li>교육 출석·군 현황판·수료현황은 배열로 일괄 쓴다. 등록 자동 보정은 변경 셀을 개별 기록한다.</li>
