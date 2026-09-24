@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="automation-workspace render-spec-html v5">
 <meta name="spec-html-renderer" content="v5">
-<meta name="spec-source-sha256" content="4ba34781bfa905a209ca38c6ddb1e5efdd36891175283e4650960c638c55a697">
+<meta name="spec-source-sha256" content="2579f2a7f46dfd6fde652d05031ffac3712fbeaf5cb24980bf39569710847600">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -602,8 +602,9 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="card kind-req" id="REQ-REG-002">
 <h3><span class="idtag">REQ-REG-002</span> 군 현황판 다시 만들기</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></span></div>
-<details class="history"><summary>변경 이력 4</summary>
+<details class="history"><summary>변경 이력 5</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Changed</span> <a class="idref" href="#REQ-REG-002">REQ-REG-002</a>: 현황판에서 <code class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</code>로 보는 세 조건을 코드와 테스트에 맞춰 모두 적었다. 군 값이 <code class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</code> 또는 <code>군배정필요</code>인 경우와, 군이 비고 소개자가 <code class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</code>인 경우다.</li>
 <li><span class="hist">[Unreleased] · Changed</span> <a class="idref" href="#REQ-REG-002">REQ-REG-002</a>: <span class="term" title="등록 명단을 군별로 모아 자동화가 다시 쓰는 시트다" tabindex="0">군 현황판</span> 배정에서 4부·5부 구분을 제거 — 같은 군이면 <span class="term" title="4부 또는 5부다. 기준 시각 13:30 이전은 4부, 이후는 5부다" tabindex="0">예배 구분</span>과 무관하게
 한 열에 모인다. <code class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</code>만 4부·5부 열로 나눠 표시한다. 현황판 열 구성이 20열에서
 <code>날짜 / 군 9개 / 스스로 4부·5부 / 미배정 / 합계</code> 14열로 바뀌고 1~2행 머리글도 자동화가 쓴다</li>
@@ -644,7 +645,13 @@ SPEC에는 그 ID가 없었다.</li>
 </li>
 <li>가로 병합(군 묶음, <span class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</span> 묶음)은 시도하되, 거부되면 건너뛴다.</li>
 <li><strong>&quot;<span class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</span>&quot;만 <span class="term" title="4부 또는 5부다. 기준 시각 13:30 이전은 4부, 이후는 5부다" tabindex="0">예배 구분</span>에 따라 4부 열과 5부 열로 나눈다.</strong> 눈으로 구분해야 하는 값은 이것뿐이다.</li>
-<li>군이 비어 있고 소개자가 &quot;<span class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</span>&quot;이거나 군배정필요 표기이면 &quot;<span class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</span>&quot;로 본다.</li>
+<li>다음 셋 중 하나면 &quot;<span class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</span>&quot;로 본다.
+<ul>
+<li>군 값이 <code class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</code>다.</li>
+<li>군 값이 <code>군배정필요</code>다.</li>
+<li>군 값이 비어 있고 소개자가 <code class="term" title="소개자가 &quot;스스로&quot;이거나 군배정필요로 표기된 등록자다. 담당자가 직접 군을 정해 줘야 하며, 현황판에서 4부 열과 5부 열로 나뉜다" tabindex="0">스스로</code>다.</li>
+</ul>
+</li>
 <li>군 값은 첫 글자로 <span class="term" title="비교하기 쉽게 값의 형식을 한 가지로 맞추는 것이다. 예: 전화번호를 010-xxxx-xxxx 형식으로 맞춘다" tabindex="0">정규화</span>해 9개 군에 맞춘다. 예를 들어 &quot;신군&quot;과 &quot;신1팀&quot;은 신이 된다. &quot;모르겠&quot;이 들어간 값은 군으로 인정하지 않는다.</li>
 <li><strong>현황판에서 빠지는 등록자가 없어야 한다.</strong> 다음 사람은 <code class="term" title="군을 확정하지 못한 등록자를 적는 현황판 열이다. 여기 적힌 사람은 검토 내역으로도 보고된다" tabindex="0">미배정</code> 열에 이름을 쓰고, 검토 내역으로도 함께 보고한다.
 <ul>
