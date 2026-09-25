@@ -63,6 +63,7 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
   실제 삭제는 편집기에서 함수를 1회 실행하는 수동 1단계로 남김(현재 트리거 문서 참조)
 - NFR-DATA-001: 출석 원본·로그·보정 상태를 자동 삭제하지 않기로 확정
 - SPEC.md: Project Version 1.0.0, Owner 역할명 지정
+- 2026-09-25: 공통 키트 이름이 Botyard로 바뀌어 `.project-check/`의 SPEC HTML 렌더러와 `docs/SPEC.html`의 생성기 표시를 갱신했다(형식·내용 변경 없음). 준비 검사와 자체 테스트 통과.
 
 ### Fixed
 
