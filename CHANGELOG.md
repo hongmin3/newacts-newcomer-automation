@@ -19,6 +19,9 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 
 ### Added
 
+- REQ-ATTEND-001 · REQ-EDU-001 · REQ-REG-001 · REQ-REPORT-001 · REQ-SETTLE-001 · REQ-INTENSIVE-001:
+  `SPEC.md` 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. 집중교육 신청 접수와
+  참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.
 - NFR-DATA-001 / NFR-SYNC-001: 보존·동기화 계약 검사
   (`tests/data-retention-and-sync.test.js`, TEST-DATA-001 · TEST-SYNC-001). 여섯 개
   `.gs`에 자동 삭제·만료 코드가 없는지, 매니페스트의 네 프로젝트와 clasp 인증 파일

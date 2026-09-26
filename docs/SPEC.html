@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v6">
 <meta name="spec-html-renderer" content="v6">
-<meta name="spec-source-sha256" content="d15bf159b2c9d8dc82dd103ae80275dc966ebb8e89ec20fb84588ce3996d5808">
+<meta name="spec-source-sha256" content="167622635c436d0c56b1c539f3d4afb196f1aa394e8ecd6c169d6590344aca4f">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -88,7 +88,7 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <body>
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
-<div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-09-25</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
+<div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-09-26</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
 <div class="stats"><div class="stat"><b>15</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>23</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>20</b><span>implemented</span></div></div>
 </header>
 <div class="layout">
@@ -290,6 +290,56 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 </table></div>
 <p>이 자동화가 바깥 시스템과 만나는 곳은 Google Sheets, Google Forms, Google Drive, <code>MailApp</code>, <code class="term" title="Apps Script 프로젝트에 값을 저장해 두는 곳이다. 커서와 등록 보정 상태가 여기에 있다" tabindex="0">PropertiesService</code>, <code class="term" title="한 번에 한 실행만 작업하게 막는 장치다" tabindex="0">LockService</code>다. 모두 Apps Script를 실행하는 계정의 권한으로 접근한다.</p>
 <p>저장소 쪽에서 바깥과 만나는 곳은 Apps Script API(<code class="term" title="저장소 코드와 운영 중인 Apps Script 코드를 비교하고, 가져오고, 올리고, 배포하는 도구다" tabindex="0">scripts/apps-script.mjs</code>)와 clasp가 저장한 refresh token 하나다.</p>
+<h3>기능 연결도</h3>
+<p>출석부터 주간 보고까지의 데이터 연결은 다음과 같다. 화살표는 데이터가 전달되거나 다음 기능이
+그 데이터를 읽는 방향이다. 각 상자의 세부 규칙은 5절의 요구사항에 있다.</p>
+<figure class="flow">
+<svg viewBox="0 0 462 452" width="462" height="452" role="img" aria-label="출석 웹앱 → 출석 응답 시트, 출석 Form → 출석 응답 시트, 출석 응답 시트 → 교육 관리, 교육 관리 → 교육 출석 현황, 교육 관리 → 문자공지 대상 메일, 교육 출석 현황 → 등록·보고, 등록 명단 → 등록·보고, 등록·보고 → 군 현황판, 등록·보고 → 수료현황, 등록·보고 → 주간 보고 메일, 등록·보고 → 상반기 결산">
+<defs><marker id="flow-arrow-1" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<path class="edge" d="M121 44 L231 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 44 L231 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 124 L231 168" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 204 L147.5 248" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 204 L301.5 248" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M147.5 284 L231 328" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M341 44 L231 328" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 364 L50 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 364 L154 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 364 L274.5 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M231 364 L405.5 408" marker-end="url(#flow-arrow-1)"/>
+<g class="node"><rect x="79" y="8" width="84" height="36" rx="8"/><text x="121" y="26">출석 웹앱</text></g>
+<g class="node"><rect x="172.5" y="88" width="117" height="36" rx="8"/><text x="231" y="106">출석 응답 시트</text></g>
+<g class="node"><rect x="187" y="8" width="88" height="36" rx="8"/><text x="231" y="26">출석 Form</text></g>
+<g class="node"><rect x="189" y="168" width="84" height="36" rx="8"/><text x="231" y="186">교육 관리</text></g>
+<g class="node"><rect x="89" y="248" width="117" height="36" rx="8"/><text x="147.5" y="266">교육 출석 현황</text></g>
+<g class="node"><rect x="230" y="248" width="143" height="36" rx="8"/><text x="301.5" y="266">문자공지 대상 메일</text></g>
+<g class="node"><rect x="189" y="328" width="84" height="36" rx="8"/><text x="231" y="346">등록·보고</text></g>
+<g class="node"><rect x="299" y="8" width="84" height="36" rx="8"/><text x="341" y="26">등록 명단</text></g>
+<g class="node"><rect x="8" y="408" width="84" height="36" rx="8"/><text x="50" y="426">군 현황판</text></g>
+<g class="node"><rect x="116" y="408" width="76" height="36" rx="8"/><text x="154" y="426">수료현황</text></g>
+<g class="node"><rect x="216" y="408" width="117" height="36" rx="8"/><text x="274.5" y="426">주간 보고 메일</text></g>
+<g class="node"><rect x="357" y="408" width="97" height="36" rx="8"/><text x="405.5" y="426">상반기 결산</text></g>
+</svg>
+</figure>
+<p><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와 참석 반영은 서로 다른 기능이다. 신청 Form을 제출해 만든 공개 명단이
+<span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>으로 자동 반영되는 경로는 없다.</p>
+<figure class="flow">
+<svg viewBox="0 0 441 212" width="441" height="212" role="img" aria-label="집중교육 신청 Form → 집중교육 신청 관리, 집중교육 신청 관리 → 비공개 관리자 명단, 집중교육 신청 관리 → 공개 확인 명단, 집중교육 참석 표시 → 교육 관리, 교육 관리 → 교육 출석 현황">
+<defs><marker id="flow-arrow-2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<path class="edge" d="M137 44 L166.5 88" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M166.5 124 L79.5 168" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M166.5 124 L233.5 168" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M306 44 L304 88" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M304 124 L374.5 168" marker-end="url(#flow-arrow-2)"/>
+<g class="node"><rect x="63.5" y="8" width="147" height="36" rx="8"/><text x="137" y="26">집중교육 신청 Form</text></g>
+<g class="node"><rect x="95" y="88" width="143" height="36" rx="8"/><text x="166.5" y="106">집중교육 신청 관리</text></g>
+<g class="node"><rect x="8" y="168" width="143" height="36" rx="8"/><text x="79.5" y="186">비공개 관리자 명단</text></g>
+<g class="node"><rect x="175" y="168" width="117" height="36" rx="8"/><text x="233.5" y="186">공개 확인 명단</text></g>
+<g class="node"><rect x="234.5" y="8" width="143" height="36" rx="8"/><text x="306" y="26">집중교육 참석 표시</text></g>
+<g class="node"><rect x="262" y="88" width="84" height="36" rx="8"/><text x="304" y="106">교육 관리</text></g>
+<g class="node"><rect x="316" y="168" width="117" height="36" rx="8"/><text x="374.5" y="186">교육 출석 현황</text></g>
+</svg>
+</figure>
 </section>
 <section class="chapter" id="sec-4">
 <h2>4. 전체 동작 흐름</h2>
@@ -302,6 +352,45 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <li>교육 프로젝트가 토요일에 문자공지 대상 명단과 번호 목록을 메일로 보낸다.</li>
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청은 위 흐름과 따로 돌아가는 독립 프로젝트다. Form이 제출되면 곧바로 관리자 명단과 공개 확인 명단을 갱신한다.</li>
 </ol>
+<p>아래 그림의 요일은 각 기능의 실행 시점이다. 화살표가 월요일·화요일·금요일·토요일을
+한 주 안의 실행 순서로 나타내는 것은 아니다.</p>
+<figure class="flow">
+<svg viewBox="0 0 501 372" width="501" height="372" role="img" aria-label="출석 제출 → 출석 응답 시트, 출석 응답 시트 → 교육 출석 갱신, 교육 출석 갱신 → 교육 출석 현황, 교육 출석 현황 → 등록 보정·군 현황판, 등록 명단 → 수료현황·주간 통계, 교육 출석 현황 → 수료현황·주간 통계, 교육 출석 현황 → 문자공지 대상 메일">
+<defs><marker id="flow-arrow-3" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<path class="edge" d="M196.5 44 L250.5 88" marker-end="url(#flow-arrow-3)"/>
+<path class="edge" d="M250.5 124 L250.5 168" marker-end="url(#flow-arrow-3)"/><text class="elabel" x="250.5" y="146">화요일</text>
+<path class="edge" d="M250.5 204 L250.5 248" marker-end="url(#flow-arrow-3)"/>
+<path class="edge" d="M250.5 284 L83.5 328" marker-end="url(#flow-arrow-3)"/><text class="elabel" x="167" y="306">월요일</text>
+<path class="edge" d="M304.5 44 L254.5 328" marker-end="url(#flow-arrow-3)"/><text class="elabel" x="279.5" y="186">금요일</text>
+<path class="edge" d="M250.5 284 L254.5 328" marker-end="url(#flow-arrow-3)"/><text class="elabel" x="252.5" y="306">금요일</text>
+<path class="edge" d="M250.5 284 L421.5 328" marker-end="url(#flow-arrow-3)"/><text class="elabel" x="336" y="306">토요일</text>
+<g class="node"><rect x="154.5" y="8" width="84" height="36" rx="8"/><text x="196.5" y="26">출석 제출</text></g>
+<g class="node"><rect x="192" y="88" width="117" height="36" rx="8"/><text x="250.5" y="106">출석 응답 시트</text></g>
+<g class="node"><rect x="192" y="168" width="117" height="36" rx="8"/><text x="250.5" y="186">교육 출석 갱신</text></g>
+<g class="node"><rect x="192" y="248" width="117" height="36" rx="8"/><text x="250.5" y="266">교육 출석 현황</text></g>
+<g class="node"><rect x="8" y="328" width="151" height="36" rx="8"/><text x="83.5" y="346">등록 보정·군 현황판</text></g>
+<g class="node"><rect x="262.5" y="8" width="84" height="36" rx="8"/><text x="304.5" y="26">등록 명단</text></g>
+<g class="node"><rect x="183" y="328" width="143" height="36" rx="8"/><text x="254.5" y="346">수료현황·주간 통계</text></g>
+<g class="node"><rect x="350" y="328" width="143" height="36" rx="8"/><text x="421.5" y="346">문자공지 대상 메일</text></g>
+</svg>
+</figure>
+<p>정기 실행과 별도로 담당자가 실행하거나 신청자가 제출하면 바로 처리되는 경로도 있다.</p>
+<figure class="flow">
+<svg viewBox="0 0 562 132" width="562" height="132" role="img" aria-label="집중교육 참석 표시 → 교육 출석 현황, 집중교육 신청 Form → 비공개 관리자 명단, 집중교육 신청 Form → 공개 확인 명단, 등록 명단 → 상반기 결산">
+<defs><marker id="flow-arrow-4" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
+<path class="edge" d="M141.5 44 L66.5 88" marker-end="url(#flow-arrow-4)"/><text class="elabel" x="104" y="66">메뉴 실행</text>
+<path class="edge" d="M310.5 44 L220.5 88" marker-end="url(#flow-arrow-4)"/><text class="elabel" x="265.5" y="66">제출 즉시</text>
+<path class="edge" d="M310.5 44 L374.5 88" marker-end="url(#flow-arrow-4)"/><text class="elabel" x="342.5" y="66">제출 즉시</text>
+<path class="edge" d="M450 44 L505.5 88" marker-end="url(#flow-arrow-4)"/><text class="elabel" x="477.8" y="66">수동 실행</text>
+<g class="node"><rect x="70" y="8" width="143" height="36" rx="8"/><text x="141.5" y="26">집중교육 참석 표시</text></g>
+<g class="node"><rect x="8" y="88" width="117" height="36" rx="8"/><text x="66.5" y="106">교육 출석 현황</text></g>
+<g class="node"><rect x="237" y="8" width="147" height="36" rx="8"/><text x="310.5" y="26">집중교육 신청 Form</text></g>
+<g class="node"><rect x="149" y="88" width="143" height="36" rx="8"/><text x="220.5" y="106">비공개 관리자 명단</text></g>
+<g class="node"><rect x="316" y="88" width="117" height="36" rx="8"/><text x="374.5" y="106">공개 확인 명단</text></g>
+<g class="node"><rect x="408" y="8" width="84" height="36" rx="8"/><text x="450" y="26">등록 명단</text></g>
+<g class="node"><rect x="457" y="88" width="97" height="36" rx="8"/><text x="505.5" y="106">상반기 결산</text></g>
+</svg>
+</figure>
 </section>
 <section class="chapter" id="sec-5">
 <h2>5. 기능 요구사항</h2>
@@ -329,7 +418,14 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 </table></div>
 <section class="card kind-req" id="REQ-ATTEND-001">
 <h3><span class="idtag">REQ-ATTEND-001</span> 출석 제출 확인</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>attendance-webapp/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>attendance-webapp/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
+<code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
+참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
+</ul>
+</details>
 <section class="field"><h4>목적</h4><div class="field-body">
 <p>잘못된 입력, 같은 출석을 두 번 낸 제출, 조작된 제출이 시트에 남지 않게 한다.</p>
 </div></section>
@@ -402,8 +498,11 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <section class="card kind-req" id="REQ-EDU-001">
 <h3><span class="idtag">REQ-EDU-001</span> 교육 출석 현황 갱신</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a> (수동)</span><span class="meta"><b>참조됨</b> <a class="idref" href="#NFR-PERF-001">NFR-PERF-001</a>, <a class="idref" href="#REQ-ATTEND-002">REQ-ATTEND-002</a>, <a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
+<code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
+참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>: 운영 시트가 있어야 관찰되는 요구사항의
 수동 절차를 추가했다. 시트를 바꾸지 않는 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수만 쓴다.</li>
 </ul>
@@ -572,8 +671,11 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="card kind-req" id="REQ-REG-001">
 <h3><span class="idtag">REQ-REG-001</span> 등록 명단 자동 보정</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REG-003">REQ-REG-003</a>, <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span></div>
-<details class="history"><summary>변경 이력 2</summary>
+<details class="history"><summary>변경 이력 3</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
+<code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
+참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
 <li><span class="hist">[Unreleased] · Changed</span> <a class="idref" href="#REQ-REG-001">REQ-REG-001</a>: 등록정보 자동 보정에서 이름을 제외 — 이름이 교육 출석과 다르면 고치지 않고
 검토 내역으로 보고</li>
 <li><span class="hist">[Unreleased] · Changed</span> <a class="idref" href="#REQ-REG-001">REQ-REG-001</a>: 정기 실행 메일 수신 범위를 <span class="term" title="안전장치가 메일 수신자로 고정하는 한 사람이다" tabindex="0">테스트 수신자</span> 한 명으로 유지하기로 확정</li>
@@ -801,8 +903,11 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="card kind-req" id="REQ-REPORT-001">
 <h3><span class="idtag">REQ-REPORT-001</span> 수료현황·주간 통계 보고</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동)</span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
+<code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
+참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>: 운영 시트가 있어야 관찰되는 요구사항의
 수동 절차를 추가했다. 시트를 바꾸지 않는 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수만 쓴다.</li>
 </ul>
@@ -832,8 +937,11 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="card kind-req" id="REQ-SETTLE-001">
 <h3><span class="idtag">REQ-SETTLE-001</span> 상반기 새가족 결산</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/제목 없음.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-SETTLE-001">TEST-SETTLE-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-SETTLE-001">TEST-SETTLE-001</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
+<code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
+참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a>: 상반기 결산 집계·목표 대비 비율 계산을 정식 요구사항과 테스트로 추가</li>
 </ul>
 </details>
@@ -868,7 +976,14 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-req" id="REQ-INTENSIVE-001">
 <h3><span class="idtag">REQ-INTENSIVE-001</span> 집중교육 신청 접수</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
+<code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
+참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
+</ul>
+</details>
 <section class="field"><h4>목적</h4><div class="field-body">
 <p><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청을 Form 한 번 제출로 받는다. 전화번호는 공개하지 않으면서, 신청 현황은 누구나 볼 수 있게 한다.</p>
 </div></section>
