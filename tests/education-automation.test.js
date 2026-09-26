@@ -11,9 +11,33 @@ const notificationSource = read('education-project', '문자 명단 리스트.gs
 const intensiveSource = read('education-project', '집중교육 출석 현황 업데이트.gs');
 
 const sent = [];
+const menus = [];
+const alerts = [];
 const context = {
   console,
   MailApp: { sendEmail: (message) => sent.push(message) },
+  SpreadsheetApp: {
+    getUi: () => ({
+      createMenu(name) {
+        const menu = {
+          name,
+          items: [],
+          addItem(label, handler) {
+            this.items.push({ label, handler });
+            return this;
+          },
+          addToUi() {
+            menus.push({ name: this.name, items: this.items.slice() });
+            return this;
+          }
+        };
+        return menu;
+      },
+      alert(message) {
+        alerts.push(String(message));
+      }
+    })
+  },
   Utilities: {
     formatDate: (date) => new Date(date).toISOString().slice(0, 10)
   }
@@ -69,6 +93,50 @@ assert.equal(sent[sentBefore].to.split(',').length, 5);
 
 // --- 집중교육 반영은 실제 시트를 바꾼다 (TEST-EDU-003) --------------------
 // Validates: REQ-EDU-003
+// 숫자 0과 영문 o/O는 모두 현장에서 쓰는 참석 표시입니다.
+call('globalThis.__isIntensiveAttendanceMarked = isIntensiveAttendanceMarked_;');
+assert.equal(context.__isIntensiveAttendanceMarked(0), true);
+assert.equal(context.__isIntensiveAttendanceMarked('0'), true);
+assert.equal(context.__isIntensiveAttendanceMarked('o'), true);
+assert.equal(context.__isIntensiveAttendanceMarked('O'), true);
+assert.equal(context.__isIntensiveAttendanceMarked(''), false);
+assert.equal(context.__isIntensiveAttendanceMarked('X'), false);
+
+// 사용자가 시트에서 실행하는 경로가 실제 반영 함수까지 이어져야 합니다.
+call('onOpen();');
+assert.deepEqual(menus, [{
+  name: '집중교육',
+  items: [{ label: '참석 명단 반영', handler: 'applyIntensiveTrainingFromMenu' }]
+}]);
+call(`
+  globalThis.__intensiveApplyCount = 0;
+  globalThis.applyIntensiveTrainingNow = function () {
+    globalThis.__intensiveApplyCount += 1;
+    return { scanned: 36, added: 30, updated: 5, conflicts: [{}] };
+  };
+  applyIntensiveTrainingFromMenu();
+`);
+assert.equal(context.__intensiveApplyCount, 1);
+assert.equal(alerts.length, 1);
+assert.match(alerts[0], /확인 36명/);
+assert.match(alerts[0], /추가 30명/);
+assert.match(alerts[0], /갱신 5명/);
+assert.match(alerts[0], /검토 필요 1명/);
+
+// 잠금·권한·시트 오류가 나면 사용자가 시트 안에서 원인을 확인할 수 있어야 합니다.
+call(`
+  globalThis.applyIntensiveTrainingNow = function () {
+    throw new Error('권한 거부');
+  };
+`);
+assert.throws(
+  () => call('applyIntensiveTrainingFromMenu();'),
+  /권한 거부/
+);
+assert.equal(alerts.length, 2);
+assert.match(alerts[1], /집중교육 참석 명단 반영 실패/);
+assert.match(alerts[1], /권한 거부/);
+
 // 'run*Test'라는 이름이 붙으면 미리보기로 오해되므로 실제 반영 함수는 이름을 분리했습니다.
 assert.match(intensiveSource, /function previewIntensiveTraining\(\)[\s\S]{0,120}dryRun: true/);
 assert.match(
@@ -77,6 +145,56 @@ assert.match(
 );
 assert.doesNotMatch(intensiveSource, /function runIntensiveTrainingTest\(/);
 assert.match(intensiveSource, /previewIntensiveTraining/);
+
+// 시트가 `3-1`을 날짜로 저장해도 화면에 보이는 번호로 분기를 판정합니다.
+let writtenIntensiveRows;
+const visibleIntensiveRow = ['3-1', '장년', '1팀', '테스트', '010-1234-5678', 'O'];
+const storedIntensiveRow = [new Date('2026-03-01'), ...visibleIntensiveRow.slice(1)];
+context.SpreadsheetApp.openById = () => ({
+  getSheetByName: () => ({
+    getLastRow: () => 2,
+    getLastColumn: () => 6,
+    getRange: () => ({
+      getValues: () => [storedIntensiveRow],
+      getDisplayValues: () => [visibleIntensiveRow]
+    })
+  })
+});
+context.getEducationMasterSheet_ = () => ({
+  getLastRow: () => 1,
+  getLastColumn: () => 13,
+  getMaxRows: () => 10,
+  getRange: () => ({ setValues: (rows) => { writtenIntensiveRows = rows; } })
+});
+context.writeEducationLog_ = () => {};
+const intensiveResult = call('syncIntensiveTraining_({ dryRun: false });');
+assert.equal(intensiveResult.added, 1);
+assert.equal(writtenIntensiveRows[0][10], '3분기 집중교육');
+
+// 이전 실행이 날짜 문자열을 적은 경우에만 그 잘못된 표기를 고칩니다.
+const oldIntensiveRow = new Array(13).fill('');
+oldIntensiveRow[0] = 1;
+oldIntensiveRow[4] = '테스트';
+oldIntensiveRow[6] = '010-1234-5678';
+oldIntensiveRow[10] = 'Sun Mar 01 2026 00:00:00 GMT+0900 (한국 표준시)분기 집중교육';
+context.getEducationMasterSheet_ = () => ({
+  getLastRow: () => 2,
+  getLastColumn: () => 13,
+  getMaxRows: () => 10,
+  getRange: () => ({
+    getValues: () => [oldIntensiveRow],
+    setValues: (rows) => { writtenIntensiveRows = rows; }
+  })
+});
+writtenIntensiveRows = undefined;
+const repairResult = call('syncIntensiveTraining_({ dryRun: false });');
+assert.equal(repairResult.updated, 1);
+assert.equal(writtenIntensiveRows[0][10], '3분기 집중교육');
+oldIntensiveRow[10] = '개별 수료';
+writtenIntensiveRows = undefined;
+const preservedResult = call('syncIntensiveTraining_({ dryRun: false });');
+assert.equal(preservedResult.conflicts.length, 1);
+assert.equal(oldIntensiveRow[10], '개별 수료');
 
 // --- 금요일 교육 트리거 삭제 도우미 (NFR-OPS-001) -------------------------
 // Validates: NFR-OPS-001

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="botyard render-spec-html v5">
-<meta name="spec-html-renderer" content="v5">
-<meta name="spec-source-sha256" content="ae3fa305f2f0fc492db49cf957478da9c7da85f02a2b96126e63e6b11e58deb0">
+<meta name="generator" content="botyard render-spec-html v6">
+<meta name="spec-html-renderer" content="v6">
+<meta name="spec-source-sha256" content="e578f586be9f0a60d155e69618f12130c897c8cd856c28381e2f512e25d8b4b9">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -476,12 +476,17 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <section class="card kind-req" id="REQ-EDU-003">
 <h3><span class="idtag">REQ-EDU-003</span> 집중교육 참석 반영</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/집중교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a></span></div>
-<details class="history"><summary>변경 이력 2</summary>
+<details class="history"><summary>변경 이력 3</summary>
 <ul>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a> · <a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a> · <a class="idref" href="#NFR-OPS-001">NFR-OPS-001</a>: 이미 있던 자동 테스트를 추적성 표에
 연결하는 TEST 절을 추가했다(<a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a> · <a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a> · <a class="idref" href="#TEST-OPS-001">TEST-OPS-001</a>).
 <code>tests/education-automation.test.js</code>는 본문 주석에 <code>TEST-EDU-003</code>을 적고 있었는데
 SPEC에는 그 ID가 없었다.</li>
+<li><span class="hist">[Unreleased] · Changed</span> <a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a>: <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 참석 표시로 숫자 <code>0</code>과 영문 <code>o</code>·<code>O</code>를 모두 읽는다. 교육관리
+시트 상단에 <code>집중교육 → 참석 명단 반영</code> 메뉴를 추가하고, 실행 뒤 확인·추가·갱신·검토
+필요 건수를 알림창에 표시한다. <code>3-1</code> 같은 번호가 날짜로 저장된 줄도 화면에 보이는
+번호를 읽어 올바른 분기 이름을 기록한다. 앞선 실행이 남긴 날짜 문자열 31건은
+원본 번호와 날짜가 맞을 때에만 고치고 다른 4주차 값은 보존한다.</li>
 <li><span class="hist">[Unreleased] · Changed</span> <a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a>: <code>runIntensiveTrainingTest</code> → <code>applyIntensiveTrainingNow</code> (실제 시트 변경을
 이름과 안내에 명시)</li>
 </ul>
@@ -492,24 +497,30 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="field"><h4>동작</h4><div class="field-body">
 <ul>
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 시트에서 참석 표시가 있는 줄만 다룬다.</li>
+<li>참석 표시는 숫자 <code>0</code>과 영문 <code>o</code>·<code>O</code>를 같은 뜻으로 읽는다.</li>
+<li>분기 번호가 날짜 형식으로 저장된 줄도 화면에 보이는 <code>3-1</code> 같은 번호로 분기를 읽는다.</li>
 <li>전화번호로 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>의 줄을 찾는다. 여러 줄이 걸리면 반영하지 않고 충돌로 기록한다.</li>
 <li>맞는 줄이 없으면 1~3주차를 완료로 표시한 새 줄을 더한다.</li>
 <li>맞는 줄이 있으면 <strong>비어 있는 <span class="term" title="교육의 몇 번째 주인지를 뜻한다. 1~4주차가 있다" tabindex="0">주차</span> 칸만 채운다.</strong> 이미 값이 있는 칸은 그대로 둔다.</li>
 <li>4주차 칸에 다른 값이 이미 있으면 그 값을 남기고 충돌로 기록한다.</li>
-<li>이 기능은 예약 실행으로 돌리지 않고, 필요할 때 손으로 실행한다. 먼저 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수로 확인한다.</li>
+<li>이전 실행이 분기 번호를 날짜로 잘못 읽어 4주차에 적은 표기는 원본 번호와 날짜가
+일치할 때에만 올바른 분기 이름으로 고친다.</li>
+<li>이 기능은 예약 실행으로 돌리지 않는다. 교육관리 시트 상단의 <code class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</code> 메뉴에서
+<code>참석 명단 반영</code>을 누르면 실행 결과를 알림창으로 보여 준다.</li>
+<li>Apps Script 편집기에서 실행할 때는 먼저 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수로 확인한다.</li>
 </ul>
 <aside class="callout callout-warn"><span class="callout-label">주의</span>
 <p><code>previewIntensiveTraining</code>은 시트를 바꾸지 않는다. 승인한 뒤 실행하는 <code>applyIntensiveTrainingNow</code>는 실제 시트를 바꾼다. 이 함수는 메일을 보내지 않고 <code class="term" title="테스트용 이름이 붙은 실행 함수다. 메일을 보내는 것은 테스트 수신자 안전장치를 켠다" tabindex="0">run*Test</code> 계열도 아니므로, 이름만 보고 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>라고 판단하지 않는다.</p>
 </aside>
 </div></section>
 <section class="field"><h4>예외 처리</h4><div class="field-body">
-<p><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 시트를 찾지 못하면 예외를 내고 멈춘다. 충돌은 실패로 보지 않고 검토 항목으로 보고한다.</p>
+<p><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 시트를 찾지 못하면 예외를 내고 멈춘다. 메뉴에서 실행한 경우에는 실패 원인을 알림창으로 보여 준다. 충돌은 실패로 보지 않고 검토 항목으로 보고한다.</p>
 </div></section>
 <section class="field"><h4>관련 구현</h4><div class="field-body">
 <p><code>education-project/집중교육 출석 현황 업데이트.gs</code></p>
 </div></section>
 <section class="field"><h4>관련 테스트</h4><div class="field-body">
-<p>(없음. 로컬 정적 테스트가 다루지 않는다)</p>
+<p><a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a></p>
 </div></section>
 </section>
 <section class="card kind-req" id="REQ-NOTI-001">
@@ -1677,6 +1688,7 @@ node tests/intensive-training-application.test.js
 </section>
 <section class="card kind-test" id="TEST-EDU-003">
 <h3><span class="idtag">TEST-EDU-003</span></h3>
+<div class="card-meta"><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a></span></div>
 <details class="history"><summary>변경 이력 1</summary>
 <ul>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a> · <a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a> · <a class="idref" href="#NFR-OPS-001">NFR-OPS-001</a>: 이미 있던 자동 테스트를 추적성 표에
@@ -1692,14 +1704,20 @@ SPEC에는 그 ID가 없었다.</li>
 <p>Node.js 18 이상. 외부 접근 없음.</p>
 </div></section>
 <section class="field"><h4>절차</h4><div class="field-body">
-<p><code>tests/education-automation.test.js</code>를 실행한다(<code>npm test</code>). <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 반영 부분에서 다음을 소스로 확인한다.</p>
+<p><code>tests/education-automation.test.js</code>를 실행한다(<code>npm test</code>). <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 반영 부분에서 다음을 확인한다.</p>
 <ul>
+<li>숫자 <code>0</code>과 영문 <code>o</code>·<code>O</code>는 참석으로 읽고 빈칸과 <code>X</code>는 제외하는지</li>
+<li>분기 번호 <code>3-1</code>이 날짜로 저장돼도 4주차에 <code>3분기 집중교육</code>을 적는지</li>
+<li>이전 실행의 날짜 문자열 표기는 고치고, 다른 4주차 값은 그대로 두는지</li>
+<li>시트를 열면 <code class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</code> 메뉴에 <code>참석 명단 반영</code> 한 항목이 생기는지</li>
+<li>메뉴 실행이 실제 반영 함수를 호출하고 추가·갱신·검토 필요 건수를 알림창에 보여 주는지</li>
+<li>실제 반영 함수가 실패하면 실패 원인을 알림창에 보여 주고 예외를 유지하는지</li>
 <li><span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수와 실제 반영 함수의 이름이 나뉘어 있는지</li>
 <li><code class="term" title="테스트용 이름이 붙은 실행 함수다. 메일을 보내는 것은 테스트 수신자 안전장치를 켠다" tabindex="0">run*Test</code> 이름이 실제 반영에 쓰이지 않는지</li>
 </ul>
 </div></section>
 <section class="field"><h4>Expected Result</h4><div class="field-body">
-<p><code>previewIntensiveTraining()</code>은 <code>dryRun: true</code>로 동작한다. 실제 반영 함수에는 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>로 오해할 만한 이름(<code>runIntensiveTrainingTest</code>)이 없다.</p>
+<p>세 참석 표시는 모두 반영 대상이다. 날짜로 저장된 번호도 보이는 분기로 기록한다. 시트 메뉴에서 한 번 실행하면 실제 반영 함수가 한 번 호출되고 결과 건수가 표시된다. <code>previewIntensiveTraining()</code>은 <code>dryRun: true</code>로 동작한다. 실제 반영 함수에는 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>로 오해할 만한 이름(<code>runIntensiveTrainingTest</code>)이 없다.</p>
 </div></section>
 </section>
 <section class="card kind-test" id="TEST-NOTI-001">

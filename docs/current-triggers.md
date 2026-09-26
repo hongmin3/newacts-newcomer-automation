@@ -36,8 +36,9 @@
 - `sortEducationManagementNewestFirst`: 교육 출석 현황과 로그를 최신순으로 1회 정렬
 - `migrateEducationCursorAndProcessPending`: 행 번호 커서를 시각 커서로 이전하며 미처리분 반영
 - `removeFridayEducationTrigger`: 금요일 `main` 클록 트리거만 삭제(화요일 등 나머지는 유지, 여러 번 실행해도 안전)
+- 시트 상단 `집중교육 → 참석 명단 반영`: `0`·`o`·`O`로 표시한 집중교육 참석자를 실제 반영하고 결과 건수를 알림으로 표시
 - `syncIntensiveTraining`: 집중교육 출석 반영
-- `applyIntensiveTrainingNow`: 승인 후 집중교육 출석을 실제 반영(메일 없음, 시트 변경)
+- `applyIntensiveTrainingNow`: Apps Script 편집기에서 승인 후 집중교육 출석을 실제 반영(메일 없음, 시트 변경)
 - `generateSettlementReport`: 결산 시트 생성 시도
 - `setupSystem`: 집중교육 Form·관리자/공개 Spreadsheet·제출 트리거 최초 설치
 - `verifySystem`: 집중교육 파일 수·공유 권한·시트·군→팀→참석자 분기·트리거 재검증

@@ -20,7 +20,7 @@ npm run push      # 저장소 코드를 운영에 반영
 | 교육 출석 반영 | `main` → `processPendingAttendanceTrigger` | 매주 화요일 17:00~18:00 | 새 설문 응답을 **타임스탬프 커서** 기준으로 증분 반영하고 상세 결과 메일 | `education-project/교육 출석 현황 업데이트.gs` |
 | 교육 문자공지 명단 | `sendNewcomerNotifications` → `sendNewcomerNotificationsTrigger` | 매주 토요일 08:00~09:00 | 교육 진행 중·미진행 명단과 문자 발송용 번호를 메일로 전송 | `education-project/문자 명단 리스트.gs` |
 | 집중교육 신청 접수 | `onFormSubmitHandler` | Form 제출 즉시 | 군→팀 분기 신청, 전화번호 정규화, 관리자·공개 명단 동기화 | `intensive-training-application/` |
-| 집중교육 출석 반영 | `syncIntensiveTraining` | 필요할 때 수동 실행 | `26년 집중교육` 참석자를 일반 교육 출석 현황에 반영 | `education-project/집중교육 출석 현황 업데이트.gs` |
+| 집중교육 출석 반영 | 시트 메뉴 `집중교육 → 참석 명단 반영` | 필요할 때 한 번 선택 | `26년 집중교육`에서 `0`·`o`·`O`로 표시한 참석자를 일반 교육 출석 현황에 반영 | `education-project/집중교육 출석 현황 업데이트.gs` |
 | 상반기 결산 생성 | `generateSettlementReport` | 필요할 때 수동 실행 | 등록 자료를 기준으로 상반기 결산 집계표 갱신 | `registration-project/제목 없음.gs` |
 
 트리거 시간은 Apps Script가 지정 시간대 안에서 선택해 실행하므로 정확히 정각에 시작되지 않을 수 있습니다. 확인 당시 트리거 상세는 [`docs/current-triggers.md`](docs/current-triggers.md)에 있습니다.
@@ -180,6 +180,7 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 | 함수 | 동작 |
 |---|---|
 | `applyIntensiveTrainingNow` | 집중교육 참석자를 교육 출석 현황에 실제 반영. 먼저 `previewIntensiveTraining`으로 확인 |
+| `applyIntensiveTrainingFromMenu` | 시트 메뉴에서 실제 반영을 실행하고 추가·갱신·검토 필요 건수를 알림창으로 표시 |
 | `generateSettlementReport` | 상반기 결산 시트를 다시 계산. 먼저 `previewSettlementReport`으로 확인 |
 | `syncIntensiveTraining` | 활성 상태에서 집중교육 반영을 실행하는 정식 경로(위와 같은 작업) |
 
@@ -216,7 +217,7 @@ node scripts/apps-script.mjs pull                # 운영 코드를 저장소로
 | 목적 | 미리보기/안전 확인 | 실제 실행 |
 |---|---|---|
 | 새 교육 응답 반영 | `previewPendingAttendance`, `previewEducationDetailedReport` | `processPendingAttendanceTrigger` |
-| 집중교육 병합 | `previewIntensiveTraining` | `applyIntensiveTrainingNow` (메일 없음, 시트 변경) |
+| 집중교육 병합 | `previewIntensiveTraining` | 시트 메뉴 `집중교육 → 참석 명단 반영` 또는 `applyIntensiveTrainingNow` (메일 없음, 시트 변경) |
 | 등록 보정·군 현황 갱신 | `previewRegistrationMaintenance` | `runRegistrationMaintenanceTrigger` |
 | 수료현황·주간 메일 | `previewRegistrationReporting` | `runRegistrationReportingTrigger` |
 | 상반기 결산 | `previewSettlementReport` | `generateSettlementReport` |

@@ -2,6 +2,32 @@
  * 집중교육 출석을 일반 교육 출석 현황에 안전하게 반영합니다.
  * 기존 주차 값은 덮어쓰지 않으며 전화번호가 유일한 경우에만 자동 매칭합니다.
  */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('집중교육')
+    .addItem('참석 명단 반영', 'applyIntensiveTrainingFromMenu')
+    .addToUi();
+}
+
+function applyIntensiveTrainingFromMenu() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    const result = applyIntensiveTrainingNow();
+    ui.alert([
+      '집중교육 참석 명단 반영을 마쳤습니다.',
+      '확인 ' + result.scanned + '명',
+      '추가 ' + result.added + '명',
+      '갱신 ' + result.updated + '명',
+      '검토 필요 ' + result.conflicts.length + '명'
+    ].join('\n'));
+    return result;
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    ui.alert('집중교육 참석 명단 반영 실패\n' + message);
+    throw error;
+  }
+}
+
 function previewIntensiveTraining() {
   return syncIntensiveTraining_({ dryRun: true });
 }
@@ -27,6 +53,24 @@ function applyIntensiveTrainingNow() {
   });
 }
 
+function isIntensiveAttendanceMarked_(value) {
+  const marker = String(value === null || value === undefined ? '' : value)
+    .trim()
+    .toUpperCase();
+  return marker === 'O' || marker === '0';
+}
+
+function isLegacyIntensiveDateLabel_(value, id) {
+  const idMatch = String(id).match(/^([1-4])-(\d{1,2})$/);
+  const labelMatch = String(value).match(
+    /^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) ([A-Z][a-z]{2}) (\d{1,2}) 2026 \d{2}:\d{2}:\d{2} GMT[+-]\d{4} \([^)]*\)분기 집중교육$/
+  );
+  if (!idMatch || !labelMatch) return false;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr'];
+  return labelMatch[1] === months[Number(idMatch[1]) - 1] &&
+    Number(labelMatch[2]) === Number(idMatch[2]);
+}
+
 function syncIntensiveTraining_(options) {
   const ss = SpreadsheetApp.openById(
     EDUCATION_AUTOMATION.masterSpreadsheetId
@@ -49,7 +93,7 @@ function syncIntensiveTraining_(options) {
 
   const intensiveData = intensiveSheet
     .getRange(2, 1, intensiveLastRow - 1, Math.max(intensiveSheet.getLastColumn(), 6))
-    .getValues();
+    .getDisplayValues();
   const attendanceWidth = Math.max(attendanceSheet.getLastColumn(), 13);
   const attendanceRows = attendanceLastRow > 1
     ? attendanceSheet
@@ -66,7 +110,7 @@ function syncIntensiveTraining_(options) {
   });
 
   intensiveData.forEach(function (row, index) {
-    if (String(row[5] || '').trim().toUpperCase() !== 'O') return;
+    if (!isIntensiveAttendanceMarked_(row[5])) return;
     result.scanned += 1;
 
     const id = String(row[0] || '').trim();
@@ -124,7 +168,8 @@ function syncIntensiveTraining_(options) {
       }
     }
 
-    if (String(target[10] || '').trim() === '') {
+    if (String(target[10] || '').trim() === '' ||
+        isLegacyIntensiveDateLabel_(target[10], id)) {
       target[10] = completionText;
       changed = true;
     } else if (String(target[10]).trim() !== completionText) {
