@@ -6,7 +6,7 @@
 
 ## 확인한 현재 구조
 
-- 로컬 프로젝트: `C:\Users\2024980\Documents\자동화\정착률`
+- 로컬 프로젝트: `C:\Users\2024980\Documents\자동화\newacts-settlement-automation`
 - 실행 파일: `main.py` → `settlement_automation.py`
 - 입력: 등록 스프레드시트의 `등록 새가족` 탭
 - 외부 조회: 디모데 교인 상세페이지의 연도별 `출결사항 > 주일`

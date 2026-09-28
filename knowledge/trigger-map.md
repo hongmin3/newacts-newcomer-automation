@@ -57,6 +57,6 @@
 ## 정착률 월간 메일 자동화 (별도 승인 필요, 미구현)
 <!-- akela: id=settlement-automation-note scope=trigger-debug tier=context -->
 
-- 정착률 계산은 Apps Script가 아니라 로컬 Python(`C:\Users\2024980\Documents\자동화\정착률\main.py`)이 디모데 웹 화면 출결을 읽어 처리한다. 새가족교육 메일 트리거와는 별도의 실행 기반이다.
+- 정착률 계산은 Apps Script가 아니라 로컬 Python(`C:\Users\2024980\Documents\자동화\newacts-settlement-automation\main.py`)이 디모데 웹 화면 출결을 읽어 처리한다. 새가족교육 메일 트리거와는 별도의 실행 기반이다.
 - 권장 구조: Windows 작업 스케줄러가 매주 금요일 실행 → 월의 1~7일인지 확인 → 맞으면 정착률 계산 및 조건부 메일 발송.
 - 이 자동화는 `docs/settlement-monthly-email-analysis.md`에서 분석만 되어 있고, 별도 사용자 승인 후 구현 대상이며 현재 수료 자동화 운영 범위에는 포함되지 않는다.
