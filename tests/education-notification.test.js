@@ -33,17 +33,17 @@ const expectedRecipients = [
   'whduswn94@naver.com'
 ];
 
+// 운영 수신자는 EDUCATION_AUTOMATION.productionRecipients 한 곳에서만 관리합니다.
 vm.runInContext(`
-  sendEducationEmail_({
-    recipients: NOTIFICATION_CONFIG.productionRecipients,
-    subject: 'recipient test',
-    body: 'test'
-  });
+  sendEducationEmail_({ subject: 'recipient test', body: 'test' });
 `, context);
 
 assert.equal(sent.length, 1);
 assert.deepEqual(sent[0].to.split(','), expectedRecipients);
 assert.equal(new Set(sent[0].to.split(',')).size, 5);
-assert.match(notificationSource, /recipients:\s*NOTIFICATION_CONFIG\.productionRecipients/);
+assert.doesNotMatch(sent[0].subject, /^\[TEST\]/);
+
+// 문자 명단은 자체 수신자 목록을 들고 있지 않아야 합니다(이중 관리 방지).
+assert.doesNotMatch(notificationSource, /productionRecipients\s*:/);
 
 console.log('education notification recipient checks passed');

@@ -1,0 +1,28 @@
+{
+  "projects": [
+    {
+      "name": "attendance-webapp",
+      "dir": "attendance-webapp",
+      "scriptId": "1JPi6GfNS1UR_iWic0h9yZRr-NhEYnxAV_l-YM7_huZwVceBhnDX7m5s6",
+      "webApp": true
+    },
+    {
+      "name": "education",
+      "dir": "education-project",
+      "scriptId": "1FkpwxV8uFORcOMqTO19rrMB2ifEfFAmK7aXu1pI8p5eT0_HMX-o4brJc",
+      "webApp": false
+    },
+    {
+      "name": "registration",
+      "dir": "registration-project",
+      "scriptId": "1ZUvqTsXt0HwODX0Byi7GYWnNa75uTJ0ViKxP2vBUYl7KyM9-VriLQjK9",
+      "webApp": false
+    },
+    {
+      "name": "intensive-training",
+      "dir": "intensive-training-application",
+      "scriptId": "1CRE913FQ73aVI2D2ol03-7vUAMJLIiD2-f64L2YL0fqHayAmSG_3ceZy",
+      "webApp": false
+    }
+  ]
+}

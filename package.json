@@ -1,0 +1,15 @@
+{
+  "name": "newacts-newcomer-automation",
+  "private": true,
+  "type": "commonjs",
+  "description": "뉴액츠 새가족·교육 자동화 Apps Script 소스와 운영 동기화 도구",
+  "scripts": {
+    "test": "node scripts/run-tests.mjs",
+    "diff": "node scripts/apps-script.mjs diff",
+    "pull": "node scripts/apps-script.mjs pull",
+    "push": "node scripts/apps-script.mjs push"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
