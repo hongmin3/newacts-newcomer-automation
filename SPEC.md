@@ -42,11 +42,15 @@ TEST 모드와 테스트 전용 함수는 지정된 테스트 수신자 한 곳�
 
 ### TEST-CORE-001
 
+근거 문서: `docs/enhanced-architecture.md`
+
 대상: REQ-CORE-001. 절차: 격리된 Apps Script 복사본에서 active=false로 트리거 진입을 호출하고 외부 시트 변경/메일이 없는지 확인한다. 운영 설정은 변경하지 않는다.
 
 기대 결과: 해당 Requirement의 동작과 일치해야 하며 실패나 미실행은 통과로 기록하지 않는다. 실행 상태: 미실행.
 
 ### TEST-CORE-002
+
+근거 문서: `docs/enhanced-architecture.md`
 
 대상: REQ-CORE-002. 절차: 격리 사본에서 runEducationTest 등 전용 함수를 검토하고 수신자 수 검사 및 TEST/PRODUCTION 분기를 확인한다. 실제 발송은 별도 승인 후 수행한다.
 
@@ -56,8 +60,8 @@ TEST 모드와 테스트 전용 함수는 지정된 테스트 수신자 한 곳�
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
-| REQ-CORE-001 | `education-project/교육 출석 현황 업데이트.gs` | TEST-CORE-001; 근거 `docs/enhanced-architecture.md` | draft |
-| REQ-CORE-002 | `education-project/교육 출석 현황 업데이트.gs` | TEST-CORE-002; 근거 `docs/enhanced-architecture.md` | draft |
+| REQ-CORE-001 | `education-project/교육 출석 현황 업데이트.gs` | TEST-CORE-001 | draft |
+| REQ-CORE-002 | `education-project/교육 출석 현황 업데이트.gs` | TEST-CORE-002 | draft |
 
 ## 13. 미확정 사항
 

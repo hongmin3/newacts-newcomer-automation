@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v6">
 <meta name="spec-html-renderer" content="v6">
-<meta name="spec-source-sha256" content="7d513f92a53c80cc176b193f552a21d412a963e86657fc35ac81305c54ea7a50">
+<meta name="spec-source-sha256" content="b79cd9b2bf58aaf6678cfe8af1d53614f3d41e986abb2f226176cdddc6638a42">
 <title>새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -114,8 +114,8 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <thead><tr><th>ID</th><th>이름</th><th>상태</th><th>구현</th><th>테스트</th></tr></thead>
 <tbody>
 <tr class="group"><th colspan="5"><span class="gcode">CORE</span></th></tr>
-<tr><td><a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a></td><td>비활성 트리거 차단</td><td><span class="badge st-draft">draft</span></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a>; 근거 <code>docs/enhanced-architecture.md</code></td></tr>
-<tr><td><a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a></td><td>테스트 수신자 단일화</td><td><span class="badge st-draft">draft</span></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a>; 근거 <code>docs/enhanced-architecture.md</code></td></tr>
+<tr><td><a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a></td><td>비활성 트리거 차단</td><td><span class="badge st-draft">draft</span></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a></td></tr>
+<tr><td><a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a></td><td>테스트 수신자 단일화</td><td><span class="badge st-draft">draft</span></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a></td></tr>
 </tbody>
 </table></div>
 </section>
@@ -132,13 +132,23 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <h2>5. 기능 요구사항</h2>
 <section class="card kind-req" id="REQ-CORE-001">
 <h3><span class="idtag">REQ-CORE-001</span> 비활성 트리거 차단</h3>
-<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a>; 근거 <code>docs/enhanced-architecture.md</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-09-28</span> <a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a> / <a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a>: 추적성 표 Test 칸에는 TEST-ID만 남기고, 함께 적혀 있던 근거 문서(<code>docs/enhanced-architecture.md</code>)는 해당 TEST 절로 옮겼다. 사양 내용은 바꾸지 않았다.</li>
+</ul>
+</details>
 <p>active=false이면 설치형 트리거 진입 함수가 작업 없이 종료해야 한다. 비활성 상태를 배포 완료로 오인하지 않는다.</p>
 <p>근거 구현: <code>education-project/교육 출석 현황 업데이트.gs</code>. 검증 근거: <code>docs/enhanced-architecture.md</code>.</p>
 </section>
 <section class="card kind-req" id="REQ-CORE-002">
 <h3><span class="idtag">REQ-CORE-002</span> 테스트 수신자 단일화</h3>
-<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a>; 근거 <code>docs/enhanced-architecture.md</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-09-28</span> <a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a> / <a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a>: 추적성 표 Test 칸에는 TEST-ID만 남기고, 함께 적혀 있던 근거 문서(<code>docs/enhanced-architecture.md</code>)는 해당 TEST 절로 옮겼다. 사양 내용은 바꾸지 않았다.</li>
+</ul>
+</details>
 <p>TEST 모드와 테스트 전용 함수는 지정된 테스트 수신자 한 곳만 사용한다. 여러 수신자이면 오류로 중단하고 운영 수신자로 보내지 않는다.</p>
 <p>근거 구현: <code>education-project/교육 출석 현황 업데이트.gs</code>. 검증 근거: <code>docs/enhanced-architecture.md</code>.</p>
 </section>
@@ -152,11 +162,13 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <p>기존 README와 컴파일된 변경 정책, 실제 runEducationTest 함수 존재를 근거로 한 수동 검증 사양이다. 테스트 전용 함수 실행도 메일 전송이므로 이번 문서 작업에서는 호출하지 않았다.</p>
 <section class="card kind-test" id="TEST-CORE-001">
 <h3><span class="idtag">TEST-CORE-001</span></h3>
+<p>근거 문서: <code>docs/enhanced-architecture.md</code></p>
 <p>대상: <a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a>. 절차: 격리된 Apps Script 복사본에서 active=false로 트리거 진입을 호출하고 외부 시트 변경/메일이 없는지 확인한다. 운영 설정은 변경하지 않는다.</p>
 <p>기대 결과: 해당 Requirement의 동작과 일치해야 하며 실패나 미실행은 통과로 기록하지 않는다. 실행 상태: 미실행.</p>
 </section>
 <section class="card kind-test" id="TEST-CORE-002">
 <h3><span class="idtag">TEST-CORE-002</span></h3>
+<p>근거 문서: <code>docs/enhanced-architecture.md</code></p>
 <p>대상: <a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a>. 절차: 격리 사본에서 runEducationTest 등 전용 함수를 검토하고 수신자 수 검사 및 TEST/PRODUCTION 분기를 확인한다. 실제 발송은 별도 승인 후 수행한다.</p>
 <p>기대 결과: 해당 Requirement의 동작과 일치해야 하며 실패나 미실행은 통과로 기록하지 않는다. 실행 상태: 미실행.</p>
 </section>
@@ -166,8 +178,8 @@ footer{max-width:1280px;margin:0 auto;padding:8px 32px 40px;color:var(--muted);f
 <div class="table-wrap"><table>
 <thead><tr><th>Requirement</th><th>Implementation</th><th>Test</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td><a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a>; 근거 <code>docs/enhanced-architecture.md</code></td><td><span class="badge st-draft">draft</span></td></tr>
-<tr><td><a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a>; 근거 <code>docs/enhanced-architecture.md</code></td><td><span class="badge st-draft">draft</span></td></tr>
+<tr><td><a class="idref" href="#REQ-CORE-001">REQ-CORE-001</a></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-001">TEST-CORE-001</a></td><td><span class="badge st-draft">draft</span></td></tr>
+<tr><td><a class="idref" href="#REQ-CORE-002">REQ-CORE-002</a></td><td><code>education-project/교육 출석 현황 업데이트.gs</code></td><td><a class="idref" href="#TEST-CORE-002">TEST-CORE-002</a></td><td><span class="badge st-draft">draft</span></td></tr>
 </tbody>
 </table></div>
 </section>
