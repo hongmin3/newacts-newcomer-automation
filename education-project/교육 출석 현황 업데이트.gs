@@ -329,7 +329,7 @@ function sendEducationReport_(result, label) {
 
 function sendEducationEmail_(message) {
   const recipients = EDUCATION_AUTOMATION.mode === 'PRODUCTION'
-    ? EDUCATION_AUTOMATION.productionRecipients
+    ? (message.recipients || EDUCATION_AUTOMATION.productionRecipients)
     : [EDUCATION_AUTOMATION.testRecipient];
 
   const uniqueRecipients = Array.from(new Set(recipients.map(String).map(function (v) {
