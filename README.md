@@ -29,7 +29,7 @@
 PowerShell에서 다음을 실행합니다.
 
 ```powershell
-cd 'C:\Users\2024980\Documents\자동화\정착률'
+cd 'C:\Users\2024980\Documents\자동화\newacts-settlement-automation'
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
