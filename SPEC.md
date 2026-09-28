@@ -80,18 +80,18 @@
 - 집중교육 신청 Form 접수, 관리자 명단과 공개 명단의 즉시 동기화
 - 실행 결과의 숨김 로그 기록과 메일 수신자 안전장치
 - 저장소 코드와 운영 Apps Script 코드를 맞추는 동기화 도구(`scripts/apps-script.mjs`)
+- 새가족 정착률 계산과 월간 정착률 메일(`settlement-automation/`). 디모데에 로그인해야 해서 Apps Script가 아니라 이 컴퓨터의 Python과 Windows 작업 스케줄러로 실행한다.
 
 ### 제외
 
 - 실제 문자(SMS) 발송. 이 자동화는 **발송 대상 명단과 번호 목록까지만** 만든다.
-- 정착률 계산과 월간 정착률 메일. 외부 시스템에 로그인해야 해서 Apps Script로 실행할 수 있는 범위 밖에 있다(`docs/settlement-monthly-email-analysis.md`).
 - 개인 명단과 실행 결과 데이터를 저장소에 보관하는 일. 데이터는 Google Sheets에만 둔다.
 - 교육·등록 예약 실행(Apps Script 트리거)을 자동으로 만들거나 바꾸는 일. 이 일정은 Apps Script 화면에서 사람이 관리한다. 단, 집중교육 신청 설치 함수가 제출 때 실행되는 트리거를 만드는 일은 포함한다.
 - 운영 배포 자동화. 배포는 사람이 승인한 뒤 손으로 실행한다.
 
 ## 3. 시스템 구성
 
-네 개의 서로 독립된 Apps Script 프로젝트로 이루어진다. 디렉터리 하나가 Apps Script 프로젝트 하나다.
+네 개의 서로 독립된 Apps Script 프로젝트와, 이 컴퓨터에서 도는 Python 정착률 자동화 하나로 이루어진다. Apps Script는 디렉터리 하나가 프로젝트 하나다.
 
 같은 디렉터리의 `.gs` 파일은 전역 설정과 공통 함수를 함께 쓴다. 그래서 따로 떼어 독립 스크립트로 나누지 않는다.
 
@@ -103,6 +103,7 @@
 | 집중교육 신청 | Form과 관리자·공개 Spreadsheet 설치, 제출 때 즉시 동기화 | `intensive-training-application/` |
 | 동기화 도구 | 저장소와 운영 코드 비교·가져오기·올리기·배포(`diff`/`pull`/`push`/`deploy`) | `scripts/apps-script.mjs` |
 | 정적 검증 | Apps Script API를 부르지 않고 이 컴퓨터에서 돌리는 함수·소스 검사 | `tests/` |
+| 정착률 | 디모데 출결로 새가족 정착률을 계산해 `정착률` 탭을 갱신하고, 마지막 화요일에 월간 메일을 보낸다 | `settlement-automation/` |
 
 이 자동화가 바깥 시스템과 만나는 곳은 Google Sheets, Google Forms, Google Drive, `MailApp`, `PropertiesService`, `LockService`다. 모두 Apps Script를 실행하는 계정의 권한으로 접근한다.
 
@@ -181,6 +182,7 @@ ID 규칙: `REQ-<CATEGORY>-NNN`. CATEGORY는 대문자·숫자, NNN은 세 자�
 | REG | 등록·군 현황 |
 | REPORT | 보고 |
 | SETTLE | 결산 |
+| RATE | 정착률 |
 | INTENSIVE | 집중교육 |
 | MAIL | 메일 안전장치 |
 | LOG | 실행 로그 |
@@ -617,6 +619,57 @@ TEST-MAIL-001, TEST-MAIL-002
 
 #### 관련 테스트
 TEST-LOG-001
+
+### REQ-RATE-001 조회 완료율 안전 기준
+
+#### 목적
+디모데 조회가 충분히 끝나지 않은 결과로 정착률 메일을 보내지 않는다.
+
+#### 동작
+- 조회완료 비율이 설정한 안전 기준 미만이면 `RuntimeError`로 메일 발송을 막는다.
+- 기본 기준은 0.95다.
+
+> **예시** 100건 가운데 94건만 조회를 마쳤으면 메일을 보내지 않는다.
+
+#### 예외 처리
+메일 안전 검사 실패를 성공이나 발송 완료로 기록하지 않는다.
+
+#### 관련 구현
+`settlement-automation/settlement_email.py`
+
+#### 관련 테스트
+TEST-RATE-001
+
+### REQ-RATE-002 개인별 표 선택
+
+#### 목적
+전체 보고서에 개인별 상세표를 넣을지 고를 수 있게 한다.
+
+#### 동작
+전체 보고서에서 `include_members=False`이면 군별 현황은 그대로 두고 개인별 상세표는 넣지 않는다.
+
+#### 관련 구현
+`settlement-automation/settlement_email.py`
+
+#### 관련 테스트
+TEST-RATE-002
+
+### REQ-RATE-003 마지막 화요일 판정
+
+#### 목적
+월간 정착률 메일을 한 달에 한 번, 그 달의 마지막 화요일에만 보낸다.
+
+#### 동작
+- 월간 실행 조건에 쓰는 날짜 판정은 그 달의 마지막 화요일에만 참을 돌려준다.
+- Windows 작업 스케줄러 `새가족 정착률 월말 자동화`가 매주 화요일 오전 9시에 `settlement-automation/run_monthly.ps1`을 실행하고, 이 판정이 참일 때만 계산과 메일 발송을 한다.
+
+> **예시** 2026-08-25는 참이고, 같은 달 18일은 거짓이다.
+
+#### 관련 구현
+`settlement-automation/settlement_email.py`, `settlement-automation/run_monthly.ps1`
+
+#### 관련 테스트
+TEST-RATE-003
 
 ## 6. 비기능 요구사항
 
@@ -1281,6 +1334,48 @@ Node.js 18 이상. 매니페스트 검사는 바깥에 접속하지 않는다. `
 - `push` 경로에 반영한 뒤 다시 읽어 같은지 확인하는 단계가 남아 있다.
 - 손으로 돌린 `diff`는 의도한 차이만 보여야 한다.
 
+### TEST-RATE-001
+
+#### 검증 대상
+REQ-RATE-001
+
+#### 선행 조건
+`settlement-automation/`에 가상환경(`.venv`)과 `requirements.txt` 의존성이 있다. 테스트가 부르는 모듈은 로컬 설정을 읽을 수 있으니, 비밀 설정 대신 비밀 없는 테스트 설정을 쓴다.
+
+#### 절차
+`settlement-automation/` 폴더에서 `.venv\Scripts\python.exe -m unittest discover -s tests -p test_settlement.py -v`를 실행한다. `test_low_completion_rate_blocks_email`이 100건 중 94건 완료 입력을 넣는다.
+
+#### Expected Result
+메일 발송이 `RuntimeError`로 막힌다.
+
+### TEST-RATE-002
+
+#### 검증 대상
+REQ-RATE-002
+
+#### 선행 조건
+TEST-RATE-001과 같다.
+
+#### 절차
+같은 명령에서 `test_overall_email_can_omit_member_table`이 `include_members=False`로 전체 보고서를 만든다.
+
+#### Expected Result
+군별 현황은 있고 개인별 상세표는 없다.
+
+### TEST-RATE-003
+
+#### 검증 대상
+REQ-RATE-003
+
+#### 선행 조건
+TEST-RATE-001과 같다.
+
+#### 절차
+같은 명령에서 `test_last_tuesday`가 2026-08-25와 2026-08-18을 판정한다.
+
+#### Expected Result
+2026-08-25는 참, 2026-08-18은 거짓이다.
+
 ## 12. 요구사항 추적성
 
 | Requirement | Implementation | Test | Status |
@@ -1297,6 +1392,9 @@ Node.js 18 이상. 매니페스트 검사는 바깥에 접속하지 않는다. `
 | REQ-REG-004 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-006 | implemented |
 | REQ-REPORT-001 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` | TEST-REPORT-001 (수동) | implemented |
 | REQ-SETTLE-001 | `registration-project/제목 없음.gs` | TEST-SETTLE-001 | implemented |
+| REQ-RATE-001 | `settlement-automation/settlement_email.py` | TEST-RATE-001 | implemented |
+| REQ-RATE-002 | `settlement-automation/settlement_email.py` | TEST-RATE-002 | implemented |
+| REQ-RATE-003 | `settlement-automation/settlement_email.py`, `settlement-automation/run_monthly.ps1` | TEST-RATE-003 | implemented |
 | REQ-INTENSIVE-001 | `intensive-training-application/Code.gs` | TEST-INTENSIVE-001 | implemented |
 | REQ-MAIL-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-MAIL-001, TEST-MAIL-002 | implemented |
 | REQ-LOG-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-LOG-001 | implemented |
@@ -1317,11 +1415,11 @@ Status 값: `draft` (사양만 있음) / `implemented` / `verified` (실제 실�
 ## 13. 미확정 사항
 
 - **REQ-SETTLE-001 산출 기준의 소유자 확인.** 2026-09-19에 코드를 근거로 사양을 확정했다. 확정한 기준은 군 9개 행 매핑, `3/8` 행축 기준, 유입 경로 `관계`·`설문지`, 일반·행축 목표 열이다. 운영 기준이 다르면 코드보다 이 사양을 먼저 고친다.
+- **정착률 자동화의 운영 검증 범위.** 동일인 판정, 출석 계산, 시트 갱신, 실제 메일 전송은 추적성과 운영 검증이 확인 필요다(REQ-RATE-001~003은 메일 안전 기준과 날짜 판정만 다룬다).
 - **상반기 방문자 동기화를 다시 켜는 시점.** 하반기 시트를 준비한 뒤 다시 켜기로 했고, 시점은 정하지 않았다. 지금은 일부러 꺼 두었다.
 
 ## 14. 향후 개선 후보
 
 - 상반기 방문 새가족 동기화 다시 켜기. 지금 이 함수는 일부러 꺼 두었고, 하반기 시트를 준비한 뒤 다시 켜기로 했다.
-- 정착률 월간 메일 자동화. 분석은 끝났지만 Apps Script 밖의 실행 환경이 필요해 범위에서 뺐다(`docs/settlement-monthly-email-analysis.md`).
 - 교육 새 응답 반영(REQ-EDU-001)과 매칭·검토 분류(REQ-EDU-002)의 단위 테스트. 이 프로젝트에서 가장 복잡한 판단 로직인데 로컬 검증이 없다.
 - 문자공지 대상자 선정 기준(REQ-NOTI-001)의 단위 테스트.

@@ -1,5 +1,7 @@
 # 운영 절차
 
+> **참고** 이 문서의 명령은 모두 저장소의 `settlement-automation/` 폴더에서 실행한다. 가상환경(`.venv`)과 인증 파일도 그 폴더에 둔다.
+
 ## 설치
 <!-- akela: id=setup -->
 
@@ -13,7 +15,7 @@
 <!-- akela: id=auth-files -->
 
 
-- 프로젝트 루트에 `credentials.json`(Google Cloud Desktop OAuth 클라이언트 JSON)과 `token.json`(최초 로그인 승인 후 자동 생성되는 토큰)이 필요합니다.
+- `settlement-automation/` 폴더에 `credentials.json`(Google Cloud Desktop OAuth 클라이언트 JSON)과 `token.json`(최초 로그인 승인 후 자동 생성되는 토큰)이 필요합니다.
 - 두 파일은 개인/기관 인증 정보이므로 `.gitignore`에 등록되어 커밋 대상에서 제외되어 있고, 어떤 문서나 knowledge 파일에도 내용을 기록하지 않습니다.
 - 디모데 로그인 정보(`USER_ID`/`USER_PW`)를 비워 두면 실행 시 열리는 Chromium 창에서 직접 로그인합니다.
 

@@ -22,6 +22,7 @@ npm run push      # 저장소 코드를 운영에 반영
 | 집중교육 신청 접수 | `onFormSubmitHandler` | Form 제출 즉시 | 군→팀 분기 신청, 전화번호 정규화, 관리자·공개 명단 동기화 | `intensive-training-application/` |
 | 집중교육 출석 반영 | 시트 메뉴 `집중교육 → 참석 명단 반영` | 필요할 때 한 번 선택 | `26년 집중교육`에서 `0`·`o`·`O`로 표시한 참석자를 일반 교육 출석 현황에 반영 | `education-project/집중교육 출석 현황 업데이트.gs` |
 | 상반기 결산 생성 | `generateSettlementReport` | 필요할 때 수동 실행 | 등록 자료를 기준으로 상반기 결산 집계표 갱신 | `registration-project/제목 없음.gs` |
+| 정착률 계산·월간 메일 | `run_monthly.ps1` → `main.py --monthly` (Python) | Windows 작업 스케줄러 매주 화요일 09:00, 실제 조회·메일은 마지막 화요일만 | 디모데 주일 출결로 새가족 정착률을 계산해 `정착률` 탭을 갱신하고 월간 메일 발송 | `settlement-automation/` |
 
 트리거 시간은 Apps Script가 지정 시간대 안에서 선택해 실행하므로 정확히 정각에 시작되지 않을 수 있습니다. 확인 당시 트리거 상세는 [`docs/current-triggers.md`](docs/current-triggers.md)에 있습니다.
 
@@ -107,6 +108,12 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 - 스크립트 ID: `1CRE913FQ73aVI2D2ol03-7vUAMJLIiD2-f64L2YL0fqHayAmSG_3ceZy`
 
 이 프로젝트는 기존 교육관리 Spreadsheet와 코드를 공유하지 않는 독립 Apps Script 프로젝트입니다. `setupSystem()`은 비공개 시스템 폴더에 Form 1개와 Spreadsheet 2개를 만들고 공개 확인 시트만 링크 뷰어로 공유합니다.
+
+### `settlement-automation/`
+
+- 새가족 정착률 자동화입니다. Apps Script가 아니라 이 PC의 Python(Playwright)이 디모데 웹 화면 출결을 읽습니다.
+- 설치·실행·인증 파일·예약 작업은 [settlement-automation/README.md](settlement-automation/README.md)에 있습니다.
+- 가상환경(`.venv`)과 인증 파일(`config.py`, `credentials.json`, `token.json`), 실행 결과(`output/`)는 그 폴더에 두고 저장소에는 올리지 않습니다.
 
 ### `scripts/`, `docs/`, `tests/`
 

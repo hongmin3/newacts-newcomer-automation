@@ -19,6 +19,8 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 
 ### Added
 
+- REQ-RATE-001 / REQ-RATE-002 / REQ-RATE-003: 새가족 정착률 자동화를 이 저장소의 `settlement-automation/`으로 합쳤다. 원래 저장소(`newacts-settlement-automation`)의 이력 5커밋을 그대로 가져왔고, 그 저장소의 요구사항 3개를 `RATE` 카테고리로 옮겼다(규칙·기준값은 그대로). 2절 범위의 제외 항목과 14절 향후 후보에서 정착률을 빼고 포함 범위로 옮겼다. 동일인 판정 등 운영 검증 범위는 13절에 남겼다.
+- 정착률 운영 문서 3개를 `knowledge/rate-*.md`로 옮기고 Akela activity와 적용 범위를 합쳤다. `trigger-map.md`의 정착률 안내를 실제 예약 작업(매주 화요일 09:00, 마지막 화요일만 실행)과 새 경로에 맞게 고쳤다.
 - REQ-ATTEND-001 · REQ-EDU-001 · REQ-REG-001 · REQ-REPORT-001 · REQ-SETTLE-001 · REQ-INTENSIVE-001:
   `SPEC.md` 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. 집중교육 신청 접수와
   참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.

@@ -54,9 +54,9 @@
 
 교육 프로젝트가 먼저 Form 응답을 반영하고, 등록 프로젝트가 그 결과를 받아 등록 시트 쪽을 재작성하는 순서다. 자세한 내용은 `docs/current-architecture.md`를 참조.
 
-## 정착률 월간 메일 자동화 (별도 승인 필요, 미구현)
+## 정착률 월간 메일 자동화 (Windows 예약 작업)
 <!-- akela: id=settlement-automation-note scope=trigger-debug tier=context -->
 
-- 정착률 계산은 Apps Script가 아니라 로컬 Python(`C:\Users\2024980\Documents\자동화\newacts-settlement-automation\main.py`)이 디모데 웹 화면 출결을 읽어 처리한다. 새가족교육 메일 트리거와는 별도의 실행 기반이다.
-- 권장 구조: Windows 작업 스케줄러가 매주 금요일 실행 → 월의 1~7일인지 확인 → 맞으면 정착률 계산 및 조건부 메일 발송.
-- 이 자동화는 `docs/settlement-monthly-email-analysis.md`에서 분석만 되어 있고, 별도 사용자 승인 후 구현 대상이며 현재 수료 자동화 운영 범위에는 포함되지 않는다.
+- 정착률 계산은 Apps Script가 아니라 로컬 Python(`settlement-automation/main.py`)이 디모데 웹 화면 출결을 읽어 처리한다. 새가족교육 메일 트리거와는 별도의 실행 기반이다(REQ-RATE-001~003).
+- Windows 작업 스케줄러 `새가족 정착률 월말 자동화`가 매주 화요일 오전 9시에 `settlement-automation/run_monthly.ps1`을 실행한다. 스크립트는 그 달의 마지막 화요일일 때만 계산하고 메일을 보낸다(REQ-RATE-003).
+- 운영 절차와 동일인 판정 규칙은 `rate-operations.md`, `rate-matching-rules.md`에 있다.
