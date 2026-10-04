@@ -152,3 +152,5 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 ### Added
 
 - SPEC.md 도입 — 기존 동작을 Requirement로 문서화 (REQ-*/NFR-*)
+
+- REQ-RATEDESKTOP-001, REQ-RATEDESKTOP-004, REQ-RATEDESKTOP-005, REQ-RATEDESKTOP-006: Mac 최초 설정·인증 확인·진행·취소·중단 복구 화면을 연결했다. 군별 현황과 보고서를 확인한 뒤 선택 발송하며 조회만으로 메일을 보내지 않는다. 가짜 외부 서비스로 Qt 화면을 검증했다. 앱 패키징과 운영 인증은 후속 확인 대상이다.

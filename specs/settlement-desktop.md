@@ -186,9 +186,9 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
-| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/main.py` (화면 구현 대기) | `settlement-automation/tests/test_desktop_runtime.py`, TEST-RATEDESKTOP-001 | draft |
+| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/desktop/window.py`, `settlement-automation/desktop_app.py` | `settlement-automation/tests/test_desktop_runtime.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-001 | draft |
 | REQ-RATEDESKTOP-002 | `settlement-automation/desktop/metrics.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_desktop_metrics.py`, TEST-RATEDESKTOP-002 | draft |
 | REQ-RATEDESKTOP-003 | `settlement-automation/desktop/history.py` | `settlement-automation/tests/test_desktop_history.py`, TEST-RATEDESKTOP-003 | draft |
-| REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py` (화면 연결 대기) | `settlement-automation/tests/test_desktop_sheets.py`, TEST-RATEDESKTOP-004 | draft |
-| REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, TEST-RATEDESKTOP-005 | draft |
-| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py` | `settlement-automation/tests/test_desktop_service.py`, TEST-RATEDESKTOP-006 | draft |
+| REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py`, `settlement-automation/desktop/window.py` | `settlement-automation/tests/test_desktop_sheets.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-004 | draft |
+| REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-005 | draft |
+| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | draft |
