@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v7">
 <meta name="spec-html-renderer" content="v7">
-<meta name="spec-source-sha256" content="3467bcc2e9de5505ee005d16e26a6720e285cd44f76a4d3909322e27b3dc33e0">
+<meta name="spec-source-sha256" content="fe6a7692729330b7d9820e50f492ccb6bb2e9de7e02ddda1ef4f5b93e0691cd6">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -238,8 +238,8 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr class="group"><th colspan="5"><span class="gcode">RATEDESKTOP</span> Mac 실행과 군별 관리</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="이름">더블클릭 실행과 최초 인증</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/desktop/runtime.py</code>, <code>settlement-automation/desktop/settings.py</code>, <code>settlement-automation/settlement_automation.py</code>, <code>settlement-automation/main.py</code> (화면 구현 대기)</td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_runtime.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002</a></td><td data-label="이름">같은 기간으로 출석 현황 계산</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/desktop/metrics.py</code>, <code>settlement-automation/settlement_automation.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_metrics.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></td></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="이름">실행별 원본과 월별 이력 보관</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="이름">군별 화면과 돌봄 기록 보존</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="이름">실행별 원본과 월별 이력 보관</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/desktop/history.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_history.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="이름">군별 화면과 돌봄 기록 보존</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/desktop/sheets.py</code> (화면 연결 대기)</td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_sheets.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="이름">결과 확인 후 보고서 발송</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="이름">중복 실행과 중단 복구</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td></tr>
 </tbody>
@@ -2485,7 +2485,12 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 </section>
 <section class="card kind-req" id="REQ-RATEDESKTOP-003">
 <h3><span class="idtag">REQ-RATEDESKTOP-003</span> 실행별 원본과 월별 이력 보관</h3>
-<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_automation.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/desktop/history.py</code></span><span class="meta"><b>테스트</b> <code>settlement-automation/tests/test_desktop_history.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-04 Mac 앱 이력과 돌봄 기록</span> <a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a>: 실행별 CSV와 SQLite 기록을 사용자 폴더에 보관하고 마지막 정상 실행의 월별 군 현황과 전월 차이를 계산한다.</li>
+</ul>
+</details>
 <section class="field"><h4>하는 일</h4><div class="field-body">
 <p>다시 실행해도 이전 원본을 보관하고, 월별 군 현황을 비교할 수 있게 한다.</p>
 </div></section>
@@ -2505,7 +2510,12 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 </section>
 <section class="card kind-req" id="REQ-RATEDESKTOP-004">
 <h3><span class="idtag">REQ-RATEDESKTOP-004</span> 군별 화면과 돌봄 기록 보존</h3>
-<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_automation.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/desktop/sheets.py</code> (화면 연결 대기)</span><span class="meta"><b>테스트</b> <code>settlement-automation/tests/test_desktop_sheets.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-04 Mac 앱 이력과 돌봄 기록</span> <a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a>: 새 관리 탭의 소유 구조를 확인하고 돌봄 기록의 확정 ID·기본 정보만 갱신한다. 담당자의 수동 열은 보존한다.</li>
+</ul>
+</details>
 <section class="field"><h4>하는 일</h4><div class="field-body">
 <p><code>군별 정착 현황</code>, <code>정착률 월별 이력</code>, <code>새가족 돌봄 기록</code>에서 현황과 담당자 기록을 연결한다.
 기존 <code>정착률</code>과 원본 명단의 이름·열 위치는 유지한다.</p>
@@ -2548,7 +2558,12 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 </section>
 <section class="card kind-req" id="REQ-RATEDESKTOP-006">
 <h3><span class="idtag">REQ-RATEDESKTOP-006</span> 중복 실행과 중단 복구</h3>
-<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/main.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/main.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-04 Mac 앱 이력과 돌봄 기록</span> <a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a>: 시트 반영 완료 단계를 저장하고 같은 실행 번호의 남은 단계만 복구한다. 운영 서비스 연결은 후속 작업이다.</li>
+</ul>
+</details>
 <section class="field"><h4>하는 일</h4><div class="field-body">
 <p>동시에 실행하지 않고, 취소하거나 중단해도 이전 정상 현황과 담당자 기록을 보존한다.</p>
 </div></section>
@@ -2610,8 +2625,8 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <tbody>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="Implementation"><code>settlement-automation/desktop/runtime.py</code>, <code>settlement-automation/desktop/settings.py</code>, <code>settlement-automation/settlement_automation.py</code>, <code>settlement-automation/main.py</code> (화면 구현 대기)</td><td data-label="Test"><code>settlement-automation/tests/test_desktop_runtime.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002</a></td><td data-label="Implementation"><code>settlement-automation/desktop/metrics.py</code>, <code>settlement-automation/settlement_automation.py</code></td><td data-label="Test"><code>settlement-automation/tests/test_desktop_metrics.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="Implementation"><code>settlement-automation/desktop/history.py</code></td><td data-label="Test"><code>settlement-automation/tests/test_desktop_history.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="Implementation"><code>settlement-automation/desktop/sheets.py</code> (화면 연결 대기)</td><td data-label="Test"><code>settlement-automation/tests/test_desktop_sheets.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="Implementation"><code>settlement-automation/settlement_email.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="Implementation"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 </tbody>
