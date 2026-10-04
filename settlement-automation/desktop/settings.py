@@ -23,6 +23,26 @@ class AppSettings:
     min_query_completion_rate: float = 0.95
 
     def validate(self):
+        for name in ('sheet_url', 'source_sheet_name', 'result_sheet_name',
+                     'dimode_url', 'dimode_account'):
+            value = getattr(self, name)
+            if not isinstance(value, str) or (name != 'dimode_account' and not value.strip()):
+                raise ValueError('설정의 문자 항목 형식이 올바르지 않습니다.')
+        for name in ('roster_start', 'roster_end'):
+            value = getattr(self, name)
+            if value is not None:
+                if not isinstance(value, str):
+                    raise ValueError('명단 날짜는 YYYY-MM-DD 형식이어야 합니다.')
+                if date.fromisoformat(value).isoformat() != value:
+                    raise ValueError('명단 날짜는 YYYY-MM-DD 형식이어야 합니다.')
+        if not isinstance(self.army_order, tuple) or not self.army_order or any(
+            not isinstance(army, str) or not army.strip() for army in self.army_order
+        ):
+            raise ValueError('군 목록은 문자를 담은 목록이어야 합니다.')
+        if type(self.min_query_completion_rate) not in (int, float):
+            raise ValueError('조회 완료율은 숫자여야 합니다.')
+        if not isinstance(self.oauth_client_file, Path) or not isinstance(self.oauth_token_file, Path):
+            raise ValueError('인증 파일에는 경로 형식을 사용해 주세요.')
         start = date.fromisoformat(self.roster_start) if self.roster_start else None
         end = date.fromisoformat(self.roster_end) if self.roster_end else None
         if start and end and start > end:
@@ -46,6 +66,11 @@ def load_settings(paths: RuntimePaths) -> AppSettings:
         allowed = {field.name for field in fields(AppSettings)}
         if not isinstance(saved, dict) or set(saved) - allowed:
             raise ValueError('설정 파일에 지원하지 않는 항목이 있습니다.')
+        for name in ('oauth_client_file', 'oauth_token_file'):
+            if name in saved and not isinstance(saved[name], str):
+                raise ValueError('인증 파일 경로는 문자여야 합니다.')
+        if 'army_order' in saved and not isinstance(saved['army_order'], list):
+            raise ValueError('군 목록은 배열이어야 합니다.')
         settings.update(saved)
     for key in ('oauth_client_file', 'oauth_token_file'):
         settings[key] = Path(settings[key])

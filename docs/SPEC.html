@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v7">
 <meta name="spec-html-renderer" content="v7">
-<meta name="spec-source-sha256" content="f5bbf9e3ccda64e30f147ac9ae2f8642689b0283735e43af3a73205d49342ce1">
+<meta name="spec-source-sha256" content="6fc17f7d725d843f12338ab098419b26e1fc4894c6236047b89afc2cd0ddbbbe">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -2428,8 +2428,9 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="card kind-req" id="REQ-RATEDESKTOP-001">
 <h3><span class="idtag">REQ-RATEDESKTOP-001</span> 더블클릭 실행과 최초 인증</h3>
 <div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/desktop/runtime.py</code>, <code>settlement-automation/desktop/settings.py</code>, <code>settlement-automation/settlement_automation.py</code>, <code>settlement-automation/main.py</code> (화면 구현 대기)</span><span class="meta"><b>테스트</b> <code>settlement-automation/tests/test_desktop_runtime.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></span></div>
-<details class="history"><summary>변경 이력 3</summary>
+<details class="history"><summary>변경 이력 4</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Fixed — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>: 설정 파일의 문자·날짜·군 목록·인증 경로 형식을 확인해 잘못된 값이 조회 단계로 전달되지 않게 했다.</li>
 <li><span class="hist">[Unreleased] · Fixed — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>: Windows에 없는 파일 권한 함수 때문에 기존 CLI 인증 토큰 저장이 실패하던 문제를 수정했다. Mac 인증 파일은 0600 권한을 유지한다.</li>
 <li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>: 앱을 교체해도 유지되는 사용자 저장 경로, 비밀 없는 설정과 Mac 키체인 경계, 운영 설정을 읽지 않는 Python 테스트 실행기를 추가했다. 앱 화면과 실제 인증은 후속 구현 대상이다.</li>
 <li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>~006: 승인된 Mac 앱·군별 관리 설계를 기능 사양으로 등록하고 구현 계획을 추가했다. 요구사항은 구현 전인 draft 상태다.</li>

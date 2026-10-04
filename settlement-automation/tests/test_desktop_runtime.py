@@ -64,6 +64,19 @@ class DesktopRuntimeTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             load_settings(self.paths)
 
+    def test_settings_reject_invalid_json_field_types(self):
+        self.paths.ensure_directories()
+        for key, value in (
+            ('sheet_url', []), ('dimode_account', 123),
+            ('oauth_client_file', None), ('roster_start', 20260101),
+            ('army_order', '신'), ('army_order', [123]),
+            ('min_query_completion_rate', '0.95'),
+        ):
+            with self.subTest(key=key, value=value):
+                write_private_file(self.paths.settings_file, json.dumps({key: value}))
+                with self.assertRaises(ValueError):
+                    load_settings(self.paths)
+
     def test_settings_reject_invalid_date_range(self):
         settings = replace(load_settings(self.paths), roster_start='2026-12-31', roster_end='2026-01-01')
         with self.assertRaises(ValueError):

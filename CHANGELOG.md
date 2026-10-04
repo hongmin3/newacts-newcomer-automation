@@ -19,6 +19,8 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 
 ### Fixed — 2026-10-04
 
+- REQ-RATEDESKTOP-001: 설정 파일의 문자·날짜·군 목록·인증 경로 형식을 확인해 잘못된 값이 조회 단계로 전달되지 않게 했다.
+
 - REQ-RATEDESKTOP-001: Windows에 없는 파일 권한 함수 때문에 기존 CLI 인증 토큰 저장이 실패하던 문제를 수정했다. Mac 인증 파일은 0600 권한을 유지한다.
 
 ### Added — 2026-10-04
