@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v7">
 <meta name="spec-html-renderer" content="v7">
-<meta name="spec-source-sha256" content="f7f5f312f7c98541436efe5d1a1f785281a637355f1201bc8e59b0fd87e711a0">
+<meta name="spec-source-sha256" content="a907b5a9cdd0b73da1ccc76281bd3adad6c16093f17f60fd69ea9fbf7ff59d79">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-04</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>22</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>27</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div></div>
+<div class="stats"><div class="stat"><b>28</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>33</b><span>테스트 TEST</span></div><div class="stat st-draft"><b>6</b><span>draft</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -166,7 +166,25 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-test"><a href="#TEST-VISITOR-001">TEST-VISITOR-001</a></li>
 <li class="toc-2"><a href="#sec-12">12. 요구사항 추적성</a></li>
 <li class="toc-2"><a href="#sec-13">13. 미확정 사항</a></li>
-<li class="toc-2"><a href="#sec-14">14. 향후 개선 후보</a></li></ul>
+<li class="toc-2"><a href="#sec-14">14. 향후 개선 후보</a></li>
+<li class="toc-2"><a href="#doc-settlement-desktop">Mac 정착률 관리 앱 기능 사양</a></li>
+<li class="toc-2"><a href="#doc-settlement-desktop-sec-1">1. 목적</a></li>
+<li class="toc-2"><a href="#doc-settlement-desktop-sec-2">2. 범위</a></li>
+<li class="toc-2"><a href="#doc-settlement-desktop-sec-5">5. 기능 요구사항</a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001 <span>더블클릭 실행과 최초 인증</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002 <span>같은 기간으로 출석 현황 계산</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003 <span>실행별 원본과 월별 이력 보관</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004 <span>군별 화면과 돌봄 기록 보존</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005 <span>결과 확인 후 보고서 발송</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006 <span>중복 실행과 중단 복구</span></a></li>
+<li class="toc-2"><a href="#doc-settlement-desktop-sec-11">11. 테스트 사양</a></li>
+<li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001 <span>앱 실행과 인증</span></a></li>
+<li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002 <span>출석 계산 경계</span></a></li>
+<li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003 <span>이력 보존</span></a></li>
+<li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004 <span>담당자 기록 보존</span></a></li>
+<li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005 <span>발송 품질과 일부 실패</span></a></li>
+<li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006 <span>중단 복구</span></a></li>
+<li class="toc-2"><a href="#doc-settlement-desktop-sec-12">12. 요구사항 추적성</a></li></ul>
 </nav>
 <main>
 <section class="chapter" id="feature-index">
@@ -217,6 +235,13 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#NFR-PERF-001">NFR-PERF-001</a></td><td data-label="이름">Apps Script 한도 안에서 실행</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-PERF-001">TEST-PERF-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">NFR SYNC</span> 배포 동기화</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#NFR-SYNC-001">NFR-SYNC-001</a></td><td data-label="이름">운영 Apps Script 동기화</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>scripts/apps-script.mjs</code>, <code>scripts/apps-script-projects.json</code></td><td data-label="테스트"><a class="idref" href="#TEST-SYNC-001">TEST-SYNC-001</a></td></tr>
+<tr class="group"><th colspan="5"><span class="gcode">RATEDESKTOP</span> Mac 실행과 군별 관리</th></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="이름">더블클릭 실행과 최초 인증</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002</a></td><td data-label="이름">같은 기간으로 출석 현황 계산</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="이름">실행별 원본과 월별 이력 보관</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="이름">군별 화면과 돌봄 기록 보존</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="이름">결과 확인 후 보고서 발송</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="이름">중복 실행과 중단 복구</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td></tr>
 </tbody>
 </table></div>
 </section>
@@ -1293,7 +1318,7 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-req" id="REQ-RATE-002">
 <h3><span class="idtag">REQ-RATE-002</span> 개인별 표 선택</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_email.py</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_email.py</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a>, <a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></span></div>
 <details class="history"><summary>변경 이력 1</summary>
 <ul>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-RATE-001">REQ-RATE-001</a> / <a class="idref" href="#REQ-RATE-002">REQ-RATE-002</a> / <a class="idref" href="#REQ-RATE-003">REQ-RATE-003</a>: 새가족 정착률 자동화를 이 저장소의 <code>settlement-automation/</code>으로 합쳤다. 원래 저장소(<code>newacts-settlement-automation</code>)의 이력 5커밋을 그대로 가져왔고, 그 저장소의 요구사항 3개를 <code>RATE</code> 카테고리로 옮겼다(규칙·기준값은 그대로). 2절 범위의 제외 항목과 14절 향후 후보에서 정착률을 빼고 포함 범위로 옮겼다. 동일인 판정 등 운영 검증 범위는 13절에 남겼다.</li>
@@ -1337,6 +1362,12 @@ SPEC에는 그 ID가 없었다.</li>
 </div></section>
 <section class="field"><h4>관련 테스트</h4><div class="field-body">
 <p><a class="idref" href="#TEST-RATE-003">TEST-RATE-003</a></p>
+<div class="table-wrap"><table>
+<thead><tr><th>기능</th><th>사양 문서</th><th>상태</th></tr></thead>
+<tbody>
+<tr><td>Mac 정착률 관리 앱</td><td><a href="#doc-settlement-desktop">specs/settlement-desktop.md</a></td><td><span class="badge st-draft">draft</span></td></tr>
+</tbody>
+</table></div>
 </div></section>
 </section>
 </section>
@@ -2347,6 +2378,236 @@ SPEC에는 그 ID가 없었다.</li>
 <li>교육 새 응답 반영(<a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a>)과 <span class="term" title="응답이나 명단의 줄을 같은 사람의 줄과 짝짓는 것이다" tabindex="0">매칭</span>·검토 분류(<a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a>)의 단위 테스트. 이 프로젝트에서 가장 복잡한 판단 로직인데 로컬 검증이 없다.</li>
 <li>문자공지 대상자 선정 기준(<a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a>)의 단위 테스트.</li>
 </ul>
+</section>
+<section class="chapter" id="doc-settlement-desktop">
+<h2>Mac 정착률 관리 앱 기능 사양</h2>
+<p><code>specs/settlement-desktop.md</code></p>
+</section>
+<div class="table-wrap"><table>
+<thead><tr><th>항목</th><th>값</th></tr></thead>
+<tbody>
+<tr><td>상위 사양</td><td><a href="../SPEC.md">SPEC.md</a></td></tr>
+<tr><td>기능 ID</td><td><code>settlement-desktop</code></td></tr>
+<tr><td>Document Version</td><td>0.1.0</td></tr>
+<tr><td>Last Updated</td><td>2026-10-04</td></tr>
+<tr><td>Status</td><td><span class="badge st-draft">draft</span></td></tr>
+</tbody>
+</table></div>
+<p>먼저 목적과 사용 순서를 읽고 필요한 요구사항을 찾는다.
+공통 보안·데이터 보존 규칙은 상위 사양을 따른다.</p>
+<section class="chapter" id="doc-settlement-desktop-sec-1">
+<h2>1. 목적</h2>
+<p>군 담당자가 Mac 앱을 열어 새가족 출석 현황을 갱신하고, 월별 변화를 확인하며 연락 기록을 이어서 관리한다.
+최초 인증 후에는 터미널 없이 실행하고, 결과를 확인한 뒤 메일 발송을 선택한다.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>용어</th><th>뜻</th></tr></thead>
+<tbody>
+<tr><td>누적 출석률</td><td>등록일 이후 출석한 주일 수를 대상 주일 수로 나눈 값</td></tr>
+<tr><td>최근 4주</td><td>계산 기준일까지 지난 일요일 4개</td></tr>
+<tr><td>퍼센트포인트</td><td>두 비율의 차이. 50%에서 60%가 되면 10퍼센트포인트</td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="chapter" id="doc-settlement-desktop-sec-2">
+<h2>2. 범위</h2>
+<p>Apple Silicon Mac 앱, 실행·인증 화면, 군별 현황, 실행별 원본과 월별 이력, 돌봄 기록, 수동 메일 발송을 포함한다.
+예약 실행, Intel Mac·Windows 실행파일, 새 메일 수신자, 연속 결석 자동 알림은 추가하지 않는다.
+기존 Windows 실행과 <a class="idref" href="#REQ-RATE-001">REQ-RATE-001</a>~003의 기존 경로는 유지한다.</p>
+</section>
+<section class="chapter" id="doc-settlement-desktop-sec-5">
+<h2>5. 기능 요구사항</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>카테고리</th><th>이름</th></tr></thead>
+<tbody>
+<tr><td>RATEDESKTOP</td><td>Mac 실행과 군별 관리</td></tr>
+</tbody>
+</table></div>
+<h3>요구사항 지도</h3>
+<p>앱 실행·인증(001) → 조회·출석 계산(002) → 이력 보관(003) → 군별 화면·돌봄 기록(004) → 메일 선택 발송(005).
+중복 실행·취소·실패 복구는 006을 함께 따른다.</p>
+<section class="card kind-req" id="REQ-RATEDESKTOP-001">
+<h3><span class="idtag">REQ-RATEDESKTOP-001</span> 더블클릭 실행과 최초 인증</h3>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/main.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>~006: 승인된 Mac 앱·군별 관리 설계를 기능 사양으로 등록하고 구현 계획을 추가했다. 요구사항은 구현 전인 draft 상태다.</li>
+</ul>
+</details>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p><code>새가족 정착률.app</code>을 열면 진행 화면이 나타나고, 인증이 준비되어 있으면 전체 조회와 시트 갱신을 시작한다.
+Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거나 패키지를 설치하지 않게 한다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>최초 실행에서 Google 인증 파일 선택·승인과 디모데 로그인을 확인한다.</li>
+<li>설정된 앱은 실행 당일을 Asia/Seoul 기준일로 사용한다. 과거 기준일은 화면에서 선택한다.</li>
+<li>명단 읽기·출결 조회·계산·시트 갱신의 진행을 표시한다.</li>
+<li>완료 후 시트 열기·군별 현황·메일 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>를 제공한다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>지킬 것</h4><div class="field-body">
+<p>인증·결과는 앱 외부 사용자 Application Support 폴더에 보관한다. 암호는 Mac 키체인에 보관한다.
+앱 교체 후에도 설정과 이력을 유지한다. 인증 정보는 앱 빌드·Git·일반 로그에 넣지 않는다.</p>
+</div></section>
+<section class="field"><h4>안 될 때</h4><div class="field-body">
+<p>인증 만료·네트워크 오류를 화면에 안내하고 다시 인증하거나 재시도할 수 있게 한다.
+인증 완료 전에는 시트 변경과 메일 발송을 하지 않는다.</p>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-RATEDESKTOP-002">
+<h3><span class="idtag">REQ-RATEDESKTOP-002</span> 같은 기간으로 출석 현황 계산</h3>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_automation.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p>기존 <span class="term" title="등록일 이후 출석한 주일 수를 대상 주일 수로 나눈 값" tabindex="0">누적 출석률</span>과 군별 <span class="term" title="계산 기준일까지 지난 일요일 4개" tabindex="0">최근 4주</span> 출석률·조회 완료율을 함께 보여준다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>최근 4번 주일 중 개인 등록일 이후의 날짜만 개인별 분모로 사용한다.</li>
+<li>군별 출석률은 조회 완료자의 출석·대상 주일 합계로 계산한다.</li>
+<li>대상 주일 4개 미만은 <code>관찰 기간 부족</code>, 0개는 <code>계산 대상 없음</code>으로 표시한다.</li>
+<li>조회 실패·동일인 미확정은 계산에서 제외하고 확인 대상 인원을 표시한다.</li>
+<li>군이 없으면 <code class="term" title="군을 확정하지 못한 등록자를 적는 현황판 열이다. 여기 적힌 사람은 검토 내역으로도 보고된다" tabindex="0">미배정</code>, 지원하지 않는 군이면 <code>군 정보 검토</code>로 분류한다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>지킬 것</h4><div class="field-body">
+<p>출결 화면의 기간을 못 읽었으면 결석으로 채우지 않는다.
+명시된 등록 연도를 우선 사용하고, 연도가 없는 날짜는 설정한 명단 기간으로 판단한다.
+날짜가 하나로 정해지지 않으면 확인 대상으로 남긴다.</p>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-RATEDESKTOP-003">
+<h3><span class="idtag">REQ-RATEDESKTOP-003</span> 실행별 원본과 월별 이력 보관</h3>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_automation.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p>다시 실행해도 이전 원본을 보관하고, 월별 군 현황을 비교할 수 있게 한다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>시각·실행 번호를 포함한 새 CSV와 SQLite 실행 기록을 보관한다.</li>
+<li>품질 검사를 통과한 결과만 정상 현황으로 선택한다.</li>
+<li>군·기준일의 월·산식 버전별로 마지막 정상 결과를 월별 표시값으로 사용한다.</li>
+<li>실행이 없는 달은 <code>미실행</code>, 전월이 없거나 산식이 다르면 비교값을 빈 값으로 표시한다.</li>
+<li>이전 군별 인원과 현재 인원 차이를 함께 표시하며 비율 차이는 <span class="term" title="두 비율의 차이. 50%에서 60%가 되면 10퍼센트포인트" tabindex="0">퍼센트포인트</span>로 표시한다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>지킬 것</h4><div class="field-body">
+<p>과거 결과는 당시 군·기준일·조회 시각을 유지한다. 이전 결과를 자동 삭제하지 않는다.
+시험 결과는 운영 결과·메일 상태와 별도로 저장한다.</p>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-RATEDESKTOP-004">
+<h3><span class="idtag">REQ-RATEDESKTOP-004</span> 군별 화면과 돌봄 기록 보존</h3>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_automation.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p><code>군별 정착 현황</code>, <code>정착률 월별 이력</code>, <code>새가족 돌봄 기록</code>에서 현황과 담당자 기록을 연결한다.
+기존 <code>정착률</code>과 원본 명단의 이름·열 위치는 유지한다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>군별 현황에 기준일·인원·조회 완료율·누적·<span class="term" title="계산 기준일까지 지난 일요일 4개" tabindex="0">최근 4주</span> 출석률·전월 차이를 표시한다.</li>
+<li>돌봄 기록은 확정된 디모데 ID로 사람을 연결한다.</li>
+<li>담당자·연락일·진행 상태·다음 확인일·짧은 메모는 자동화가 덮어쓰지 않는다.</li>
+<li>군 이동은 같은 사람의 돌봄 기록을 이어가고, ID가 없거나 복수 일치하면 확인 대상으로 남긴다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>안 될 때</h4><div class="field-body">
+<p>같은 이름의 새 탭에 기존 내용이 있으면 내용을 확인하기 전 초기화하지 않는다.
+군별 필터만으로 열람 권한이 분리된 것으로 취급하지 않는다.</p>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-RATEDESKTOP-005">
+<h3><span class="idtag">REQ-RATEDESKTOP-005</span> 결과 확인 후 보고서 발송</h3>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/settlement_email.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p>사용자가 보고서와 기존 수신 범위를 확인하고 발송 버튼을 눌렀을 때만 메일을 보낸다.</p>
+</div></section>
+<section class="field"><h4>설정</h4><div class="field-body">
+<p>전체 및 발송할 각 군의 조회 완료율은 0.95 이상이어야 한다. <span class="term" title="군을 확정하지 못한 등록자를 적는 현황판 열이다. 여기 적힌 사람은 검토 내역으로도 보고된다" tabindex="0">미배정</span>·군 정보 검토는 군별 운영 발송에서 제외한다.
+전체 보고서는 요약을 유지하며 개인별 표는 기존 <a class="idref" href="#REQ-RATE-002">REQ-RATE-002</a>를 따른다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>전체·군별로 발송 대상과 제외 사유를 미리 보여준다.</li>
+<li>선택된 보고서별로 실행 번호와 발송 진행을 기록한다.</li>
+<li>일부 실패 시 확인된 성공 보고서는 다시 보내지 않는다.</li>
+<li>같은 결과를 다시 보내려면 마지막 발송일을 보여주고 사용자의 재발송 선택을 받는다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>안 될 때</h4><div class="field-body">
+<p>전송 결과가 불명확하거나 전송 후 기록에 실패하면 <code>발송 결과 검토</code>로 남기고 자동 재발송하지 않는다.
+실제 Gmail 전송과 로컬 기록을 한 번에 확정할 수 있다고 가정하지 않는다.</p>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-RATEDESKTOP-006">
+<h3><span class="idtag">REQ-RATEDESKTOP-006</span> 중복 실행과 중단 복구</h3>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/main.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></span><span class="meta nohist"><b>변경 이력</b> CHANGELOG에 이 ID로 기록된 변경 없음</span></div>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p>동시에 실행하지 않고, 취소하거나 중단해도 이전 정상 현황과 담당자 기록을 보존한다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>동일 Mac에 실행 중인 작업이 있으면 새 조회를 시작하지 않는다.</li>
+<li>취소 요청은 안전한 조회 경계에서 처리하고 취소 결과로 정상 현황을 갱신하지 않는다.</li>
+<li>다음 시작 때 중단된 실행을 표시하고 이어서 실행 또는 새 실행을 선택하게 한다.</li>
+<li>시트 일부 반영 시 같은 실행 번호로 남은 단계를 복구한다. 메일은 자동 재발송하지 않는다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>지킬 것</h4><div class="field-body">
+<p>Mac 잠금이 다른 컴퓨터까지 막는다고 가정하지 않는다.
+운영 전환 시 기존 Windows 실행·발송 상태를 확인하며 Windows 예약 작업을 자동 변경하지 않는다.</p>
+</div></section>
+</section>
+</section>
+<section class="chapter" id="doc-settlement-desktop-sec-11">
+<h2>11. 테스트 사양</h2>
+<p>각 테스트는 비밀 없는 가짜 설정·명단·외부 서비스로 자동 검증한다.
+Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에서 별도로 수행한다.</p>
+<section class="card kind-test" id="TEST-RATEDESKTOP-001">
+<h3><span class="idtag">TEST-RATEDESKTOP-001</span> 앱 실행과 인증</h3>
+<p>최초 설정·인증 만료·설정 완료·앱 교체를 시험한다. 미인증 상태는 외부 변경 0회,
+인증된 상태는 작업 1회, 메일 발송 0회인지 확인한다. Finder에서 앱을 열어 화면과 Chromium을 확인한다.</p>
+</section>
+<section class="card kind-test" id="TEST-RATEDESKTOP-002">
+<h3><span class="idtag">TEST-RATEDESKTOP-002</span> 출석 계산 경계</h3>
+<p>같은 기준일의 0주·1주·4주, 연말 날짜, 조회 실패·<span class="term" title="군을 확정하지 못한 등록자를 적는 현황판 열이다. 여기 적힌 사람은 검토 내역으로도 보고된다" tabindex="0">미배정</span> 입력을 검사한다.
+조회 실패는 분자·분모에서 제외하고, 모호한 날짜는 확인 대상이어야 한다.</p>
+</section>
+<section class="card kind-test" id="TEST-RATEDESKTOP-003">
+<h3><span class="idtag">TEST-RATEDESKTOP-003</span> 이력 보존</h3>
+<p>같은 월 재실행·다른 기준일·산식 변경·군 이동·미실행 월을 입력한다.
+모든 원본이 남고 마지막 정상 결과만 선택되며, 비교 불가 상태에는 차이를 표시하지 않아야 한다.</p>
+</section>
+<section class="card kind-test" id="TEST-RATEDESKTOP-004">
+<h3><span class="idtag">TEST-RATEDESKTOP-004</span> 담당자 기록 보존</h3>
+<p>군 이동·동명이인·ID 없음과 수동 메모를 넣고 두 번 갱신한다.
+확정 ID만 연결되고 수동 입력·기존 탭 내용·원본 명단이 보존되어야 한다.</p>
+</section>
+<section class="card kind-test" id="TEST-RATEDESKTOP-005">
+<h3><span class="idtag">TEST-RATEDESKTOP-005</span> 발송 품질과 일부 실패</h3>
+<p>전체 및 군별 94/100·95/100 조회 완료율, 일부 전송 실패·전송 후 기록 실패를 검사한다.
+기준 미달 보고서는 발송하지 않고, 확인된 성공 또는 결과 불명확 보고서는 자동으로 다시 보내지 않아야 한다.</p>
+</section>
+<section class="card kind-test" id="TEST-RATEDESKTOP-006">
+<h3><span class="idtag">TEST-RATEDESKTOP-006</span> 중단 복구</h3>
+<p>두 프로세스 실행·취소·앱 강제 종료·시트 부분 실패를 재현한다.
+두 번째 작업은 변경하지 않고, 이전 정상 결과와 담당자 기록이 보존되며 미완료 단계만 복구되어야 한다.</p>
+</section>
+</section>
+<section class="chapter" id="doc-settlement-desktop-sec-12">
+<h2>12. 요구사항 추적성</h2>
+<p>현재 모든 행은 draft다. Implementation은 새 기능을 연결할 기존 코드의 수정 대상이다.
+새 기능을 이미 구현했다는 뜻이 아니며, 구현 후 새 모듈과 실제 테스트 연결로 갱신한다.</p>
+<div class="table-wrap"><table class="responsive">
+<thead><tr><th>Requirement</th><th>Implementation</th><th>Test</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="Implementation"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="Implementation"><code>settlement-automation/settlement_email.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="Implementation"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+</tbody>
+</table></div>
 </section>
 </main>
 </div>

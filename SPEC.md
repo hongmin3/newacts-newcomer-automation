@@ -764,6 +764,14 @@ TEST-RATE-002
 #### 관련 테스트
 TEST-RATE-003
 
+<!-- spec-index: v1 -->
+
+| 기능 | 사양 문서 | 상태 |
+|---|---|---|
+| Mac 정착률 관리 앱 | [specs/settlement-desktop.md](specs/settlement-desktop.md) | draft |
+
+<!-- spec-index: end -->
+
 ## 6. 비기능 요구사항
 
 ### NFR-SEC-001 개인정보·인증 정보는 저장소 밖에 보관
