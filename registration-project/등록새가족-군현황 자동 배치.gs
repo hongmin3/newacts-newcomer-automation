@@ -36,11 +36,11 @@ const REGISTRATION_AUTOMATION = Object.freeze({
   correctionStatePrefix: 'REGISTRATION_EDUCATION_CORRECTION_',
   registrationSheetName: '등록 새가족',
   dashboardSheetName: '등록 새가족 군 현황',
-  visitedSheetName: '상반기 방문 새가족',
+  visitedSheetName: '하반기 방문 새가족',
   completionSheetName: '새가족교육 수료현황',
   educationSheetName: '교육 출석 현황',
   logSheetName: '자동화 로그',
-  visitorStartDate: '2026-03-29'
+  visitorStartDate: '2026-10-04'
 });
 
 /**
@@ -76,6 +76,10 @@ function onOpen() {
     // 함수는 그대로 있으므로 필요하면 Apps Script 편집기에서 실행합니다.
     .addItem('군 현황판만 업데이트', 'updateNewFamilyStatusMenu')
     .addItem('방문자 명단만 동기화', 'syncRegisteredToVisitedMenu')
+    .addItem('하반기 행사 집계 갱신', 'updateVisitorCampaignSummaryMenu')
+    .addItem('방문 관리 현황·마감 확인', 'visitorManagementStatusMenu')
+    .addItem('방문 관리 마감일 지정', 'closeVisitorManagementMenu')
+    .addItem('방문 관리 마감 해제', 'reopenVisitorManagementMenu')
     .addToUi();
 }
 function runRegistrationMaintenanceTrigger() {
@@ -131,10 +135,15 @@ function runRegistrationMaintenance_(options) {
       !REGISTRATION_AUTOMATION.autoCorrectionEnabled
   });
   const dashboard = updateNewFamilyStatus_({ dryRun: options.dryRun });
-  const visitors = {
-    disabled: true, added: 0, updated: 0,
-    addedDetails: [], updatedDetails: [], review: []
-  };
+  let visitors;
+  try {
+    visitors = syncRegisteredToVisited_({ dryRun: options.dryRun });
+  } catch (error) {
+    visitors = error.visitorResult || { added: 0, updated: 0,
+      addedDetails: [], updatedDetails: [], review: [] };
+    visitors.error = String(error.message || error);
+    visitors.review.push({ reason: '방문 동기화 실패: ' + visitors.error });
+  }
   const result = {
     dryRun: Boolean(options.dryRun),
     autoCorrectionEnabled:
@@ -151,7 +160,7 @@ function runRegistrationMaintenance_(options) {
   if (options.sendEmail) {
     const reviewCount =
       reconciliation.review.length +
-      dashboard.review.length;
+      dashboard.review.length + visitors.review.length;
     const changeLabel = result.dryRun ||
       !result.autoCorrectionEnabled ? '변경 예정' : '자동 수정';
 
@@ -161,12 +170,17 @@ function runRegistrationMaintenance_(options) {
         changeLabel + ' ' + reconciliation.changes.length +
         '건 · 스스로/미배정 ' +
         (dashboard.attention || []).length + '명 · 검토 ' +
-        reviewCount + '건' +
+        reviewCount + '건 · 방문 추가 ' + visitors.added +
+        '건 · 등록 표시 ' + visitors.updated + '건' +
+        (visitors.error ? ' · ⚠ 방문 동기화 실패' : '') +
         (dashboard.verification.matched ? '' : ' · ⚠ 인원 불일치'),
       body: createDetailedRegistrationMaintenanceText_(result, options.label),
       htmlBody: createDetailedRegistrationMaintenanceHtml_(result, options.label),
       forceTestRecipient: Boolean(options.forceTestRecipient)
     });
+  }
+  if (visitors.error && !options.dryRun) {
+    throw new Error('방문 동기화 실패. 완료한 작업과 검토 내역은 결과 메일에 표시했습니다: ' + visitors.error);
   }
   return result;
 }
@@ -189,13 +203,13 @@ function updateNewFamilyStatusMenu() {
 }
 
 function syncRegisteredToVisitedMenu() {
-  const result = {
-    disabled: true, added: 0, updated: 0,
-    addedDetails: [], updatedDetails: [], review: []
-  };
-  SpreadsheetApp.getUi().alert(
-    '상반기 방문자 동기화는 중지되었습니다. 하반기 시트 준비 후 다시 설정해 주세요.'
-  );
+  if (!REGISTRATION_AUTOMATION.active && REGISTRATION_AUTOMATION.mode === 'PRODUCTION') {
+    throw new Error('등록 자동화가 비활성 상태입니다.');
+  }
+  const result = withRegistrationLock_(function () {
+    return syncRegisteredToVisited_({dryRun: false});
+  });
+  SpreadsheetApp.getUi().alert(visitorSummaryText_(result));
   return result;
 }
 
@@ -592,10 +606,7 @@ function describeDashboardVerification_(verification) {
 }
 
 function syncRegisteredToVisited_(options) {
-  return {
-    disabled: true, added: 0, updated: 0,
-    addedDetails: [], updatedDetails: [], review: []
-  };
+  return readAndSyncVisitors_(options);
 }
 
 function createRegistrationMaintenanceText_(result) {
@@ -912,7 +923,7 @@ function maskRegistrationPhone_(value) {
 function createDetailedRegistrationMaintenanceText_(result, label) {
   const correction = result.reconciliation;
   const reviewCount = correction.review.length +
-    result.dashboard.review.length;
+    result.dashboard.review.length + ((result.visitors || {}).review || []).length;
   const changeLabel = result.dryRun || !result.autoCorrectionEnabled
     ? '변경 예정' : '자동 수정';
 
@@ -968,10 +979,12 @@ function createDetailedRegistrationMaintenanceText_(result, label) {
     text += '\n';
   }
 
+  text += visitorMaintenanceText_(result.visitors);
+
   if (reviewCount) {
     text += '[검토 필요 상세]\n';
     correction.review.concat(
-      result.dashboard.review
+      result.dashboard.review, (result.visitors || {}).review || []
     ).slice(0, 100).forEach(function (item) {
       text += '- 등록 ' + (item.registrationRow || item.row || '?') +
         '행 / ' + (item.name || '이름 없음') +
@@ -990,7 +1003,7 @@ function createDetailedRegistrationMaintenanceText_(result, label) {
 function createDetailedRegistrationMaintenanceHtml_(result, label) {
   const correction = result.reconciliation;
   const reviewItems = correction.review.concat(
-    result.dashboard.review
+    result.dashboard.review, (result.visitors || {}).review || []
   );
   const changeLabel = result.dryRun || !result.autoCorrectionEnabled
     ? '변경 예정' : '자동 수정';
@@ -1072,6 +1085,8 @@ function createDetailedRegistrationMaintenanceHtml_(result, label) {
     });
     html += '</table>';
   }
+
+  html += visitorMaintenanceHtml_(result.visitors);
 
   if (reviewItems.length) {
     html += '<h3>4. 검토 필요 상세</h3>';

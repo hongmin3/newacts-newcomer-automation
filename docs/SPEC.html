@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v7">
 <meta name="spec-html-renderer" content="v7">
-<meta name="spec-source-sha256" content="76d590d8afe50e5208bb4bdc5bcd8b17764e87bf4578915ef5206f3e6a10cdf4">
+<meta name="spec-source-sha256" content="d8353774876d1eea39ccf70bcfbcd85180eec4934f61007c12f6419526491060">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -92,8 +92,8 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <body>
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
-<div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-09-26</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>18</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>26</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>23</b><span>implemented</span></div></div>
+<div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-04</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
+<div class="stats"><div class="stat"><b>22</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>27</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -114,6 +114,10 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-REG-002">REQ-REG-002 <span>군 현황판 다시 만들기</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-REG-003">REQ-REG-003 <span>군을 정해 줄 사람 주간 메일</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-REG-004">REQ-REG-004 <span>현황판 인원 세기와 대조</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-VISITOR-001">REQ-VISITOR-001 <span>하반기 방문 명단에 등록자 반영</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-VISITOR-002">REQ-VISITOR-002 <span>종료일 미정 운영과 마감</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-VISITOR-003">REQ-VISITOR-003 <span>방문 관리 결과 메일</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-VISITOR-004">REQ-VISITOR-004 <span>하반기 행사 집계</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-REPORT-001">REQ-REPORT-001 <span>수료현황·주간 통계 보고</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-SETTLE-001">REQ-SETTLE-001 <span>상반기 새가족 결산</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001 <span>집중교육 신청 접수</span></a></li>
@@ -159,6 +163,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-test"><a href="#TEST-RATE-001">TEST-RATE-001</a></li>
 <li class="toc-id kind-test"><a href="#TEST-RATE-002">TEST-RATE-002</a></li>
 <li class="toc-id kind-test"><a href="#TEST-RATE-003">TEST-RATE-003</a></li>
+<li class="toc-id kind-test"><a href="#TEST-VISITOR-001">TEST-VISITOR-001</a></li>
 <li class="toc-2"><a href="#sec-12">12. 요구사항 추적성</a></li>
 <li class="toc-2"><a href="#sec-13">13. 미확정 사항</a></li>
 <li class="toc-2"><a href="#sec-14">14. 향후 개선 후보</a></li></ul>
@@ -183,6 +188,11 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-002">REQ-REG-002</a></td><td data-label="이름">군 현황판 다시 만들기</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-003">REQ-REG-003</a></td><td data-label="이름">군을 정해 줄 사람 주간 메일</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-004">TEST-REG-004</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-004">REQ-REG-004</a></td><td data-label="이름">현황판 인원 세기와 대조</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-006">TEST-REG-006</a></td></tr>
+<tr class="group"><th colspan="5"><span class="gcode">VISITOR</span> 하반기 방문 명단·기간 마감·결과 메일</th></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-VISITOR-001">REQ-VISITOR-001</a></td><td data-label="이름">하반기 방문 명단에 등록자 반영</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a></td><td data-label="이름">종료일 미정 운영과 마감</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a></td><td data-label="이름">방문 관리 결과 메일</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a></td><td data-label="이름">하반기 행사 집계</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/하반기 방문 관리.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">REPORT</span> 보고</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a></td><td data-label="이름">수료현황·주간 통계 보고</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동)</td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">SETTLE</span> 결산</th></tr>
@@ -226,33 +236,33 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <p>참석자가 낸 출석이 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>으로 모이고, 요일마다 정해진 실행이 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>·<span class="term" title="등록 명단과 교육 출석을 전화번호로 묶어 다시 쓰는 시트다" tabindex="0">수료현황</span>을 맞춘 뒤 담당자에게 메일로 보고한다.
 자동으로 판단하지 못한 건은 고치지 않고 <span class="term" title="자동으로 판단할 수 없어 시트를 바꾸지 않고 사람이 확인하도록 보고하는 건이다" tabindex="0">검토 대상</span>으로 보고한다. 요일별 세부 흐름은 4절에 있다.</p>
 <figure class="flow">
-<svg viewBox="0 0 508 452" width="508" height="452" role="img" aria-label="출석 웹앱 제출 → 출석 응답 시트, 출석 응답 시트 → 교육 출석 현황, 교육 출석 현황 → 등록 명단 보정·군 현황판, 등록 명단 보정·군 현황판 → 수료현황·주간 통계, 수료현황·주간 통계 → 담당자 메일, 교육 출석 현황 → 검토 대상 보고, 검토 대상 보고 → 담당자 메일, 교육 출석 현황 → 문자공지 대상 메일, 집중교육 신청 Form → 관리자·공개 확인 명단, 디모데 출결 → 정착률 계산, 정착률 계산 → 담당자 메일, 정착률 계산 → 메일 보내지 않음">
+<svg viewBox="0 0 622 452" width="622" height="452" role="img" aria-label="출석 웹앱 제출 → 출석 응답 시트, 출석 응답 시트 → 교육 출석 현황, 교육 출석 현황 → 등록 명단 보정·군 현황판·하반기 방문 명단, 등록 명단 보정·군 현황판·하반기 방문 명단 → 수료현황·주간 통계, 수료현황·주간 통계 → 담당자 메일, 교육 출석 현황 → 검토 대상 보고, 검토 대상 보고 → 담당자 메일, 교육 출석 현황 → 문자공지 대상 메일, 집중교육 신청 Form → 관리자·공개 확인 명단, 디모데 출결 → 정착률 계산, 정착률 계산 → 담당자 메일, 정착률 계산 → 메일 보내지 않음">
 <defs><marker id="flow-arrow-1" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
-<path class="edge" d="M108 44 L99.5 88" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M99.5 124 L177 168" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M177 204 L100 248" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M100 284 L254 328" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M254 364 L254 408" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M177 204 L274.5 248" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="225.8" y="226">판단 못 함</text>
-<path class="edge" d="M274.5 284 L254 408" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M177 204 L428.5 248" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M264 44 L264 88" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M410 44 L418.5 88" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="414.3" y="66">마지막 화요일</text>
-<path class="edge" d="M418.5 124 L254 408" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M418.5 124 L324.5 168" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="371.5" y="146">조회 부족</text>
-<g class="node"><rect x="49.5" y="8" width="117" height="36" rx="8"/><text x="108" y="26">출석 웹앱 제출</text></g>
-<g class="node"><rect x="41" y="88" width="117" height="36" rx="8"/><text x="99.5" y="106">출석 응답 시트</text></g>
-<g class="node"><rect x="118.5" y="168" width="117" height="36" rx="8"/><text x="177" y="186">교육 출석 현황</text></g>
-<g class="node"><rect x="8" y="248" width="184" height="36" rx="8"/><text x="100" y="266">등록 명단 보정·군 현황판</text></g>
-<g class="node"><rect x="182.5" y="328" width="143" height="36" rx="8"/><text x="254" y="346">수료현황·주간 통계</text></g>
-<g class="node"><rect x="205.5" y="408" width="97" height="36" rx="8"/><text x="254" y="426">담당자 메일</text></g>
-<g class="node"><rect x="216" y="248" width="117" height="36" rx="8"/><text x="274.5" y="266">검토 대상 보고</text></g>
-<g class="node"><rect x="357" y="248" width="143" height="36" rx="8"/><text x="428.5" y="266">문자공지 대상 메일</text></g>
-<g class="node"><rect x="190.5" y="8" width="147" height="36" rx="8"/><text x="264" y="26">집중교육 신청 Form</text></g>
-<g class="node"><rect x="182" y="88" width="164" height="36" rx="8"/><text x="264" y="106">관리자·공개 확인 명단</text></g>
-<g class="node"><rect x="361.5" y="8" width="97" height="36" rx="8"/><text x="410" y="26">디모데 출결</text></g>
-<g class="node"><rect x="370" y="88" width="97" height="36" rx="8"/><text x="418.5" y="106">정착률 계산</text></g>
-<g class="node"><rect x="259.5" y="168" width="130" height="36" rx="8"/><text x="324.5" y="186">메일 보내지 않음</text></g>
+<path class="edge" d="M165 44 L156.5 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M156.5 124 L234 168" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M234 204 L157 248" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M157 284 L311 328" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M311 364 L311 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M234 204 L388.5 248" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="311.3" y="226">판단 못 함</text>
+<path class="edge" d="M388.5 284 L311 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M234 204 L542.5 248" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M321 44 L321 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M467 44 L475.5 88" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="471.3" y="66">마지막 화요일</text>
+<path class="edge" d="M475.5 124 L311 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M475.5 124 L381.5 168" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="428.5" y="146">조회 부족</text>
+<g class="node"><rect x="106.5" y="8" width="117" height="36" rx="8"/><text x="165" y="26">출석 웹앱 제출</text></g>
+<g class="node"><rect x="98" y="88" width="117" height="36" rx="8"/><text x="156.5" y="106">출석 응답 시트</text></g>
+<g class="node"><rect x="175.5" y="168" width="117" height="36" rx="8"/><text x="234" y="186">교육 출석 현황</text></g>
+<g class="node"><rect x="8" y="248" width="298" height="36" rx="8"/><text x="157" y="266">등록 명단 보정·군 현황판·하반기 방문 명단</text></g>
+<g class="node"><rect x="239.5" y="328" width="143" height="36" rx="8"/><text x="311" y="346">수료현황·주간 통계</text></g>
+<g class="node"><rect x="262.5" y="408" width="97" height="36" rx="8"/><text x="311" y="426">담당자 메일</text></g>
+<g class="node"><rect x="330" y="248" width="117" height="36" rx="8"/><text x="388.5" y="266">검토 대상 보고</text></g>
+<g class="node"><rect x="471" y="248" width="143" height="36" rx="8"/><text x="542.5" y="266">문자공지 대상 메일</text></g>
+<g class="node"><rect x="247.5" y="8" width="147" height="36" rx="8"/><text x="321" y="26">집중교육 신청 Form</text></g>
+<g class="node"><rect x="239" y="88" width="164" height="36" rx="8"/><text x="321" y="106">관리자·공개 확인 명단</text></g>
+<g class="node"><rect x="418.5" y="8" width="97" height="36" rx="8"/><text x="467" y="26">디모데 출결</text></g>
+<g class="node"><rect x="427" y="88" width="97" height="36" rx="8"/><text x="475.5" y="106">정착률 계산</text></g>
+<g class="node"><rect x="316.5" y="168" width="130" height="36" rx="8"/><text x="381.5" y="186">메일 보내지 않음</text></g>
 </svg>
 </figure>
 <h3>이 문서에서 쓰는 말</h3>
@@ -305,6 +315,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li>Google Form 출석 응답 가운데 새로 들어온 것만 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span> 시트에 반영</li>
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 참석 결과를 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>에 합치기</li>
 <li><span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 군·팀·전화번호를 교육 출석 기준으로 자동 보정하고 <span class="term" title="등록 명단을 군별로 모아 자동화가 다시 쓰는 시트다" tabindex="0">군 현황판</span> 갱신</li>
+<li>관리 기간 안 등록자를 하반기 방문 명단에 반영하고 기간 마감·방문 결과 메일 제공</li>
 <li>교육 출석과 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>을 합친 <span class="term" title="등록 명단과 교육 출석을 전화번호로 묶어 다시 쓰는 시트다" tabindex="0">수료현황</span> 다시 쓰기, 주간 전체·군별 보고 메일</li>
 <li>토요일 문자공지 대상 명단(교육 진행 중 / 교육 미진행) 메일</li>
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 Form 접수, 관리자 명단과 공개 명단의 즉시 동기화</li>
@@ -342,31 +353,35 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <p>출석부터 주간 보고까지의 데이터 연결은 다음과 같다. 화살표는 데이터가 전달되거나 다음 기능이
 그 데이터를 읽는 방향이다. 각 상자의 세부 규칙은 5절의 요구사항에 있다.</p>
 <figure class="flow">
-<svg viewBox="0 0 462 452" width="462" height="452" role="img" aria-label="출석 웹앱 → 출석 응답 시트, 출석 Form → 출석 응답 시트, 출석 응답 시트 → 교육 관리, 교육 관리 → 교육 출석 현황, 교육 관리 → 문자공지 대상 메일, 교육 출석 현황 → 등록·보고, 등록 명단 → 등록·보고, 등록·보고 → 군 현황판, 등록·보고 → 수료현황, 등록·보고 → 주간 보고 메일, 등록·보고 → 상반기 결산">
+<svg viewBox="0 0 616 532" width="616" height="532" role="img" aria-label="출석 웹앱 → 출석 응답 시트, 출석 Form → 출석 응답 시트, 출석 응답 시트 → 교육 관리, 교육 관리 → 교육 출석 현황, 교육 관리 → 문자공지 대상 메일, 교육 출석 현황 → 등록·보고, 등록 명단 → 등록·보고, 등록·보고 → 하반기 방문 명단, 하반기 방문 명단 → 방문 결과 메일, 등록·보고 → 군 현황판, 등록·보고 → 수료현황, 등록·보고 → 주간 보고 메일, 등록·보고 → 상반기 결산">
 <defs><marker id="flow-arrow-2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
-<path class="edge" d="M121 44 L231 88" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 44 L231 88" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 124 L231 168" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 204 L147.5 248" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 204 L301.5 248" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M147.5 284 L231 328" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M341 44 L231 328" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 364 L50 408" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 364 L154 408" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 364 L274.5 408" marker-end="url(#flow-arrow-2)"/>
-<path class="edge" d="M231 364 L405.5 408" marker-end="url(#flow-arrow-2)"/>
-<g class="node"><rect x="79" y="8" width="84" height="36" rx="8"/><text x="121" y="26">출석 웹앱</text></g>
-<g class="node"><rect x="172.5" y="88" width="117" height="36" rx="8"/><text x="231" y="106">출석 응답 시트</text></g>
-<g class="node"><rect x="187" y="8" width="88" height="36" rx="8"/><text x="231" y="26">출석 Form</text></g>
-<g class="node"><rect x="189" y="168" width="84" height="36" rx="8"/><text x="231" y="186">교육 관리</text></g>
-<g class="node"><rect x="89" y="248" width="117" height="36" rx="8"/><text x="147.5" y="266">교육 출석 현황</text></g>
-<g class="node"><rect x="230" y="248" width="143" height="36" rx="8"/><text x="301.5" y="266">문자공지 대상 메일</text></g>
-<g class="node"><rect x="189" y="328" width="84" height="36" rx="8"/><text x="231" y="346">등록·보고</text></g>
-<g class="node"><rect x="299" y="8" width="84" height="36" rx="8"/><text x="341" y="26">등록 명단</text></g>
-<g class="node"><rect x="8" y="408" width="84" height="36" rx="8"/><text x="50" y="426">군 현황판</text></g>
-<g class="node"><rect x="116" y="408" width="76" height="36" rx="8"/><text x="154" y="426">수료현황</text></g>
-<g class="node"><rect x="216" y="408" width="117" height="36" rx="8"/><text x="274.5" y="426">주간 보고 메일</text></g>
-<g class="node"><rect x="357" y="408" width="97" height="36" rx="8"/><text x="405.5" y="426">상반기 결산</text></g>
+<path class="edge" d="M198 44 L308 88" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 44 L308 88" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 124 L308 168" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 204 L224.5 248" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 204 L378.5 248" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M224.5 284 L308 328" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M418 44 L308 328" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 364 L73 408" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M73 444 L308 488" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 364 L204 408" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 364 L308 408" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 364 L428.5 408" marker-end="url(#flow-arrow-2)"/>
+<path class="edge" d="M308 364 L559.5 408" marker-end="url(#flow-arrow-2)"/>
+<g class="node"><rect x="156" y="8" width="84" height="36" rx="8"/><text x="198" y="26">출석 웹앱</text></g>
+<g class="node"><rect x="249.5" y="88" width="117" height="36" rx="8"/><text x="308" y="106">출석 응답 시트</text></g>
+<g class="node"><rect x="264" y="8" width="88" height="36" rx="8"/><text x="308" y="26">출석 Form</text></g>
+<g class="node"><rect x="266" y="168" width="84" height="36" rx="8"/><text x="308" y="186">교육 관리</text></g>
+<g class="node"><rect x="166" y="248" width="117" height="36" rx="8"/><text x="224.5" y="266">교육 출석 현황</text></g>
+<g class="node"><rect x="307" y="248" width="143" height="36" rx="8"/><text x="378.5" y="266">문자공지 대상 메일</text></g>
+<g class="node"><rect x="266" y="328" width="84" height="36" rx="8"/><text x="308" y="346">등록·보고</text></g>
+<g class="node"><rect x="376" y="8" width="84" height="36" rx="8"/><text x="418" y="26">등록 명단</text></g>
+<g class="node"><rect x="8" y="408" width="130" height="36" rx="8"/><text x="73" y="426">하반기 방문 명단</text></g>
+<g class="node"><rect x="249.5" y="488" width="117" height="36" rx="8"/><text x="308" y="506">방문 결과 메일</text></g>
+<g class="node"><rect x="162" y="408" width="84" height="36" rx="8"/><text x="204" y="426">군 현황판</text></g>
+<g class="node"><rect x="270" y="408" width="76" height="36" rx="8"/><text x="308" y="426">수료현황</text></g>
+<g class="node"><rect x="370" y="408" width="117" height="36" rx="8"/><text x="428.5" y="426">주간 보고 메일</text></g>
+<g class="node"><rect x="511" y="408" width="97" height="36" rx="8"/><text x="559.5" y="426">상반기 결산</text></g>
 </svg>
 </figure>
 <p><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와 참석 반영은 서로 다른 기능이다. 신청 Form을 제출해 만든 공개 명단이
@@ -396,6 +411,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li>서버가 제출 값을 다시 확인한 뒤, <span class="term" title="웹앱과 Google Form이 출석 응답을 기록하는 시트다. 최신 응답이 머리글 바로 아래 2행에 온다" tabindex="0">출석 응답 시트</span>의 <strong>머리글 바로 아래(2행)</strong> 에 끼워 넣는다.</li>
 <li>교육 프로젝트가 <strong>화요일 17:00~18:00에 한 번</strong> 실행된다. <span class="term" title="지난 실행에서 본 가장 늦은 응답의 제출 시각이다. 이보다 늦은 응답만 새로 처리한다" tabindex="0">커서</span> 이후에 들어온 새 응답만 오래된 것부터 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>에 반영하고, 결과를 메일과 숨김 로그로 남긴다.</li>
 <li>등록 프로젝트가 월요일에 교육 출석을 기준으로 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 군·팀·전화번호를 보정하고 <span class="term" title="등록 명단을 군별로 모아 자동화가 다시 쓰는 시트다" tabindex="0">군 현황판</span>을 다시 쓴다. 사람이 직접 고친 값은 보호한다.</li>
+<li>같은 실행에서 관리 기간 안 등록자를 하반기 방문 명단에 반영하고 행사 집계를 갱신해 결과를 메일로 보낸다.</li>
 <li>등록 프로젝트가 금요일에 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>과 교육 출석을 전화번호로 묶어 <span class="term" title="등록 명단과 교육 출석을 전화번호로 묶어 다시 쓰는 시트다" tabindex="0">수료현황</span>을 다시 쓴다. 그리고 전체 관리자와 군 담당자에게 주간 통계를 보낸다.</li>
 <li>교육 프로젝트가 토요일에 문자공지 대상 명단과 번호 목록을 메일로 보낸다.</li>
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청은 위 흐름과 따로 돌아가는 독립 프로젝트다. Form이 제출되면 곧바로 관리자 명단과 공개 확인 명단을 갱신한다.</li>
@@ -463,6 +479,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td>DATA</td><td>개인정보</td></tr>
 <tr><td>PERF</td><td>성능</td></tr>
 <tr><td>SYNC</td><td>배포 동기화</td></tr>
+<tr><td>VISITOR</td><td>하반기 방문 명단·기간 마감·결과 메일</td></tr>
 </tbody>
 </table></div>
 <section class="card kind-req" id="REQ-ATTEND-001">
@@ -719,7 +736,7 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-req" id="REQ-REG-001">
 <h3><span class="idtag">REQ-REG-001</span> 등록 명단 자동 보정</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REG-003">REQ-REG-003</a>, <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span></div>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REG-003">REQ-REG-003</a>, <a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a>, <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span></div>
 <details class="history"><summary>변경 이력 3</summary>
 <ul>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
@@ -947,6 +964,122 @@ SPEC에는 그 ID가 없었다.</li>
 </div></section>
 <section class="field"><h4>관련 테스트</h4><div class="field-body">
 <p><a class="idref" href="#TEST-REG-006">TEST-REG-006</a></p>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-VISITOR-001">
+<h3><span class="idtag">REQ-VISITOR-001</span> 하반기 방문 명단에 등록자 반영</h3>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-VISITOR-001">REQ-VISITOR-001</a>: 10월 4일부터 등록한 새가족을 하반기 방문 명단에 반영한다. 기존 방문자의 빈 등록여부만 표시하고 수동 기록·수식은 보존한다. 이름·번호 중복과 불일치는 담당자가 확인할 목록으로 남긴다.</li>
+</ul>
+</details>
+<p>담당자가 월요일 정기 실행이나 방문자 동기화 메뉴를 쓰면, 관리 기간 안에 등록한 새가족이 하반기 방문 명단에 반영된다.</p>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<ul>
+<li>대상은 <code>하반기 방문 새가족</code>이다. 기존 상반기 명단은 보관한다.</li>
+<li>시작일은 <code>2026-10-04</code>이며 그날 등록한 사람부터 포함한다. 미래 등록일은 오늘까지 기다린다.</li>
+<li>등록일이 시작일 전이거나 마감일 뒤이면 제외한다. 잘못된 날짜는 <span class="term" title="자동으로 판단할 수 없어 시트를 바꾸지 않고 사람이 확인하도록 보고하는 건이다" tabindex="0">검토 대상</span>으로 보고한다.</li>
+<li>실제 날짜 셀과 <code>YYYY-MM-DD</code>를 읽는다. 연도 없는 <code>M/d</code>는 이 관리 기간의 시작 연도로 읽는다.</li>
+</ul>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li><span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>과 방문 명단의 이름·전화번호를 비교한다. 이름은 공백만 정리하고 끝의 영문 구분자는 보존한다.</li>
+<li>이름과 <span class="term" title="비교하기 쉽게 값의 형식을 한 가지로 맞추는 것이다. 예: 전화번호를 010-xxxx-xxxx 형식으로 맞춘다" tabindex="0">정규화</span>한 전화번호가 모두 같은 방문 기록이 하나이면 <code>등록여부</code>(N열)가 빈칸일 때 <code>O</code>를 적는다.</li>
+<li>일치하는 기록이 없으면 새 방문 줄을 A:O 명단의 마지막 사용 줄 다음에 더한다. Q:U 집계 때문에 명단 위치를 뒤로 밀지 않는다.</li>
+<li><span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>이나 방문 명단에 전화번호가 겹치거나 이름·전화번호가 한쪽만 같으면 자동 반영하지 않고 <span class="term" title="자동으로 판단할 수 없어 시트를 바꾸지 않고 사람이 확인하도록 보고하는 건이다" tabindex="0">검토 대상</span>으로 남긴다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>지킬 것</h4><div class="field-body">
+<ul>
+<li>이름·전화번호가 없거나 전화번호 형식이 잘못되면 새 줄을 만들지 않는다.</li>
+<li>새 줄에는 등록일·예배·군·팀·이름·성별·주소·전화번호·인도자를 옮긴다. 생년월일은 등록일 기준 만 나이로 계산하며, 계산할 수 없으면 비운다.</li>
+<li>새 줄의 L·M은 비우고 N은 <code>O</code>, O는 자동 반영 안내를 쓴다. 행사 참석·중복·유입경로를 임의 판정하지 않는다.</li>
+<li>기존 줄에서는 빈 N열만 바꾼다. 다른 등록여부 표시나 N열 수식은 <span class="term" title="자동으로 판단할 수 없어 시트를 바꾸지 않고 사람이 확인하도록 보고하는 건이다" tabindex="0">검토 대상</span>으로 보고하고 보존한다.</li>
+<li>A:O의 수식·수동 기록, 1행 머리글과 P:Q·U 집계·목표를 보존한다. R:T는 <a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a>에 따라 갱신한다. 줄을 삭제하거나 명단 전체를 다시 쓰지 않는다.</li>
+<li>같은 명단으로 다시 실행하면 추가·갱신은 0건이다. <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>는 시트·속성·메일을 바꾸지 않는다.</li>
+<li>시트나 기대 머리글이 없으면 새 시트를 만들지 않고 오류를 보고한다.</li>
+<li>일부 저장 뒤 실패하면 완료한 추가·갱신 건수와 실패 사유를 메일에 남긴다. 실제 정기 실행은 오류로 끝나 기존 실패 알림도 작동한다.</li>
+</ul>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-VISITOR-002">
+<h3><span class="idtag">REQ-VISITOR-002</span> 종료일 미정 운영과 마감</h3>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a>: 종료일 미정으로 운영하다가 메뉴에서 마감일을 지정하거나 해제한다. 마감일 안의 늦은 등록 입력은 계속 반영하고 명단을 보관한다.</li>
+</ul>
+</details>
+<p>담당자는 종료일 없이 방문 명단을 관리하다가, 관리가 끝나는 날짜를 메뉴에서 지정한다.</p>
+<section class="field"><h4>설정</h4><div class="field-body">
+<ul>
+<li>마감일은 처음에는 빈칸이다. 종료일 미정 상태로 등록자를 계속 반영한다.</li>
+<li><code>방문 관리 마감일 지정</code>에서 <code>YYYY-MM-DD</code>를 입력하면 등록 프로젝트 속성에 저장한다.</li>
+<li>마감일은 시작일 이상이어야 한다. 틀린 날짜나 형식은 저장하지 않는다.</li>
+<li>마감일은 포함한다. 이후 실행도 기간 안의 늦은 입력을 반영하며 기간 밖 신규 등록은 제외한다.</li>
+<li><code>방문 관리 마감 해제</code>는 확인 후 마감일만 해제한다. 방문 기록·집계·기존 보정 속성은 지우지 않는다.</li>
+</ul>
+</div></section>
+<section class="field"><h4>정리</h4><div class="field-body">
+<ol>
+<li><code>방문 관리 현황·마감 확인</code>으로 반영 예정과 검토 건수를 확인한다.</li>
+<li>동기화를 실행해 기간 안의 미반영 등록자를 반영한다.</li>
+<li>마감일을 지정하고 검토 내역을 담당자가 확인한다. 시트와 기존 기록은 그대로 보관한다.</li>
+</ol>
+<aside class="callout callout-warn"><span class="callout-label">주의</span>
+<p>마감일을 정해도 정기 실행과 메일은 유지된다. 늦게 들어온 기간 내 등록자를 놓치지 않기 위해서다.</p>
+</aside>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-VISITOR-003">
+<h3><span class="idtag">REQ-VISITOR-003</span> 방문 관리 결과 메일</h3>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a>: 기존 월요일 결과 메일에 방문 반영·관리 기간·방문 기록·군별 기록과 검토 내역을 넣는다. 수신자는 기존 한 명으로 유지한다.</li>
+</ul>
+</details>
+<p>월요일 등록 유지관리 결과 메일에 방문 명단 반영 결과와 관리 현황을 함께 보여 준다.</p>
+<section class="field"><h4>결과</h4><div class="field-body">
+<ul>
+<li>제목에 방문 추가·등록 표시 갱신 건수를 넣는다. 전체 검토 건수에는 방문자 검토도 포함한다.</li>
+<li>텍스트·HTML 본문에 시작일·마감일, 추가·갱신·검토 건수, 추가·갱신 상세와 대상 시트 링크를 넣는다.</li>
+<li>현황은 반영 후 관리 시트 전체의 이름 있는 방문 기록을 센다. <code>등록여부</code>가 <code>O</code>인 기록과 미등록 기록, 군별 기록 수를 표시한다.</li>
+<li>현황은 사람 수나 행사 성과로 부르지 않는다. 중복 방문 기록도 포함될 수 있다.</li>
+<li>수신자는 <a class="idref" href="#REQ-REG-001">REQ-REG-001</a>의 한 명을 유지한다. 교육·수료·문자공지 메일 수신자는 바꾸지 않는다.</li>
+<li>행사 집계는 <a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a>의 기준으로 계산한다. 메일은 집계 수식 값을 그대로 복사하지 않고 방문 명단에서 계산한다.</li>
+</ul>
+</div></section>
+</section>
+<section class="card kind-req" id="REQ-VISITOR-004">
+<h3><span class="idtag">REQ-VISITOR-004</span> 하반기 행사 집계</h3>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/하반기 방문 관리.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-VISITOR-001">REQ-VISITOR-001</a>, <a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a>, <a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a>: 행사 10월 31일·11월 1일, 선방문 10월 4일~10월 30일로 군별 수식을 통일한다. 문화행축도 선방문에 포함하고 세 집계에서 중복 표시를 제외한다. 기존 목표는 보존한다.</li>
+</ul>
+</details>
+<p>담당자는 하반기 방문 시트 오른쪽에서 군별 선방문·문화행축·행사 당일 방문 기록 수를 확인한다.</p>
+<section class="field"><h4>집계 기준</h4><div class="field-body">
+<ul>
+<li>행사 날짜는 <code>2026-10-31</code>(토)·<code>2026-11-01</code>(일)이다.</li>
+<li>선방문은 <code>2026-10-04</code>부터 <code>2026-10-30</code>까지의 방문 전체다. 문화행축 방문도 포함한다.</li>
+<li>문화행축은 관리 기간 안에서 L열에 <code>O</code>가 있는 방문 기록이다.</li>
+<li>행사 당일 방문은 B열 방문일이 행사 이틀 가운데 하나인 기록이다.</li>
+<li>Q열에 있는 군에 속하는 방문 기록만 행사 합계에 넣는다. 군이 비거나 다른 표기이면 메일에서 군 확인 대상 건수로 별도 표시한다.</li>
+<li>공백뿐인 이름은 제외한다. 이름이 있어야 센다. 세 집계 모두 M열 중복 표시 <code>O</code>가 있으면 제외한다. <code>o</code>도 같은 표시로 읽는다.</li>
+<li>마감일이 있으면 그날까지의 방문 기록만 센다. Q열 군 이름에 따라 집계하므로 등록 설정의 군 순서와 시트 군 순서가 달라도 맞는다.</li>
+</ul>
+</div></section>
+<section class="field"><h4>지킬 것</h4><div class="field-body">
+<ul>
+<li>동기화 실제 실행과 <code>하반기 행사 집계 갱신</code> 메뉴가 R:T 수식과 합계만 갱신한다. Q열 군 이름과 U열 목표는 보존한다.</li>
+<li>날짜 셀, <code>YYYY-MM-DD</code>, <code>M/d</code>를 같은 날짜로 읽는다. 연도 없는 표기는 <code>2026</code>으로 읽는다.</li>
+<li>시트 머리글·군 목록·합계 행이 예상과 다르면 수식을 쓰지 않고 검토 오류를 보고한다.</li>
+<li>메일에는 같은 기준으로 계산한 선방문·문화행축·행사 당일 방문 기록 수를 보여 준다. 방문 기록 수는 같은 사람의 중복을 완전히 판별한 인원 수가 아니다.</li>
+</ul>
 </div></section>
 </section>
 <section class="card kind-req" id="REQ-REPORT-001">
@@ -2058,7 +2191,7 @@ SPEC에는 그 ID가 없었다.</li>
 <p><code>tests/data-retention-and-sync.test.js</code>를 실행한다(<code>npm test</code>).</p>
 </div></section>
 <section class="field"><h4>Expected Result</h4><div class="field-body">
-<p>여섯 개 <code>.gs</code> 파일 어디에도 다음 호출이 없다: 시트·줄 삭제, 속성 한꺼번에 삭제, 내용 비우기.</p>
+<p>일곱 개 <code>.gs</code> 파일 어디에도 다음 호출이 없다: 시트·줄 삭제, 속성 한꺼번에 삭제, 내용 비우기.</p>
 <p>보존 기간 정책 자체는 코드로 검증하지 않는다. 다만 <strong>자동 삭제 코드를 두지 않는다</strong>는 금지는 검증한다.</p>
 <p class="why"><span class="why-label">이유</span> 검증하지 않으면 누군가 정리 코드를 넣어도 드러나지 않는다.</p>
 </div></section>
@@ -2143,6 +2276,21 @@ SPEC에는 그 ID가 없었다.</li>
 <p>2026-08-25는 참, 2026-08-18은 거짓이다.</p>
 </div></section>
 </section>
+<section class="card kind-test" id="TEST-VISITOR-001">
+<h3><span class="idtag">TEST-VISITOR-001</span></h3>
+<section class="field"><h4>검증 대상</h4><div class="field-body">
+<p><a class="idref" href="#REQ-VISITOR-001">REQ-VISITOR-001</a>, <a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a>, <a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a>, <a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a></p>
+</div></section>
+<section class="field"><h4>절차</h4><div class="field-body">
+<p><code>tests/visitor-sync.test.js</code>를 Node.js로 시험용 명단을 처리한다. 시작·마감일 경계, 날짜·번호 오류, 중복·불일치, 기존 기록 보존, 수식 보호, 다시 실행, <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>, 메뉴·정기 실행과 메일 연결을 확인한다.</p>
+</div></section>
+<section class="field"><h4>Expected Result</h4><div class="field-body">
+<p>행사 이틀·선방문 기간·중복 제외·문화행축 기준에 맞게 집계된다. 기간 안 등록자만 반영된다. 기존 기록과 집계는 보존되고 다시 실행은 추가·갱신 0건이다. 마감일 저장·해제가 유효성 검사와 확인을 거친다. 텍스트·HTML 결과가 기존 수신자에게 한 번 전달된다.</p>
+<aside class="callout callout-info"><span class="callout-label">참고</span>
+<p>운영 시트 변경·메일 도착·예약 실행은 이 로컬 테스트로 확인하지 않는다. 운영 반영 후 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 시트 결과를 별도로 확인한다.</p>
+</aside>
+</div></section>
+</section>
 </section>
 <section class="chapter" id="sec-12">
 <h2>12. 요구사항 추적성</h2>
@@ -2159,6 +2307,10 @@ SPEC에는 그 ID가 없었다.</li>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-002">REQ-REG-002</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-003">REQ-REG-003</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-004">TEST-REG-004</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-004">REQ-REG-004</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-006">TEST-REG-006</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-001">REQ-VISITOR-001</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a></td><td data-label="Implementation"><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동)</td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a></td><td data-label="Implementation"><code>registration-project/제목 없음.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-SETTLE-001">TEST-SETTLE-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATE-001">REQ-RATE-001</a></td><td data-label="Implementation"><code>settlement-automation/settlement_email.py</code></td><td data-label="Test"><a class="idref" href="#TEST-RATE-001">TEST-RATE-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
@@ -2184,13 +2336,14 @@ SPEC에는 그 ID가 없었다.</li>
 <ul>
 <li><strong><a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> 산출 기준의 소유자 확인.</strong> 2026-09-19에 코드를 근거로 사양을 확정했다. 확정한 기준은 군 9개 행 매핑, <code>3/8</code> 행축 기준, 유입 경로 <code>관계</code>·<code>설문지</code>, 일반·행축 목표 열이다. 운영 기준이 다르면 코드보다 이 사양을 먼저 고친다.</li>
 <li><strong>정착률 자동화의 운영 검증 범위.</strong> 동일인 판정, 출석 계산, 시트 갱신, 실제 메일 전송은 추적성과 운영 검증이 확인 필요다(<a class="idref" href="#REQ-RATE-001">REQ-RATE-001</a>~003은 메일 안전 기준과 날짜 판정만 다룬다).</li>
-<li><strong>상반기 방문자 동기화를 다시 켜는 시점.</strong> 하반기 시트를 준비한 뒤 다시 켜기로 했고, 시점은 정하지 않았다. 지금은 일부러 꺼 두었다.</li>
+<li><strong>하반기 행사 목표 (확인 필요).</strong> U열의 기존 목표를 이번 행사에도 사용할지는 담당자가 확인한다. 자동화가 임의로 바꾸지 않는다.</li>
+<li><strong>하반기 관리 종료일 (TBD).</strong> <a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a>의 마감일 메뉴로 운영자가 정한다.</li>
 </ul>
 </section>
 <section class="chapter" id="sec-14">
 <h2>14. 향후 개선 후보</h2>
 <ul>
-<li>상반기 방문 새가족 동기화 다시 켜기. 지금 이 함수는 일부러 꺼 두었고, 하반기 시트를 준비한 뒤 다시 켜기로 했다.</li>
+<li>하반기 마감 후 담당자가 검토 내역과 행사 목표를 확인하고 시트를 보관한다(<a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a>, <a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a>).</li>
 <li>교육 새 응답 반영(<a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a>)과 <span class="term" title="응답이나 명단의 줄을 같은 사람의 줄과 짝짓는 것이다" tabindex="0">매칭</span>·검토 분류(<a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a>)의 단위 테스트. 이 프로젝트에서 가장 복잡한 판단 로직인데 로컬 검증이 없다.</li>
 <li>문자공지 대상자 선정 기준(<a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a>)의 단위 테스트.</li>
 </ul>

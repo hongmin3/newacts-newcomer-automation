@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const read = (...parts) => fs.readFileSync(path.join(root, ...parts), 'utf8');
 
 const maintenanceSource = read('registration-project', '등록새가족-군현황 자동 배치.gs');
+const visitorSource = read('registration-project', '하반기 방문 관리.gs');
 const completionSource = read('registration-project', '등록 새가족 새가족교육 수료현황 자동화.gs');
 const settlementSource = read('registration-project', '제목 없음.gs');
 
@@ -28,7 +29,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(
-  maintenanceSource + '\n' + completionSource + '\n' + settlementSource,
+  maintenanceSource + '\n' + visitorSource + '\n' + completionSource + '\n' + settlementSource,
   context
 );
 
