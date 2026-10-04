@@ -15,6 +15,7 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(result['recent_rate'], 2 / 3)
         self.assertEqual(result['observation_status'], '관찰 기간 부족')
         self.assertEqual(result['rate'], 2 / 3)
+        self.assertEqual(result['formula_version'], 'recent4-v1')
 
     def test_common_window_and_zero_one_four_weeks(self):
         as_of = date(2026, 10, 6)
@@ -68,7 +69,7 @@ class MetricsTests(unittest.TestCase):
         self.assertIsNone(results[0]['등록일'])
         self.assertEqual(results[0]['recent_possible'], 0)
         self.assertEqual(results[0]['observation_status'], '확인 필요')
-        self.assertEqual(results[0]['formula_version'], 'recent-common-sundays-v1')
+        self.assertEqual(results[0]['formula_version'], 'recent4-v1')
 
     def test_successful_collection_preserves_cumulative_rate(self):
         page = MagicMock()
@@ -88,6 +89,7 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(summary['army'], '조')
         self.assertEqual(summary['rate'], 3 / 42)
         self.assertEqual(summary['recent_rate'], 1 / 2)
+        self.assertEqual(summary['formula_version'], 'recent4-v1')
 
     def test_unconfirmed_attendance_period_raises(self):
         radio = MagicMock()

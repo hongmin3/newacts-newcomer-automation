@@ -3,7 +3,7 @@ import re
 from datetime import date, datetime, timedelta
 
 ARMY_ORDER = ('신', '조', '명', '총', '석', '전', '영', '슬', '임')
-FORMULA_VERSION = 'recent-common-sundays-v1'
+FORMULA_VERSION = 'recent4-v1'
 
 
 def _sundays(start: date, end: date) -> tuple[date, ...]:
