@@ -186,7 +186,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
-| REQ-RATEDESKTOP-001 | `settlement-automation/main.py` (수정 대상) | TEST-RATEDESKTOP-001 | draft |
+| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/main.py` (화면 구현 대기) | `settlement-automation/tests/test_desktop_runtime.py`, TEST-RATEDESKTOP-001 | draft |
 | REQ-RATEDESKTOP-002 | `settlement-automation/settlement_automation.py` (수정 대상) | TEST-RATEDESKTOP-002 | draft |
 | REQ-RATEDESKTOP-003 | `settlement-automation/settlement_automation.py` (수정 대상) | TEST-RATEDESKTOP-003 | draft |
 | REQ-RATEDESKTOP-004 | `settlement-automation/settlement_automation.py` (수정 대상) | TEST-RATEDESKTOP-004 | draft |

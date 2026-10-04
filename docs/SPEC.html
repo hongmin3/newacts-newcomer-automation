@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v7">
 <meta name="spec-html-renderer" content="v7">
-<meta name="spec-source-sha256" content="a907b5a9cdd0b73da1ccc76281bd3adad6c16093f17f60fd69ea9fbf7ff59d79">
+<meta name="spec-source-sha256" content="94982075c9469a443fed7b940eeb446886f293a75cb8abbd26d5d867c8cd6113">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -236,7 +236,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr class="group"><th colspan="5"><span class="gcode">NFR SYNC</span> 배포 동기화</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#NFR-SYNC-001">NFR-SYNC-001</a></td><td data-label="이름">운영 Apps Script 동기화</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>scripts/apps-script.mjs</code>, <code>scripts/apps-script-projects.json</code></td><td data-label="테스트"><a class="idref" href="#TEST-SYNC-001">TEST-SYNC-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">RATEDESKTOP</span> Mac 실행과 군별 관리</th></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="이름">더블클릭 실행과 최초 인증</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="이름">더블클릭 실행과 최초 인증</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/desktop/runtime.py</code>, <code>settlement-automation/desktop/settings.py</code>, <code>settlement-automation/settlement_automation.py</code>, <code>settlement-automation/main.py</code> (화면 구현 대기)</td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_runtime.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002</a></td><td data-label="이름">같은 기간으로 출석 현황 계산</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="이름">실행별 원본과 월별 이력 보관</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="이름">군별 화면과 돌봄 기록 보존</td><td data-label="상태"><span class="badge st-draft">draft</span></td><td data-label="구현"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="테스트"><a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td></tr>
@@ -2427,9 +2427,10 @@ SPEC에는 그 ID가 없었다.</li>
 중복 실행·취소·실패 복구는 006을 함께 따른다.</p>
 <section class="card kind-req" id="REQ-RATEDESKTOP-001">
 <h3><span class="idtag">REQ-RATEDESKTOP-001</span> 더블클릭 실행과 최초 인증</h3>
-<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/main.py</code> (수정 대상)</span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<div class="card-meta"><span class="badge st-draft">draft</span><span class="meta"><b>구현</b> <code>settlement-automation/desktop/runtime.py</code>, <code>settlement-automation/desktop/settings.py</code>, <code>settlement-automation/settlement_automation.py</code>, <code>settlement-automation/main.py</code> (화면 구현 대기)</span><span class="meta"><b>테스트</b> <code>settlement-automation/tests/test_desktop_runtime.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></span></div>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>: 앱을 교체해도 유지되는 사용자 저장 경로, 비밀 없는 설정과 Mac 키체인 경계, 운영 설정을 읽지 않는 Python 테스트 실행기를 추가했다. 앱 화면과 실제 인증은 후속 구현 대상이다.</li>
 <li><span class="hist">[Unreleased] · Added — 2026-10-04</span> <a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a>~006: 승인된 Mac 앱·군별 관리 설계를 기능 사양으로 등록하고 구현 계획을 추가했다. 요구사항은 구현 전인 draft 상태다.</li>
 </ul>
 </details>
@@ -2600,7 +2601,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <div class="table-wrap"><table class="responsive">
 <thead><tr><th>Requirement</th><th>Implementation</th><th>Test</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="Implementation"><code>settlement-automation/main.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-001">REQ-RATEDESKTOP-001</a></td><td data-label="Implementation"><code>settlement-automation/desktop/runtime.py</code>, <code>settlement-automation/desktop/settings.py</code>, <code>settlement-automation/settlement_automation.py</code>, <code>settlement-automation/main.py</code> (화면 구현 대기)</td><td data-label="Test"><code>settlement-automation/tests/test_desktop_runtime.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-002">REQ-RATEDESKTOP-002</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-003">REQ-RATEDESKTOP-003</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-003">TEST-RATEDESKTOP-003</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="Implementation"><code>settlement-automation/settlement_automation.py</code> (수정 대상)</td><td data-label="Test"><a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td><td data-label="Status"><span class="badge st-draft">draft</span></td></tr>

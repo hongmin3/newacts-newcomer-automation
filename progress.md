@@ -15,3 +15,5 @@
 - 2026-10-04: 정착률 자동화의 Mac 실행과 군별 관리 1차 설계를 `docs/superpowers/specs/2026-10-04-settlement-mac-design.md`에 작성했다. 월별 결과 보관·군별 최근 4주 현황·돌봄 기록 보존, Mac 앱 더블클릭 실행과 Windows 전환, 실패 복구를 제안했다. 사용자 요청에 따라 Mac 예약 실행은 제외했다. 사용자 설계 검토 전이며 앱 구현·설치·인증·운영 실행은 하지 않았다.
 
 - 2026-10-04: 사용자가 Mac 앱 설계를 승인했다. `specs/settlement-desktop.md`에 REQ-RATEDESKTOP-001~006을 draft로 등록하고 `docs/superpowers/plans/2026-10-04-settlement-mac-app.md`에 6개 구현 작업과 검증·패키징 계획을 작성했다. 계획 검토와 실행 방식 선택 전이며 실행파일은 아직 없다.
+
+- 2026-10-04: Mac 앱 Task 1에서 사용자 저장 경로·비밀 없는 설정·키체인 경계·안전한 Python 테스트 실행기를 구현했다. 기존 CLI 호출은 유지했다. Python 14개, 저장소 검증 7개와 준비 검사를 통과했다. 앱 화면·실제 인증·Chromium·운영 실행은 후속 작업이며 기능 상태는 draft다.

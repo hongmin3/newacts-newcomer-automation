@@ -118,20 +118,23 @@ GOOGLE_SCOPES = [
 ]
 
 
-def get_google_credentials():
+def get_google_credentials(*, paths=None):
     client_file = Path(getattr(config, "GOOGLE_OAUTH_CLIENT_FILE", "credentials.json"))
     token_file = Path(getattr(config, "GOOGLE_OAUTH_TOKEN_FILE", "token.json"))
     if not client_file.is_absolute():
         client_file = PROJECT_DIR / client_file
     if not token_file.is_absolute():
         token_file = PROJECT_DIR / token_file
+    if paths is not None:
+        paths.ensure_directories()
+        client_file = paths.oauth_client_file
+        token_file = paths.oauth_token_file
     if not client_file.exists():
         raise RuntimeError(f"Google OAuth 파일이 없습니다: {client_file}")
 
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
-    from googleapiclient.discovery import build
 
     credentials = None
     if token_file.exists():
@@ -143,7 +146,8 @@ def get_google_credentials():
     if not credentials or not credentials.valid:
         flow = InstalledAppFlow.from_client_secrets_file(str(client_file), GOOGLE_SCOPES)
         credentials = flow.run_local_server(port=0)
-    token_file.write_text(credentials.to_json(), encoding="utf-8")
+    from desktop.runtime import write_private_file
+    write_private_file(token_file, credentials.to_json())
     return credentials
 
 
@@ -287,9 +291,13 @@ def find_exact_person_card(right_frame, row):
     return None, "정확한교인없음", {"failure_note": f"디모데에서 '{expected_name}' 이름 검색 결과가 없습니다."}
 
 
-def wait_for_login(page):
-    user_id = normalize_text(getattr(config, "USER_ID", ""))
-    user_pw = str(getattr(config, "USER_PW", "") or "")
+def wait_for_login(page, *, account=None, secret_store=None):
+    if secret_store is not None:
+        user_id = normalize_text(account or "")
+        user_pw = secret_store.get_password(user_id) or ""
+    else:
+        user_id = normalize_text(getattr(config, "USER_ID", ""))
+        user_pw = str(getattr(config, "USER_PW", "") or "")
     if "/Login/" in page.url and user_id and user_pw:
         textboxes = page.locator('input[type="text"]')
         password = page.locator('input[type="password"]')
