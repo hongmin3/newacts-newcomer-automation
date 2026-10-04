@@ -115,3 +115,30 @@ GoogleSheetsAdapter는 관리 세 탭 이외의 이름을 거절한다. createDe
 Task Observer: 시작 저장소 확인·frontmatter scan 16/16·malformed 0·checkpoint 기록·원칙/리뷰 날짜 확인을 수행했다. task-observer/test-driven-development 지목 OPEN 관찰 없음. 마지막 리뷰 2026-09-28이며 7일 미만. 기록 없음: 구현 결함과 시험 보완을 처리했고 별도 스킬 개선 신호가 없었다.
 
 Akela registration slice의 data-effects/config-invariants/personal-data/local-tests를 적용 기록하고 outcome DONE으로 닫았다. 공유 akela/observer runtime 기록은 커밋하지 않는다. push 없음.
+
+## 검토 수정 1: 실제 Google adapter 변경 단위의 원자성
+
+BASE `07f80ee` 검토의 Important/P1 두 건을 확인했다. 정상 SPEC을 유지하고 코드·회귀 시험을 수정했다.
+
+- REQ-RATEDESKTOP-003/006: 기존 본문 clear가 성공하고 새 본문 update가 실패하면 과거 월이 소실됐다. body 전체를 `batchUpdate`의 단일 `updateCells.range`로 교체하도록 수정했다. 범위는 헤더 이후의 관리 열과 기존/새 본문의 최대 행까지다. `fields=userEnteredValue`만 변경하여 셀 서식 같은 다른 속성을 초기화하지 않는다. range에 새 rows로 채우지 않은 끝부분 값은 같은 요청에서 지워진다.
+- REQ-RATEDESKTOP-006: addSheet·OWNER·header가 별도 호출이면 부분 생성 탭이 남았다. 먼저 빈 sheetId를 선택하고 `addSheet`, `createDeveloperMetadata`, 헤더 `updateCells`를 하나의 requests 배열로 보낸다. 적용 전 거절이면 아무 탭도 남지 않는다. 적용 후 응답 유실이면 완전한 소유·헤더 탭이 남아 게시기 재검증을 통과한다. 오류를 숨기거나 일반 기존 탭을 접수하지 않는다.
+- 기존 GoogleSheetsAdapter/SheetPublisher 생성자와 UI 계약은 변경하지 않았다. OWNER·헤더 확인·care A:C 셀 범위·기존 CLI는 유지한다.
+
+Google 공식 [batchUpdate 문서](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate)의 원자적 requests 적용과 [UpdateCellsRequest 문서](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request#UpdateCellsRequest)의 range/fields 값 지우기를 확인했다. 실제 운영 API는 호출하지 않았다.
+
+실제 adapter + publisher + HistoryStore를 가짜 Google API에 연결했다. API 가짜는 일괄 적용 전 거절과 적용 완료 후 응답 유실을 분리하며, 기존 clear/update가 따로 실행될 때는 각 변경도 따로 반영한다. 새 시험은 이 경계에서 이전 월 전체 행·중복 없는 현재 월·완전한 OWNER/헤더·미완료 단계만 재게시하는 결과를 확인한다. 기존 unowned 탭에는 변경 호출 0회를 확인한다.
+
+covering RED/GREEN 명령:
+
+```bash
+settlement-automation/.venv/bin/python -B -c 'import runpy,unittest,sys; runpy.run_path("settlement-automation/tests/run_tests.py"); suite=unittest.defaultTestLoader.discover("settlement-automation/tests",pattern="test_desktop_service.py"); result=unittest.TextTestRunner().run(suite); sys.exit(not result.wasSuccessful())'
+```
+
+- RED: `Ran 19 tests in 1.249s`, `FAILED (failures=3, errors=1)`, exit 1. 월별 두 failure는 9월 행이 header-only 탭에서 사라진 것을 확인했다. 생성 before failure는 OWNER만 있는 빈 탭이 남은 것을 확인했다. 생성 after의 IndexError는 기존 탭에 헤더가 아예 없는 상태를 재현한 것이다. 이 assertion을 헤더 row slice 비교로 바꿔 빈 헤더도 정상 assertion 실패로 표현했다.
+- GREEN: `Ran 19 tests in 1.257s`, `OK`, exit 0. 생성과 월별 교체 모두 before/after subcase를 실행했다. 시험 생략 0개.
+- 전체 회귀: 공통 Python 실행기 `Ran 57 tests in 1.307s`, `OK`. Node는 이 수정에서 건드리지 않아 이전 7개 파일 검증 증거를 유지한다.
+- HTML 재생성·준비 검사 failed=0·diff 검사 통과. 기존 SPEC_OPEN_QUESTIONS 경고 유지.
+
+한계: Google 서비스·권한·협업 동시 편집은 검증하지 않았다. API의 원자적 한 묶음 변경은 다른 편집자의 전체 작업까지 잠그지 않는다.
+
+Task Observer: 새 시작 scan 18/18·malformed 0·checkpoint·리뷰 날짜·관련 OPEN 본문 확인. 0091의 현재 컨텍스트 시작 증거 요구를 적용했다. 기록 없음: 검토된 제품 코드 결함의 수정이며 별도 스킬 개선 신호 없음. Akela registration slice 규칙 적용·outcome DONE; 공유 runtime 기록 제외. push 없음.

@@ -1,5 +1,6 @@
 """Live adapters are created only by explicit desktop execution, never on import."""
 import time
+import secrets
 from datetime import date
 from .legacy_config import use_settings
 from .runtime import SecretStore
@@ -26,7 +27,6 @@ class GoogleSheetsAdapter:
         return next((sheet for sheet in metadata.get('sheets',[]) if sheet['properties']['title']==name),None)
     def read_tab(self,name):
         if self._sheet(name) is None: return None
-        end=_column(len(TAB_HEADERS[name])-1)
         # Read full existing width, so extra headers cause validation to fail.
         return self.api.spreadsheets().values().get(spreadsheetId=self.spreadsheet_id,
                     range=_a1(name)).execute().get('values',[])
@@ -39,29 +39,54 @@ class GoogleSheetsAdapter:
         rows=self.read_tab(name)
         if self.ownership(name)!=OWNER or not rows or tuple(rows[0])!=TAB_HEADERS[name]:
             raise ValueError('앱 관리 탭의 소유와 열 구성을 확인해 주세요.')
+        return rows
+    @staticmethod
+    def _row_data(rows):
+        encoded=[]
+        for row in rows:
+            values=[]
+            for value in row:
+                if value is None or value=='': cell={}
+                elif isinstance(value,bool): cell={'userEnteredValue':{'boolValue':value}}
+                elif isinstance(value,(int,float)): cell={'userEnteredValue':{'numberValue':value}}
+                else: cell={'userEnteredValue':{'stringValue':str(value)}}
+                values.append(cell)
+            encoded.append({'values':values})
+        return encoded
     def create_tab(self,name,headers,owner):
         self._allowed(name)
         if tuple(headers)!=TAB_HEADERS[name] or owner!=OWNER or self._sheet(name) is not None:
             raise ValueError('새 관리 탭의 조건이 올바르지 않습니다.')
-        response=self.api.spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,
-            body={'requests':[{'addSheet':{'properties':{'title':name,'gridProperties':{'rowCount':1000,'columnCount':len(headers)}}}}]}).execute()
-        sheet_id=response['replies'][0]['addSheet']['properties']['sheetId']
+        # Caller-selected ID lets addSheet, OWNER and header share one atomic batch.
+        metadata=self.api.spreadsheets().get(spreadsheetId=self.spreadsheet_id,
+                                            fields='sheets(properties(sheetId))').execute()
+        used={sheet['properties']['sheetId'] for sheet in metadata.get('sheets',[])}
+        sheet_id=secrets.randbelow(2**31-1)
+        while sheet_id in used: sheet_id=secrets.randbelow(2**31-1)
         self.api.spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,body={'requests':[
+            {'addSheet':{'properties':{'sheetId':sheet_id,'title':name,
+                         'gridProperties':{'rowCount':1000,'columnCount':len(headers)}}}},
             {'createDeveloperMetadata':{'developerMetadata':{'metadataKey':self.OWNER_KEY,'metadataValue':owner,
-               'location':{'sheetId':sheet_id},'visibility':'DOCUMENT'}}}]}).execute()
-        self.api.spreadsheets().values().update(spreadsheetId=self.spreadsheet_id,range=_a1(name)+'!A1',
-                    valueInputOption='RAW',body={'values':[list(headers)]}).execute()
+               'location':{'sheetId':sheet_id},'visibility':'DOCUMENT'}}},
+            {'updateCells':{'start':{'sheetId':sheet_id,'rowIndex':0,'columnIndex':0},
+                            'rows':self._row_data([headers]),'fields':'userEnteredValue'}}
+        ]}).execute()
     def write_rows(self,name,body_rows):
         self._allowed(name)
         if name==CARE_TAB or any(len(row)>len(TAB_HEADERS[name]) for row in body_rows):
             raise ValueError('자동 관리 본문 범위를 벗어났습니다.')
-        self._owned(name)
-        end=_column(len(TAB_HEADERS[name])-1)
-        self.api.spreadsheets().values().clear(spreadsheetId=self.spreadsheet_id,
-                    range=_a1(name)+'!A2:'+end,body={}).execute()
-        if body_rows:
-            self.api.spreadsheets().values().update(spreadsheetId=self.spreadsheet_id,
-                range=_a1(name)+'!A2',valueInputOption='RAW',body={'values':body_rows}).execute()
+        existing=self._owned(name)
+        end_row=max(len(existing),len(body_rows)+1)
+        if end_row==1: return
+        sheet=self._sheet(name)
+        # A range clears only userEnteredValue cells omitted by rows, in the SAME
+        # atomic update that writes the replacement. Headers/formats stay intact.
+        self.api.spreadsheets().batchUpdate(spreadsheetId=self.spreadsheet_id,body={'requests':[
+            {'updateCells':{'range':{'sheetId':sheet['properties']['sheetId'],
+                 'startRowIndex':1,'endRowIndex':end_row,'startColumnIndex':0,
+                 'endColumnIndex':len(TAB_HEADERS[name])},
+                 'rows':self._row_data(body_rows),'fields':'userEnteredValue'}}
+        ]}).execute()
     def update_cells(self,name,updates):
         self._allowed(name)
         if name!=CARE_TAB or any(type(r) is not int or type(c) is not int or r<1 or not 0<=c<=2 for r,c,_ in updates):

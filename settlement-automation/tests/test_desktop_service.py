@@ -209,8 +209,10 @@ class AdapterTests(unittest.TestCase):
         self.assertIsNone(adapter.read_tab('새가족 돌봄 기록'))
         adapter.create_tab('새가족 돌봄 기록',TAB_HEADERS['새가족 돌봄 기록'],'newacts-settlement-desktop-v1')
         requests=[c[1]['body']['requests'] for c in api.calls if c[0]=='batchUpdate']
-        metadata=requests[1][0]['createDeveloperMetadata']['developerMetadata']
-        self.assertEqual(metadata,{'metadataKey':'newacts-owner','metadataValue':'newacts-settlement-desktop-v1','location':{'sheetId':17},'visibility':'DOCUMENT'})
+        self.assertEqual(len(requests),1)
+        self.assertEqual(len(requests[0]),3)
+        metadata=requests[0][1]['createDeveloperMetadata']['developerMetadata']
+        self.assertEqual(metadata,{'metadataKey':'newacts-owner','metadataValue':'newacts-settlement-desktop-v1','location':{'sheetId':requests[0][0]['addSheet']['properties']['sheetId']},'visibility':'DOCUMENT'})
         api.owner='newacts-settlement-desktop-v1'
         adapter.update_cells('새가족 돌봄 기록',[(1,0,'id'),(1,2,'조')])
         updates=[c[1] for c in api.calls if c[0]=='update']
@@ -235,3 +237,137 @@ class AdapterTests(unittest.TestCase):
                 result=adapter.query_person({'새신자':'가상','날짜':'9.1','군':'신'},RunOptions(date(2026,10,4),None,settings.roster_start,settings.roster_end))
             self.assertEqual(result['조회 상태'],'조회완료'); self.assertEqual(output.getvalue(),'')
             self.assertEqual(inspect.call_args.kwargs,{'roster_start':'2026-01-01','roster_end':'2026-12-31'})
+
+class ExecutedCall:
+    def __init__(self,action): self.action=action
+    def execute(self): return self.action()
+
+
+class AtomicGoogleAPI:
+    """In-memory Google boundary: each batch applies together or none; response can be lost."""
+    def __init__(self): self.tabs={}; self.calls=[]; self.failure=None
+    def spreadsheets(self): return self
+    def values(self): return self
+    def seed(self,name,body=(),owner='newacts-settlement-desktop-v1'):
+        self.tabs[name]={'properties':{'sheetId':len(self.tabs)+1,'title':name},
+            'developerMetadata':[{'metadataKey':'newacts-owner','metadataValue':owner}],
+            'rows':[list(TAB_HEADERS[name])]+list(body)}
+    def get(self,**kwargs):
+        import copy
+        def read():
+            if 'range' in kwargs:
+                name=kwargs['range'].split('!')[0].strip("'")
+                return {'values':copy.deepcopy(self.tabs[name]['rows'])}
+            return {'sheets':[{k:copy.deepcopy(v) for k,v in tab.items() if k!='rows'} for tab in self.tabs.values()]}
+        return ExecutedCall(read)
+    def _target(self,name,kind):
+        return bool(self.failure and self.failure[0]==kind and (kind=='create' or name=='정착률 월별 이력'))
+    def update(self,**kwargs):
+        def write():
+            self.calls.append(('values.update',kwargs))
+            name,area=kwargs['range'].split('!'); name=name.strip("'")
+            kind='create' if area=='A1' else 'monthly'
+            if self._target(name,kind): raise OSError('legacy separated update failed')
+            import re
+            match=re.fullmatch(r'([A-Z]+)([0-9]+)',area)
+            start=int(match[2])-1; column=0
+            for letter in match[1]: column=column*26+ord(letter)-64
+            column-=1
+            rows=self.tabs[name]['rows']
+            for offset,values in enumerate(kwargs['body']['values']):
+                while len(rows)<=start+offset: rows.append([])
+                destination=rows[start+offset]
+                while len(destination)<column+len(values): destination.append('')
+                destination[column:column+len(values)]=values
+            return {}
+        return ExecutedCall(write)
+    def clear(self,**kwargs):
+        def clear():
+            self.calls.append(('values.clear',kwargs))
+            self.tabs[kwargs['range'].split('!')[0].strip("'")]['rows'][1:]=[]
+            return {}
+        return ExecutedCall(clear)
+    def batchUpdate(self,**kwargs):
+        import copy
+        def apply():
+            requests=kwargs['body']['requests']; self.calls.append(('batchUpdate',kwargs))
+            candidate=copy.deepcopy(self.tabs); targeted=False
+            for req in requests:
+                if 'addSheet' in req:
+                    props=dict(req['addSheet']['properties']); props.setdefault('sheetId',len(candidate)+1)
+                    if props['title'] in candidate: raise ValueError('duplicate title')
+                    candidate[props['title']]={'properties':props,'developerMetadata':[],'rows':[]}
+                elif 'createDeveloperMetadata' in req:
+                    value=req['createDeveloperMetadata']['developerMetadata']
+                    tab=next(t for t in candidate.values() if t['properties']['sheetId']==value['location']['sheetId'])
+                    tab['developerMetadata'].append(value)
+                elif 'updateCells' in req:
+                    data=req['updateCells']; area=data.get('range',data.get('start'))
+                    tab=next(t for t in candidate.values() if t['properties']['sheetId']==area['sheetId'])
+                    start=area.get('startRowIndex',area.get('rowIndex',0)); col=area.get('startColumnIndex',area.get('columnIndex',0))
+                    kind='create' if start==0 else 'monthly'
+                    targeted=targeted or self._target(tab['properties']['title'],kind)
+                    new=[]
+                    for r in data.get('rows',[]):
+                        new.append([next(iter(cell.get('userEnteredValue',{'empty':''}).values())) for cell in r.get('values',[])])
+                    end=area.get('endRowIndex',start+len(new))
+                    while len(tab['rows'])<end: tab['rows'].append([])
+                    for i in range(start,end):
+                        while len(tab['rows'][i])<area.get('endColumnIndex',col+len(new[i-start]) if i-start<len(new) else col): tab['rows'][i].append('')
+                        values=new[i-start] if i-start<len(new) else []
+                        for c in range(col,area.get('endColumnIndex',col+len(values))):
+                            tab['rows'][i][c]=values[c-col] if c-col<len(values) else ''
+                    while tab['rows'] and not any(v!='' for v in tab['rows'][-1]): tab['rows'].pop()
+                else: raise AssertionError('unsupported request')
+            if targeted and self.failure[1]=='before': raise OSError('batch refused before commit')
+            self.tabs=candidate
+            if targeted and self.failure[1]=='after': raise TimeoutError('batch committed response lost')
+            return {'replies':[{'addSheet':{'properties':next(t['properties'] for t in candidate.values() if t['properties']['title']==req['addSheet']['properties']['title'])}} if 'addSheet' in req else {} for req in requests]}
+        return ExecutedCall(apply)
+
+
+class AtomicPublicationTests(unittest.TestCase):
+    # Removing batch atomicity loses old months or leaves an owner/header partial tab.
+    def test_monthly_refusal_and_lost_response_preserve_previous_month_on_resume(self):
+        from desktop.adapters import GoogleSheetsAdapter
+        from desktop.sheets import SheetPublisher, HISTORY_TAB
+        for mode in ('before','after'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                api=AtomicGoogleAPI()
+                old=['2026-09','recent4-v1','previous','2026-09-27','신',1,1,.6,.5,'','','']
+                for name in TAB_HEADERS: api.seed(name,[old] if name==HISTORY_TAB else [])
+                store=HistoryStore(Path(tmp)); publisher=SheetPublisher(GoogleSheetsAdapter(api,'fake'),store)
+                data=[row()]; store.save_snapshot('new',date(2026,10,4),data,'recent4-v1','completed')
+                summary=store.monthly_summary('2026-10','recent4-v1'); api.failure=('monthly',mode)
+                with self.assertRaises(OSError): publisher.publish('new',data,summary)
+                self.assertIn(old,api.tabs[HISTORY_TAB]['rows'])
+                self.assertFalse(store.stage_done('new','monthly'))
+                api.failure=None; restored=HistoryStore(Path(tmp)); original=restored.load_publication('new')
+                SheetPublisher(GoogleSheetsAdapter(api,'fake'),restored).publish('new',original['results'],original['summaries'])
+                self.assertIn(old,api.tabs[HISTORY_TAB]['rows'])
+                self.assertEqual([r[0] for r in api.tabs[HISTORY_TAB]['rows'][1:]],['2026-09','2026-10'])
+                self.assertTrue(restored.stage_done('new','monthly'))
+                self.assertFalse(any(kind=='values.clear' for kind,_ in api.calls))
+    def test_creation_refusal_and_lost_response_resume_without_partial_tabs(self):
+        from desktop.adapters import GoogleSheetsAdapter
+        from desktop.sheets import SheetPublisher, CURRENT_TAB, OWNER
+        for mode in ('before','after'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                api=AtomicGoogleAPI(); api.failure=('create',mode); store=HistoryStore(Path(tmp))
+                publisher=SheetPublisher(GoogleSheetsAdapter(api,'fake'),store)
+                with self.assertRaises(OSError): publisher.publish('new',[row()],[])
+                if mode=='before': self.assertNotIn(CURRENT_TAB,api.tabs)
+                else:
+                    tab=api.tabs[CURRENT_TAB]; self.assertEqual(tab['rows'][:1],[list(TAB_HEADERS[CURRENT_TAB])])
+                    self.assertEqual(tab['developerMetadata'][0]['metadataValue'],OWNER)
+                api.failure=None; original=store.load_publication('new')
+                publisher.publish('new',original['results'],original['summaries'])
+                self.assertTrue(all(store.stage_done('new',stage) for stage in ('current','monthly','care')))
+                self.assertEqual(set(api.tabs),set(TAB_HEADERS))
+    def test_unowned_existing_tab_still_blocks_all_mutations(self):
+        from desktop.adapters import GoogleSheetsAdapter
+        from desktop.sheets import SheetPublisher, CURRENT_TAB
+        with tempfile.TemporaryDirectory() as tmp:
+            api=AtomicGoogleAPI(); api.seed(CURRENT_TAB,[],owner=None)
+            with self.assertRaises(ValueError): SheetPublisher(GoogleSheetsAdapter(api,'fake'),HistoryStore(Path(tmp))).publish('new',[row()],[])
+            self.assertEqual(api.calls,[])
