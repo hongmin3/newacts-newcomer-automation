@@ -190,5 +190,5 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 | REQ-RATEDESKTOP-002 | `settlement-automation/desktop/metrics.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_desktop_metrics.py`, TEST-RATEDESKTOP-002 | draft |
 | REQ-RATEDESKTOP-003 | `settlement-automation/desktop/history.py` | `settlement-automation/tests/test_desktop_history.py`, TEST-RATEDESKTOP-003 | draft |
 | REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py` (화면 연결 대기) | `settlement-automation/tests/test_desktop_sheets.py`, TEST-RATEDESKTOP-004 | draft |
-| REQ-RATEDESKTOP-005 | `settlement-automation/settlement_email.py` (수정 대상) | TEST-RATEDESKTOP-005 | draft |
-| REQ-RATEDESKTOP-006 | `settlement-automation/main.py` (수정 대상) | TEST-RATEDESKTOP-006 | draft |
+| REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, TEST-RATEDESKTOP-005 | draft |
+| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py` | `settlement-automation/tests/test_desktop_service.py`, TEST-RATEDESKTOP-006 | draft |

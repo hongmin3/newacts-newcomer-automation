@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from email.message import EmailMessage
 from pathlib import Path
 
-import config
+from desktop.legacy_config import config
 
 
 ARMY_ORDER = ["신", "조", "명", "총", "석", "전", "영", "슬", "임"]
@@ -164,7 +164,8 @@ def _send(gmail_service, recipients, subject, text_body, html_body):
     message.set_content(text_body)
     message.add_alternative(html_body, subtype="html")
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
-    gmail_service.users().messages().send(userId="me", body={"raw": raw}).execute()
+    response = gmail_service.users().messages().send(userId="me", body={"raw": raw}).execute()
+    return response.get("id")
 
 
 def send_reports(gmail_service, results, as_of, sheet_url, test_mode=False, scope="all"):
@@ -241,3 +242,35 @@ def mark_sent(project_dir, as_of, sent):
         "sent_at": date.today().isoformat(),
         "reports": [item["report"] for item in sent],
     }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def build_report_previews(results, as_of, sheet_url, *, test_mode=False):
+    """Desktop report content uses existing fixed recipient scope, never mutable CLI config."""
+    from desktop.metrics import army_metrics
+    metrics = army_metrics(results)
+    complete = sum(item['completed_count'] for item in metrics)
+    overall_ok = bool(results) and complete / len(results) >= .95
+    grouped = defaultdict(list)
+    for item in results:
+        grouped[item['군']].append(item)
+    definitions = [('overall','전체 새가족 정착률 현황',results,tuple(DEFAULT_ADMIN_RECIPIENTS),overall_ok)]
+    metrics_by_army = {item['army']:item for item in metrics}
+    for army in ARMY_ORDER:
+        if grouped.get(army):
+            definitions.append(('army:'+army,army+'군 새가족 정착률 현황',grouped[army],
+                                (DEFAULT_ARMY_RECIPIENTS[army],),overall_ok and metrics_by_army[army]['completion_rate']>=.95))
+    # Unassigned/unknown groups have visible exclusion reasons and no recipients.
+    for army in ('미배정','군 정보 검토'):
+        items = [p for p in results if (not p.get('군') if army=='미배정' else p.get('군') and p['군'] not in ARMY_ORDER)]
+        if items: definitions.append(('excluded:'+army,army,items,(),False))
+    reports=[]
+    for key,title,items,recipients,quality in definitions:
+        recipients = (DEFAULT_TEST_RECIPIENT,) if test_mode and recipients else recipients
+        enabled=quality and bool(recipients)
+        reports.append(dict(key=key,title=title,recipients=recipients,
+            subject=(' [테스트]' if test_mode else '')+'[새가족부] '+title+' - '+as_of.isoformat(),
+            text=_plain_text(title,items,as_of,sheet_url),
+            html=build_html(title,items,as_of,grouped=grouped if key=='overall' else None,
+                            sheet_url=sheet_url,include_members=key!='overall'),
+            enabled=enabled,reason=None if enabled else ('운영 발송 대상 군이 아닙니다.' if key.startswith('excluded:') else '전체와 해당 군의 조회 완료율이 95% 이상이어야 합니다.')))
+    return reports

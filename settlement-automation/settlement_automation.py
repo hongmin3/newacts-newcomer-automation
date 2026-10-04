@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-import config
+from desktop.legacy_config import config
 
 from desktop.metrics import FORMULA_VERSION, member_metrics, resolve_registration_date
 
@@ -120,17 +120,23 @@ GOOGLE_SCOPES = [
 ]
 
 
-def get_google_credentials(*, paths=None):
-    client_file = Path(getattr(config, "GOOGLE_OAUTH_CLIENT_FILE", "credentials.json"))
-    token_file = Path(getattr(config, "GOOGLE_OAUTH_TOKEN_FILE", "token.json"))
+def get_google_credentials(*, paths=None, settings=None):
+    if settings is not None:
+        client_file, token_file = settings.oauth_client_file, settings.oauth_token_file
+    elif paths is not None:
+        client_file, token_file = paths.oauth_client_file, paths.oauth_token_file
+    else:
+        client_file = Path(getattr(config, "GOOGLE_OAUTH_CLIENT_FILE", "credentials.json"))
+        token_file = Path(getattr(config, "GOOGLE_OAUTH_TOKEN_FILE", "token.json"))
     if not client_file.is_absolute():
         client_file = PROJECT_DIR / client_file
     if not token_file.is_absolute():
         token_file = PROJECT_DIR / token_file
     if paths is not None:
         paths.ensure_directories()
-        client_file = paths.oauth_client_file
-        token_file = paths.oauth_token_file
+        if settings is None:
+            client_file = paths.oauth_client_file
+            token_file = paths.oauth_token_file
     if not client_file.exists():
         raise RuntimeError(f"Google OAuth 파일이 없습니다: {client_file}")
 
@@ -440,7 +446,7 @@ class RunOptions:
     roster_end: date | str | None = None
 
 
-def collect_results(page, right_frame, source_rows, options):
+def collect_results(page, right_frame, source_rows, options, *, on_progress=None):
     results = []
     for index, row in enumerate(source_rows, start=1):
         if options.limit is not None and len(results) >= options.limit:
@@ -495,7 +501,10 @@ def collect_results(page, right_frame, source_rows, options):
         }
         results.append(result)
         rate_text = "-" if result["정착률"] is None else f"{result['정착률']:.1%}"
-        print(f"[{len(results)}/{len(source_rows)}] {name}: {result['조회 상태']} / {rate_text}", flush=True)
+        if on_progress is None:
+            print(f"[{len(results)}/{len(source_rows)}] {name}: {result['조회 상태']} / {rate_text}", flush=True)
+        else:
+            on_progress(len(results), len(source_rows))
     order = {army: index for index, army in enumerate(ARMY_ORDER)}
     results.sort(key=lambda item: (order.get(item["군"], 999), item["군"], item["팀"], item["이름"]))
     for index, item in enumerate(results, start=1):
