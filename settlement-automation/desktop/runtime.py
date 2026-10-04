@@ -66,7 +66,12 @@ def write_private_file(path: Path, content: str) -> None:
     fd, temporary = tempfile.mkstemp(prefix='.' + path.name + '.', dir=path.parent)
     try:
         with os.fdopen(fd, 'w', encoding='utf-8') as handle:
-            os.fchmod(handle.fileno(), 0o600)
+            if hasattr(os, 'fchmod'):
+                os.fchmod(handle.fileno(), 0o600)
+            else:
+                # Windows lacks fchmod. Keep its legacy CLI usable while
+                # retaining POSIX 0600 protection on macOS.
+                os.chmod(temporary, 0o600)
             handle.write(content)
             handle.flush()
             os.fsync(handle.fileno())

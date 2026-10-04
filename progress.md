@@ -17,3 +17,5 @@
 - 2026-10-04: 사용자가 Mac 앱 설계를 승인했다. `specs/settlement-desktop.md`에 REQ-RATEDESKTOP-001~006을 draft로 등록하고 `docs/superpowers/plans/2026-10-04-settlement-mac-app.md`에 6개 구현 작업과 검증·패키징 계획을 작성했다. 계획 검토와 실행 방식 선택 전이며 실행파일은 아직 없다.
 
 - 2026-10-04: Mac 앱 Task 1에서 사용자 저장 경로·비밀 없는 설정·키체인 경계·안전한 Python 테스트 실행기를 구현했다. 기존 CLI 호출은 유지했다. Python 14개, 저장소 검증 7개와 준비 검사를 통과했다. 앱 화면·실제 인증·Chromium·운영 실행은 후속 작업이며 기능 상태는 draft다.
+
+- 2026-10-04: Task 1 검토에서 Windows CLI의 인증 토큰 저장 회귀를 재현하고 수정했다. 파일 권한 함수가 없는 환경에서 기존 Google 인증 호출을 실행하는 테스트를 추가했다. Python 15개·저장소 검증 7개·준비 검사를 통과했으며 Mac 0600 권한은 유지한다.

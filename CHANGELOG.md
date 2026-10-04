@@ -17,6 +17,10 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 
 ## [Unreleased]
 
+### Fixed — 2026-10-04
+
+- REQ-RATEDESKTOP-001: Windows에 없는 파일 권한 함수 때문에 기존 CLI 인증 토큰 저장이 실패하던 문제를 수정했다. Mac 인증 파일은 0600 권한을 유지한다.
+
 ### Added — 2026-10-04
 
 - REQ-RATEDESKTOP-001: 앱을 교체해도 유지되는 사용자 저장 경로, 비밀 없는 설정과 Mac 키체인 경계, 운영 설정을 읽지 않는 Python 테스트 실행기를 추가했다. 앱 화면과 실제 인증은 후속 구현 대상이다.

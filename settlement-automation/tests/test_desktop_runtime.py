@@ -88,6 +88,12 @@ class MemoryKeychain:
 
 class AuthBoundaryTest(unittest.TestCase):
     def test_google_auth_uses_explicit_paths_and_private_token(self):
+        self._exercise_google_auth(cli_without_fchmod=False)
+
+    def test_legacy_google_auth_writes_token_without_fchmod(self):
+        self._exercise_google_auth(cli_without_fchmod=True)
+
+    def _exercise_google_auth(self, *, cli_without_fchmod):
         import sys
         import types
         import settlement_automation as automation
@@ -123,7 +129,16 @@ class AuthBoundaryTest(unittest.TestCase):
                     return Credentials()
             modules['google_auth_oauthlib.flow'].InstalledAppFlow = Flow
             with patch.dict(sys.modules, modules):
-                automation.get_google_credentials(paths=paths)
+                if cli_without_fchmod:
+                    import os
+                    with patch.object(automation.config, 'GOOGLE_OAUTH_CLIENT_FILE', 'credentials.json', create=True), \
+                         patch.object(automation.config, 'GOOGLE_OAUTH_TOKEN_FILE', 'token.json', create=True), \
+                         patch.object(automation, 'PROJECT_DIR', paths.data_root), \
+                         patch.object(os, 'fchmod', create=True):
+                        del os.fchmod
+                        automation.get_google_credentials()
+                else:
+                    automation.get_google_credentials(paths=paths)
             self.assertEqual(json.loads(paths.oauth_token_file.read_text()), {'fake-token': True})
             self.assertEqual(stat.S_IMODE(paths.oauth_token_file.stat().st_mode), 0o600)
 
