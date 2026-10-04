@@ -10,6 +10,8 @@ from urllib.parse import parse_qs, urlparse
 
 import config
 
+from desktop.metrics import FORMULA_VERSION, member_metrics, resolve_registration_date
+
 from settlement_email import (
     already_sent,
     ensure_safe_to_email,
@@ -340,6 +342,9 @@ def select_attendance_year(popup, year):
 
 def read_sunday_attendance(popup, year):
     select_attendance_year(popup, year)
+    selected = popup.locator(f'input[name="{ATTENDANCE_RADIO_NAME}"][value="{year}"]')
+    if not selected.is_checked():
+        raise RuntimeError(f"{year}년 출결 기간을 확인하지 못했습니다.")
     table = popup.locator(f"{ATTENDANCE_AREA} table.defaultTableNoTopLine").first
     sunday_row = table.locator("tr").filter(has_text="주일").first
     boxes = sunday_row.locator('input[type="checkbox"]')
@@ -364,8 +369,18 @@ def dimode_id_from_url(url):
     return parse_qs(urlparse(url).query).get("id", [""])[0]
 
 
-def inspect_person(page, right_frame, row, as_of):
-    registration = parse_registration_date(row.get("날짜"))
+def _registration_for_run(value, roster_start=None, roster_end=None):
+    if roster_start is None and roster_end is None:
+        return parse_registration_date(value)
+    if roster_start is None or roster_end is None:
+        raise ValueError("명단 시작일과 종료일을 모두 설정하세요.")
+    start = date.fromisoformat(roster_start) if isinstance(roster_start, str) else roster_start
+    end = date.fromisoformat(roster_end) if isinstance(roster_end, str) else roster_end
+    return resolve_registration_date(value, start, end)
+
+
+def inspect_person(page, right_frame, row, as_of, *, roster_start=None, roster_end=None):
+    registration = _registration_for_run(row.get("날짜"), roster_start, roster_end)
     possible_dates = sundays_between(registration, as_of)
     if not possible_dates:
         return {
@@ -402,15 +417,11 @@ def inspect_person(page, right_frame, row, as_of):
         attendance = {}
         for year in sorted({item.year for item in possible_dates}):
             attendance.update(read_sunday_attendance(popup, year))
-        attended = sum(bool(attendance.get(item)) for item in possible_dates)
-        recent_dates = possible_dates[-4:]
-        recent_attended = sum(bool(attendance.get(item)) for item in recent_dates)
+        metrics = member_metrics(registration, attendance, as_of)
         return {
             "registration": registration,
-            "possible": len(possible_dates),
-            "attended": attended,
-            "rate": attended / len(possible_dates),
-            "recent": f"{recent_attended}/{len(recent_dates)}",
+            **metrics,
+            "recent": f"{metrics['recent_attended']}/{metrics['recent_possible']}",
             "status": "조회완료",
             "note": "",
             "dimode_id": dimode_id_from_url(popup.url),
@@ -425,6 +436,8 @@ def inspect_person(page, right_frame, row, as_of):
 class RunOptions:
     as_of: date
     limit: int | None
+    roster_start: date | str | None = None
+    roster_end: date | str | None = None
 
 
 def collect_results(page, right_frame, source_rows, options):
@@ -434,10 +447,13 @@ def collect_results(page, right_frame, source_rows, options):
             break
         name = normalize_text(row.get("새신자"))
         try:
-            inspected = inspect_person(page, right_frame, row, options.as_of)
+            period = {}
+            if options.roster_start is not None or options.roster_end is not None:
+                period = {"roster_start": options.roster_start, "roster_end": options.roster_end}
+            inspected = inspect_person(page, right_frame, row, options.as_of, **period)
         except Exception as exc:
             try:
-                registration = parse_registration_date(row.get("날짜"))
+                registration = _registration_for_run(row.get("날짜"), options.roster_start, options.roster_end)
                 possible = len(sundays_between(registration, options.as_of))
             except ValueError:
                 registration, possible = None, 0
@@ -451,7 +467,16 @@ def collect_results(page, right_frame, source_rows, options):
                 "note": str(exc)[:180],
                 "dimode_id": "",
             }
+        metrics = member_metrics(inspected["registration"], {}, options.as_of) if inspected["registration"] else {
+            "possible": 0, "recent_possible": 0, "observation_status": "확인 필요",
+            "formula_version": FORMULA_VERSION,
+        }
+        if inspected["status"] == "조회완료":
+            metrics.update({key: inspected[key] for key in metrics if key in inspected})
+        else:
+            metrics.update({"attended": None, "rate": None, "recent_attended": None, "recent_rate": None})
         result = {
+            **metrics,
             "No.": index,
             "군": normalize_army(inspected.get("latest_army") or row.get("군")),
             "팀": normalize_team(inspected.get("latest_team") or row.get("팀")),
