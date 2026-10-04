@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         self.as_of=QDateEdit(QDate.currentDate()); self.as_of.setCalendarPopup(True); self.as_of.setEnabled(False)
         self.historical.toggled.connect(self.as_of.setEnabled); controls.addWidget(self.as_of)
         self.run_button=QPushButton('새 조회 시작'); self.run_button.clicked.connect(self.start_run); controls.addWidget(self.run_button)
-        self.cancel_button=QPushButton('취소'); self.cancel_button.clicked.connect(self.cancel.set); controls.addWidget(self.cancel_button)
+        self.cancel_button=QPushButton('취소'); self.cancel_button.clicked.connect(self.request_cancel); controls.addWidget(self.cancel_button)
         self.reset_button=QPushButton('인증 다시 설정'); self.reset_button.clicked.connect(lambda:self.setup_panel.show()); controls.addWidget(self.reset_button)
         layout.addLayout(controls)
         self.pending_combo=QComboBox(); self.resume_button=QPushButton('선택 실행 이어서'); self.resume_button.clicked.connect(self.resume_selected)
@@ -77,6 +77,10 @@ class MainWindow(QMainWindow):
             # Interrupted work requires a human recovery/new-run choice.
             if self.pending_combo.count(): self.status_label.setText('중단된 실행이 있습니다. 이어서 실행하거나 새 조회를 선택해 주세요.')
             else: QTimer.singleShot(0,self.start_run)
+
+    @Slot()
+    def request_cancel(self):
+        self.cancel.set()
 
     def pick_client(self):
         path,_=QFileDialog.getOpenFileName(self,'Google 인증 파일 선택','','JSON (*.json)')

@@ -127,3 +127,46 @@ class WindowTests(unittest.TestCase):
         self.paths.ensure_directories(); self.paths.settings_file.write_text('{broken')
         s=FakeService(); w=self.window(None,s); self.app.processEvents()
         self.assertTrue(w.setup_panel.isVisible()); self.assertEqual(s.run_calls,0)
+    def test_cancel_button_cancels_current_and_next_worker_without_publication(self):
+        s=FakeService(wait=True); w=self.window(self.settings,s)
+        self.pump(lambda:s.cancel is not None)
+        first=s.cancel
+        w.cancel_button.click()
+        self.assertTrue(first.is_set(), '취소 버튼은 현재 worker 이벤트를 설정해야 한다')
+        self.pump(lambda:w.outcome is not None and w.thread is None)
+        self.assertEqual(w.outcome.status,'cancelled')
+        self.assertFalse(w.outcome.sheet_published)
+        w.run_button.click()
+        self.pump(lambda:s.run_calls==2 and s.cancel is not first)
+        second=s.cancel
+        self.assertFalse(second.is_set(), '새 조회에는 새 취소 이벤트가 필요하다')
+        w.cancel_button.click()
+        self.assertTrue(second.is_set(), '두 번째 worker도 버튼으로 취소해야 한다')
+        self.pump(lambda:w.outcome is not None and w.thread is None)
+        self.assertEqual(w.outcome.status,'cancelled')
+        self.assertFalse(w.outcome.sheet_published)
+        self.assertEqual(s.mail_calls,0)
+    def test_cancel_button_blocks_real_service_publication_and_mail(self):
+        from desktop.service import SettlementService
+        from test_desktop_service import FakeAdapter, row
+        adapter=FakeAdapter([row(0),row(1)])
+        entered=threading.Event(); release=threading.Event()
+        adapter.after_query=lambda:(entered.set(),release.wait(2))
+        service=SettlementService(adapter=adapter)
+        w=self.window(self.settings,service)
+        try:
+            for attempt in range(2):
+                if attempt: w.run_button.click()
+                self.pump(entered.is_set)
+                w.cancel_button.click()
+                self.assertTrue(w.cancel.is_set())
+                release.set()
+                self.pump(lambda:w.outcome is not None and w.thread is None)
+                self.assertEqual(w.outcome.status,'cancelled')
+                self.assertFalse(w.outcome.sheet_published)
+                self.assertEqual(adapter.sheets.writes,[])
+                self.assertEqual(adapter.sheets.tabs,{})
+                self.assertEqual(adapter.legacy,[])
+                self.assertEqual(adapter.send_calls,[])
+                entered.clear(); release.clear()
+        finally: release.set()
