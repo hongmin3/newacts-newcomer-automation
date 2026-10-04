@@ -95,3 +95,21 @@ update_cells(name, [(row, column, value), ...]) -> None  # 0부터 시작하는 
 Task Observer: 저장소 확인, 보존된 bash frontmatter scan·checkpoint 기록, 원칙 확인, 리뷰 날짜 2026-09-28 확인을 실행했다. 7일 미만으로 리뷰 대상이 아니다. task-observer와 test-driven-development를 지목한 활성 관찰은 없었다. 기록 없음: 일반 구현·테스트 보완 외 새 스킬 개선 신호가 없었다.
 
 Akela registration slice를 읽고 data-effects/config-invariants/personal-data/local-tests 적용을 기록했다. outcome DONE. observer와 akela runtime 기록은 커밋에서 제외했다. push 없음.
+
+## 검토 수정 1: 혼합 조회 상태의 중복 ID
+
+BASE `aac12c1`의 Important finding을 재현했다. 기존 구현은 조회완료 행을 먼저 골라 같은 ID의 조회오류 행을 중복 판정에서 빼고 있었다. 전체 입력의 비어 있지 않은 ID를 먼저 묶은 뒤, 빈도가 1이고 조회완료인 행만 돌봄에 연결하도록 수정했다. SPEC 변경은 없다.
+
+회귀 시험 `test_mixed_status_duplicate_id_preserves_care_and_does_not_add`는 기존 돌봄 행·새 ID 각각에 조회완료/조회오류 두 행을 넣는다. 기존 3개 자동 열과 5개 수동 열 전체가 그대로이고 새 행도 없으며 돌봄 탭 외부 쓰기 0회임을 확인한다.
+
+RED/GREEN covering 명령:
+
+```bash
+settlement-automation/.venv/bin/python -B -c 'import runpy, unittest, sys; runpy.run_path("settlement-automation/tests/run_tests.py"); suite=unittest.defaultTestLoader.discover("settlement-automation/tests",pattern="test_desktop_sheets.py"); result=unittest.TextTestRunner().run(suite); sys.exit(not result.wasSuccessful())'
+```
+
+- RED: `Ran 8 tests in 0.042s`, `FAILED (failures=1)`. 기존 ID의 군이 신→조로 바뀌고 new ID 행이 생겨 전체 행 비교가 실패했다.
+- GREEN: `Ran 8 tests in 0.042s`, `OK`. 운영 config를 가리는 공통 실행기를 사용했고 외부 경계는 FakeSheet다.
+- 후속 계약 변경: 같은 ID의 모든 상태를 포함하여 빈도를 센다. 빈도 1+조회완료만 갱신한다. 생성자·복구 API·열 계약은 그대로다.
+- HTML 재생성·준비 검사 failed=0·diff 검사를 통과했다. 실제 운영 호출·push 없음.
+- Task Observer 시작 스캔·checkpoint·리뷰 날짜를 다시 확인했다. 기록 없음: 작업 산출물 결함이며 새 스킬 개선 신호 없음. Akela registration slice를 읽고 적용 규칙과 outcome DONE을 기록했다. runtime 기록은 커밋에서 제외했다.

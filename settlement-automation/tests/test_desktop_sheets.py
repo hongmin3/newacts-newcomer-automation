@@ -111,3 +111,14 @@ class SheetTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.publisher.publish('r1',[member(army='조')],[])
         self.assertEqual(self.sheet.write_calls,[])
+
+    def test_mixed_status_duplicate_id_preserves_care_and_does_not_add(self):
+        self.publisher.publish('seed',[member('existing',army='신')],[])
+        self.sheet.tabs[CARE_TAB][1][3:] = ['담당자','2026-10-01','연락 완료','2026-10-08','수동 메모']
+        before = copy.deepcopy(self.sheet.tabs[CARE_TAB])
+        self.sheet.write_calls.clear()
+        results = [member('existing',army='조'),member('existing',army='명',status='조회오류'),
+                   member('new',army='조'),member('new',army='명',status='조회오류')]
+        self.publisher.publish('mixed',results,[])
+        self.assertEqual(self.sheet.tabs[CARE_TAB],before)
+        self.assertEqual([call for call in self.sheet.write_calls if call[1] == CARE_TAB],[])

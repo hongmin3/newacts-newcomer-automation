@@ -73,13 +73,15 @@ class SheetPublisher:
             incoming = {}
             for person in results:
                 person_id = str(person.get('디모데 ID',person.get('dimode_id','')) or '').strip()
-                if person_id and person.get('조회 상태',person.get('status')) == '조회완료':
+                if person_id:
                     incoming.setdefault(person_id,[]).append(person)
             next_row = len(rows)
             for person_id,matches in incoming.items():
                 if len(matches) != 1:
                     continue
                 person = matches[0]
+                if person.get('조회 상태',person.get('status')) != '조회완료':
+                    continue
                 index = indexes.get(person_id)
                 if index is None:
                     index = next_row
