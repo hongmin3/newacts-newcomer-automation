@@ -7,7 +7,7 @@ if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ]]; then
   echo 'Apple Silicon Mac에서 빌드해 주세요.' >&2; exit 1
 fi
 "$python_bin" -m pip check
-"$python_bin" -c 'import subprocess,pathlib; actual=set(subprocess.check_output([".venv/bin/python","-m","pip","freeze"],text=True).splitlines()); expected=set(pathlib.Path("requirements-mac.lock").read_text().splitlines()); assert actual==expected, "잠금 파일과 설치 의존성이 다릅니다."' 
+"$python_bin" -c 'import subprocess,pathlib; actual=set(subprocess.check_output([".venv/bin/python","-m","pip","freeze"],text=True).splitlines()); expected=set(pathlib.Path("requirements-mac.lock").read_text().splitlines()); assert actual==expected, "잠금 파일과 설치 의존성이 다릅니다."'
 # Strict resource allowlist: the source tree and operational config never become payload.
 payload_dir="$(mktemp -d -t newacts-build)"
 trap 'rm -rf "$payload_dir"' EXIT
