@@ -1,5 +1,6 @@
 {
   "verify": [
-    "npm test"
+    "npm test",
+    "QT_QPA_PLATFORM=offscreen settlement-automation/.venv/bin/python -B settlement-automation/tests/run_tests.py"
   ]
 }

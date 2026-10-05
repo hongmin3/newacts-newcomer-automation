@@ -2,6 +2,52 @@
 
 `등록 새가족` 시트의 명단을 디모데 교인 상세페이지와 대조하고, 등록일부터 실행 기준일까지의 주일 출석률을 계산해 같은 스프레드시트의 `정착률` 탭을 갱신합니다.
 
+## Mac 빠른 시작
+
+Apple Silicon Mac에서는 사용자 `Applications` 폴더의 `새가족 정착률.app`을 더블클릭합니다.
+앱에 Python과 Chromium이 포함되어 있어 사용할 때 패키지를 설치할 필요가 없습니다.
+
+1. Google OAuth 인증 파일과 디모데 계정·암호, 명단 기간을 준비합니다.
+2. 최초 설정 화면에서 인증 파일을 선택하고 로그인을 승인합니다. 암호는 Mac 키체인에 저장합니다.
+3. 인증 완료 후 조회와 시트 갱신이 시작됩니다. 이후 실행은 Asia/Seoul 당일 기준으로 시작합니다.
+4. 군별 결과와 메일 미리보기를 확인합니다. 메일은 선택한 보고서의 발송 버튼을 눌렀을 때만 보냅니다.
+
+설정·인증 토큰·CSV·SQLite 이력은 `~/Library/Application Support/NewactsSettlement/`,
+로그는 `~/Library/Logs/NewactsSettlement/`에 둡니다. 앱을 이동하거나 교체해도 이 폴더는 유지됩니다.
+기존 Windows 예약 실행·발송 상태를 확인한 뒤 운영을 전환합니다. Mac 예약 실행은 제공하지 않습니다.
+현재 앱의 실제 Google·디모데 인증, 운영 시트 갱신과 메일 도착은 미확인입니다.
+
+### Mac에서 확인할 시트
+
+조회가 완료되면 기존 `정착률` 탭과 함께 다음 시트를 갱신합니다.
+
+| 시트 | 확인하는 내용 |
+|---|---|
+| `군별 정착 현황` | 기준일별 인원·조회 완료율·누적 및 최근 4주 출석률·전월 차이 |
+| `정착률 월별 이력` | 군·월·산식 버전별 마지막 정상 결과와 전월 차이 |
+| `새가족 돌봄 기록` | 확정된 디모데 ID로 연결한 새가족의 이름·군과 담당자 기록 |
+
+`새가족 돌봄 기록`의 담당자·연락일·진행 상태·다음 확인일·메모는 사람이 입력하며 자동 갱신이 덮어쓰지 않습니다. 군이 바뀌어도 같은 디모데 ID의 기록을 이어갑니다. 기존 관리 탭의 열 구성이나 소유 표시가 맞지 않으면 갱신을 멈추고 확인을 요청합니다.
+
+### 개발자 빌드와 검증
+
+Apple Silicon macOS 13 이상, Python 3.14 환경에서 저장소 루트에서 실행합니다.
+
+```bash
+python3 -m venv settlement-automation/.venv
+settlement-automation/.venv/bin/python -m pip install -r settlement-automation/requirements-mac.lock
+PLAYWRIGHT_BROWSERS_PATH=settlement-automation/.venv/playwright-browsers settlement-automation/.venv/bin/python -m playwright install chromium
+QT_QPA_PLATFORM=offscreen settlement-automation/.venv/bin/python -B settlement-automation/tests/run_tests.py
+settlement-automation/build_mac.sh
+```
+
+빌드는 `settlement-automation/dist/새가족 정착률.app`을 만듭니다. 서명은 로컬 실행용이며 공증은 하지 않았습니다.
+개발자 자체 검사는 제품 화면에 표시하지 않으며 임시 사용자 데이터와 가짜 외부 연결만 사용합니다.
+
+```bash
+"settlement-automation/dist/새가족 정착률.app/Contents/MacOS/NewactsSettlement" --self-test
+```
+
 ## 계산 기준
 
 - `12/28`은 `2025-12-28`, `1/4` 이후 월/일은 2026년으로 해석합니다.
@@ -108,7 +154,7 @@ Windows 작업 스케줄러는 매주 화요일 오전 9시에 `run_monthly.ps1`
 - 교인을 한 명으로 확정하지 못하면 출석률을 만들지 않고 상태와 사유만 기록합니다.
 - 디모데에는 어떤 값도 저장하지 않습니다. 출결 체크박스도 읽기 전용입니다.
 - 원본 `등록 새가족` 탭은 수정하지 않습니다.
-- `정착률` 탭만 자동화가 전체 갱신합니다.
+- 기존 Windows CLI는 `정착률` 탭만 전체 갱신합니다. Mac 앱은 위의 세 관리 시트도 갱신하며 돌봄 기록의 수동 입력 열을 보존합니다.
 - 자격 증명과 실행 결과는 `.gitignore`에 포함되어 있습니다.
 
 ## AI 에이전트 Context 관리 (Akela)

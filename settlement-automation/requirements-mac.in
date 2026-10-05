@@ -1,2 +1,4 @@
 -r requirements.txt
 keyring>=25,<26
+PySide6>=6.11,<7
+PyInstaller>=6.22,<7

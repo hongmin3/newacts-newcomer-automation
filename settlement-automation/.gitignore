@@ -13,3 +13,6 @@ output/
 repair_retry_merge.py
 .akela/
 akela/.cache/
+
+# Mac packaging outputs
+build/

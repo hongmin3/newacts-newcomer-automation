@@ -15,6 +15,11 @@
 
 Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책이 있으면 그것을 따른다.
 
+## 2026-10-04 Mac 앱 패키징과 화면
+
+- REQ-RATEDESKTOP-001: Apple Silicon 앱에 Python·Qt·Chromium을 포함했다. 인증·이력은 사용자 폴더에 남으며 앱 포함 파일과 브라우저 누락을 검사한다.
+- REQ-RATEDESKTOP-001, REQ-RATEDESKTOP-004, REQ-RATEDESKTOP-005, REQ-RATEDESKTOP-006: Mac 최초 설정·인증 확인·진행·취소·중단 복구 화면을 연결했다. 군별 현황과 보고서를 확인한 뒤 선택 발송하며 조회만으로 메일을 보내지 않는다. 가짜 외부 서비스로 Qt 화면을 검증했다. 운영 인증과 실제 시트·메일은 별도 확인 대상이다.
+
 ## 2026-10-04 Mac 시트 복구 수정
 
 - REQ-RATEDESKTOP-003: 월별 본문 교체를 한 요청으로 처리하여 쓰기 실패 후에도 이전 월 기록을 보존한다.
@@ -152,5 +157,3 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 ### Added
 
 - SPEC.md 도입 — 기존 동작을 Requirement로 문서화 (REQ-*/NFR-*)
-
-- REQ-RATEDESKTOP-001, REQ-RATEDESKTOP-004, REQ-RATEDESKTOP-005, REQ-RATEDESKTOP-006: Mac 최초 설정·인증 확인·진행·취소·중단 복구 화면을 연결했다. 군별 현황과 보고서를 확인한 뒤 선택 발송하며 조회만으로 메일을 보내지 않는다. 가짜 외부 서비스로 Qt 화면을 검증했다. 앱 패키징과 운영 인증은 후속 확인 대상이다.

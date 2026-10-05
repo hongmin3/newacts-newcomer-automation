@@ -8,7 +8,7 @@
 | 기능 ID | `settlement-desktop` |
 | Document Version | 0.1.0 |
 | Last Updated | 2026-10-04 |
-| Status | draft |
+| Status | implemented |
 
 먼저 목적과 사용 순서를 읽고 필요한 요구사항을 찾는다.
 공통 보안·데이터 보존 규칙은 상위 사양을 따른다.
@@ -181,14 +181,14 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 
 ## 12. 요구사항 추적성
 
-현재 모든 행은 draft다. Implementation은 새 기능을 연결할 기존 코드의 수정 대상이다.
-새 기능을 이미 구현했다는 뜻이 아니며, 구현 후 새 모듈과 실제 테스트 연결로 갱신한다.
+아래 자동 검증은 가짜 외부 서비스로 계산·이력·화면·복구 경계를 확인한다.
+운영 인증, 실제 시트 갱신과 메일 도착은 별도 확인이 필요하다.
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
-| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/desktop/window.py`, `settlement-automation/desktop_app.py` | `settlement-automation/tests/test_desktop_runtime.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-001 | draft |
-| REQ-RATEDESKTOP-002 | `settlement-automation/desktop/metrics.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_desktop_metrics.py`, TEST-RATEDESKTOP-002 | draft |
-| REQ-RATEDESKTOP-003 | `settlement-automation/desktop/history.py` | `settlement-automation/tests/test_desktop_history.py`, TEST-RATEDESKTOP-003 | draft |
-| REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py`, `settlement-automation/desktop/window.py` | `settlement-automation/tests/test_desktop_sheets.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-004 | draft |
-| REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-005 | draft |
-| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | draft |
+| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/desktop/window.py`, `settlement-automation/desktop_app.py`, `settlement-automation/build_mac.sh`, `settlement-automation/settlement-mac.spec` | `settlement-automation/tests/test_desktop_bundle.py`, `settlement-automation/tests/test_desktop_runtime.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-001 | verified |
+| REQ-RATEDESKTOP-002 | `settlement-automation/desktop/metrics.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_desktop_metrics.py`, TEST-RATEDESKTOP-002 | verified |
+| REQ-RATEDESKTOP-003 | `settlement-automation/desktop/history.py` | `settlement-automation/tests/test_desktop_history.py`, TEST-RATEDESKTOP-003 | verified |
+| REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py`, `settlement-automation/desktop/window.py` | `settlement-automation/tests/test_desktop_sheets.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-004 | verified |
+| REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-005 | verified |
+| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | verified |
