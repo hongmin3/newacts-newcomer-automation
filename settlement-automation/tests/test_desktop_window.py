@@ -170,3 +170,81 @@ class WindowTests(unittest.TestCase):
                 self.assertEqual(adapter.send_calls,[])
                 entered.clear(); release.clear()
         finally: release.set()
+    def test_setup_trial_runs_real_service_one_person_without_sheets_or_mail(self):
+        from desktop.service import SettlementService
+        from test_desktop_service import FakeAdapter,row
+        class Secrets:
+            def set_password(self,*args): pass
+        adapter=FakeAdapter([row(0),row(1)])
+        service=SettlementService(adapter,Secrets()); w=self.window(None,service)
+        client=Path(self.temp.name)/'picked.json'; client.write_text('{"installed":{}}')
+        w.client_edit.setText(str(client)); w.account_edit.setText('fake'); w.password_edit.setText('fake')
+        w.trial_button.click(); self.pump(lambda:w.outcome is not None and w.thread is None)
+        self.assertEqual(w.outcome.status,'test'); self.assertEqual(len(adapter.queries),1)
+        self.assertEqual(adapter.legacy,[]); self.assertEqual(adapter.sheets.writes,[]); self.assertEqual(adapter.send_calls,[])
+        self.assertFalse(w.preview_button.isEnabled()); self.assertFalse(w.send_button.isEnabled())
+        with service.history._connect() as db:
+            self.assertEqual(db.execute('SELECT status,selected FROM runs').fetchall(),[('test',0)])
+        self.app.processEvents(); self.assertEqual(len(adapter.queries),1)
+    def test_reset_authentication_forces_real_credential_flow(self):
+        from desktop.adapters import ProductionAdapter
+        from desktop.service import SettlementService
+        from unittest.mock import patch,Mock
+        class Secrets:
+            def set_password(self,*args): pass
+            def get_password(self,*args): return 'fake'
+        adapter=ProductionAdapter(); service=SettlementService(adapter,Secrets())
+        service.pending_runs=lambda paths:[{'run_id':'hold','as_of':'2026-10-04','stage':'authentication'}]
+        service.run=Mock(return_value=RunOutcome('fake','completed',date(2026,10,4)))
+        w=self.window(self.settings,service)
+        self.paths.ensure_directories(); self.paths.oauth_client_file.write_text('{}'); self.paths.oauth_token_file.write_text('broken')
+        w.reset_button.click(); w.password_edit.setText('fake')
+        fresh=Mock(); fresh.to_json.return_value='{}'
+        with patch('google.oauth2.credentials.Credentials.from_authorized_user_file') as read, patch('google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file') as flow, patch('googleapiclient.discovery.build'),patch('playwright.sync_api.sync_playwright'),patch('settlement_automation.wait_for_login'),patch('settlement_automation.spreadsheet_id_from_url',return_value='test-only'):
+            flow.return_value.run_local_server.return_value=fresh
+            w.setup_button.click(); self.pump(lambda:w.thread is None)
+            self.assertIsNotNone(w.outcome,w.status_label.text()+self.paths.log_file.read_text() if self.paths.log_file.exists() else w.status_label.text())
+        read.assert_not_called(); flow.return_value.run_local_server.assert_called_once_with(port=0,prompt='select_account')
+    def test_history_table_renders_missing_month_and_empty_ratio(self):
+        from desktop.service import SettlementService
+        from test_desktop_service import FakeAdapter,row
+        service=SettlementService(FakeAdapter([row()]))
+        service.run(__import__('desktop.service',fromlist=['RunRequest']).RunRequest(as_of=date(2026,8,31)),self.settings,self.paths,lambda _:None,threading.Event())
+        w=self.window(self.settings,service)
+        w.historical.setChecked(True); w.as_of.setDate(__import__('PySide6.QtCore',fromlist=['QDate']).QDate(2026,10,4))
+        self.pump(lambda:w.outcome is not None and w.thread is None)
+        values=[[w.history_table.item(r,c).text() for c in range(w.history_table.columnCount())] for r in range(w.history_table.rowCount())]
+        missing=next(r for r in values if r[0]=='2026-09')
+        self.assertEqual(missing[1],'미실행'); self.assertTrue(all(v=='' for v in missing[3:]))
+    def test_typed_setup_errors_offer_specific_guidance_and_private_diagnostic(self):
+        from desktop.service import SettlementService
+        from test_desktop_service import FakeAdapter,row
+        class Secrets:
+            def set_password(self,*args): pass
+        w=self.window(None,SettlementService(FakeAdapter([row()]),Secrets()))
+        client=Path(self.temp.name)/'picked.json'; client.write_text('{private-broken')
+        w.client_edit.setText(str(client)); w.account_edit.setText('fake'); w.password_edit.setText('private-password')
+        w.setup_button.click(); self.pump(lambda:w.thread is None)
+        self.assertIn('Google 인증 파일',w.status_label.text()); self.assertNotIn('다시 시도',w.status_label.text())
+        self.assertNotIn('private',w.status_label.text()+self.paths.log_file.read_text())
+
+    def test_sheet_validation_outcome_is_visible_in_window(self):
+        from desktop.service import SettlementService
+        from desktop.sheets import CURRENT_TAB
+        from test_desktop_service import FakeAdapter,row
+        adapter=FakeAdapter([row()]); adapter.sheets.tabs[CURRENT_TAB]=[['existing']]
+        w=self.window(self.settings,SettlementService(adapter))
+        self.pump(lambda:w.outcome is not None and w.thread is None)
+        self.assertEqual(w.outcome.status,'validation_blocked')
+        self.assertIn(CURRENT_TAB,w.status_label.text()); self.assertIn('열 구성',w.status_label.text())
+        self.assertNotIn('다시 시도',w.status_label.text())
+    def test_date_and_file_access_guidance_are_typed_without_paths(self):
+        from desktop.errors import diagnose,ValidationIssue
+        from dataclasses import replace
+        invalid=replace(self.settings,roster_start='2026-12-31',roster_end='2026-01-01')
+        with self.assertRaises(ValidationIssue) as caught: invalid.validate()
+        failure=diagnose(caught.exception,'setup',self.paths)
+        self.assertEqual(failure.code,'date'); self.assertIn('시작일',failure.guidance)
+        failure=diagnose(PermissionError('secret-path'),'setup',self.paths)
+        self.assertEqual(failure.code,'file_access'); self.assertIn('접근 권한',failure.guidance)
+        self.assertNotIn('secret-path',failure.guidance+self.paths.log_file.read_text())

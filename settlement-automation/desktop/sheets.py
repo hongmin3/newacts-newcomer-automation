@@ -1,5 +1,6 @@
 """Owned desktop tabs only; external sheet access is explicitly injected."""
 from .metrics import army_metrics
+from .errors import ValidationIssue
 
 OWNER = 'newacts-settlement-desktop-v1'
 CURRENT_TAB = '군별 정착 현황'
@@ -33,11 +34,11 @@ class SheetPublisher:
             rows = self.sheets.read_tab(name)
             existing[name] = rows
             if rows is not None and (self.sheets.ownership(name) != OWNER or not rows or tuple(rows[0]) != headers):
-                raise ValueError('기존 관리 탭의 소유 구조 확인이 필요합니다: ' + name)
+                raise ValidationIssue('sheet_structure',tab=name)
         care = existing[CARE_TAB] or [list(TAB_HEADERS[CARE_TAB])]
         ids = [str(row[0]) for row in care[1:] if row and row[0]]
         if len(ids) != len(set(ids)):
-            raise ValueError('돌봄 기록의 디모데 ID 중복을 확인해 주세요.')
+            raise ValidationIssue('duplicate_id')
         for name,headers in TAB_HEADERS.items():
             if existing[name] is None:
                 self.sheets.create_tab(name,headers,OWNER)

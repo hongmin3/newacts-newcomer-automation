@@ -7,7 +7,7 @@
 | 상위 사양 | [SPEC.md](../SPEC.md) |
 | 기능 ID | `settlement-desktop` |
 | Document Version | 0.1.0 |
-| Last Updated | 2026-10-04 |
+| Last Updated | 2026-10-05 |
 | Status | implemented |
 
 먼저 목적과 사용 순서를 읽고 필요한 요구사항을 찾는다.
@@ -52,6 +52,7 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 2. 설정된 앱은 실행 당일을 Asia/Seoul 기준일로 사용한다. 과거 기준일은 화면에서 선택한다.
 3. 명단 읽기·출결 조회·계산·시트 갱신의 진행을 표시한다.
 4. 완료 후 시트 열기·군별 현황·메일 미리보기를 제공한다.
+5. 최초 설정에서 `1명 시험 조회`를 선택하면 인증 후 1명만 조회한다. 시트를 바꾸거나 메일을 보내지 않고 시험 이력으로 보관한다. 시험 완료 뒤 전체 조회는 사용자가 시작한다. 일반 설정 완료 후에는 전체 조회를 시작한다.
 
 #### 지킬 것
 인증·결과는 앱 외부 사용자 Application Support 폴더에 보관한다. 암호는 Mac 키체인에 보관한다.
@@ -152,7 +153,8 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 ### TEST-RATEDESKTOP-001 앱 실행과 인증
 
 최초 설정·인증 만료·설정 완료·앱 교체를 시험한다. 미인증 상태는 외부 변경 0회,
-인증된 상태는 작업 1회, 메일 발송 0회인지 확인한다. Finder에서 앱을 열어 화면과 Chromium을 확인한다.
+인증된 상태는 작업 1회, 메일 발송 0회인지 확인한다. 무효·깨진·정상 토큰의 명시적 재승인과 일시적 갱신 실패 안내를 구분한다.
+최초 설정의 1명 시험 조회는 실제 실행 서비스와 가짜 외부 연결로 시험한다. 조회 1명·시트 변경 0회·메일 0회·별도 시험 이력·후속 전체 조회 없음인지 확인한다. Finder에서 앱을 열어 화면과 Chromium을 확인한다.
 
 ### TEST-RATEDESKTOP-002 출석 계산 경계
 
@@ -186,9 +188,9 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
-| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/desktop/window.py`, `settlement-automation/desktop_app.py`, `settlement-automation/build_mac.sh`, `settlement-automation/settlement-mac.spec` | `settlement-automation/tests/test_desktop_bundle.py`, `settlement-automation/tests/test_desktop_runtime.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-001 | verified |
-| REQ-RATEDESKTOP-002 | `settlement-automation/desktop/metrics.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_desktop_metrics.py`, TEST-RATEDESKTOP-002 | verified |
-| REQ-RATEDESKTOP-003 | `settlement-automation/desktop/history.py` | `settlement-automation/tests/test_desktop_history.py`, TEST-RATEDESKTOP-003 | verified |
+| REQ-RATEDESKTOP-001 | `settlement-automation/desktop/runtime.py`, `settlement-automation/desktop/settings.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/desktop/window.py`, `settlement-automation/desktop_app.py`, `settlement-automation/build_mac.sh`, `settlement-automation/settlement-mac.spec` | `settlement-automation/tests/test_desktop_bundle.py`, `settlement-automation/tests/test_desktop_runtime.py`, `settlement-automation/tests/test_desktop_final_fixes.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-001 | verified |
+| REQ-RATEDESKTOP-002 | `settlement-automation/desktop/metrics.py`, `settlement-automation/desktop/service.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_desktop_metrics.py`, `settlement-automation/tests/test_desktop_final_fixes.py`, TEST-RATEDESKTOP-002 | verified |
+| REQ-RATEDESKTOP-003 | `settlement-automation/desktop/history.py`, `settlement-automation/desktop/window.py` | `settlement-automation/tests/test_desktop_history.py`, `settlement-automation/tests/test_desktop_final_fixes.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-003 | verified |
 | REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py`, `settlement-automation/desktop/window.py` | `settlement-automation/tests/test_desktop_sheets.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-004 | verified |
 | REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-005 | verified |
-| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | verified |
+| REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/desktop/errors.py` | `settlement-automation/tests/test_desktop_final_fixes.py`, `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | verified |

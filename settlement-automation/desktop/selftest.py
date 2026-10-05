@@ -66,6 +66,7 @@ def run(home=None,visible=False):
         if home==Path.home().resolve() or 'newacts' not in home.name:
             raise ValueError('자체 검사에는 newacts 이름의 격리 폴더만 사용할 수 있습니다.')
         paths=RuntimePaths.for_user(home); paths.ensure_directories()
+        prior_settings=paths.settings_file.read_bytes() if paths.settings_file.exists() else None
         settings=replace(load_settings(paths),sheet_url='https://example.invalid',dimode_url='https://example.invalid',dimode_account='fake',roster_start='2026-01-01',roster_end='2026-12-31')
         adapter=LocalAdapter(); service=SettlementService(adapter,LocalSecrets())
         def pump(predicate,seconds=10):
@@ -76,7 +77,7 @@ def run(home=None,visible=False):
         assert setup.outcome is None and setup.status_label.text()=='최초 설정을 완료해 주세요.'
         if visible: setup.grab().save(str(home/'setup.png'))
         setup.close(); app.processEvents()
-        save_settings(paths,settings)
+        if prior_settings is None: save_settings(paths,settings)
         before=paths.settings_file.read_bytes()
         outcome=service.run(RunRequest(as_of=date(2026,10,4)),settings,paths,lambda event:None,Event())
         assert outcome.status=='completed' and outcome.sheet_published and adapter.mail_calls==0
@@ -108,7 +109,8 @@ def run(home=None,visible=False):
             browser.close()
         result={'status':'PASS','frozen':bool(getattr(sys,'frozen',False)),'architecture':platform.machine(),
                 'resources':str(resource_path('config.example.py')),'browser_root':str(browser_root),
-                'sqlite':sqlite3.sqlite_version,'history_runs':count,'mail_calls':adapter.mail_calls,'settings_preserved':True}
+                'sqlite':sqlite3.sqlite_version,'history_runs':count,'mail_calls':adapter.mail_calls,'settings_preserved':True,
+                'prior_settings_preserved':prior_settings is None or paths.settings_file.read_bytes()==prior_settings}
         print(json.dumps(result,ensure_ascii=False),flush=True)
         if visible: (home/'result.json').write_text(json.dumps(result,ensure_ascii=False))
     return 0

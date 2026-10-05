@@ -98,6 +98,27 @@ class HistoryStore:
             summaries.append(item)
         return summaries
 
+    def monthly_timeline(self, through_month: str) -> list[dict]:
+        """Display gaps without inserting invented runs or selected snapshots."""
+        end = date.fromisoformat(through_month + '-01')
+        with self._connect() as db:
+            periods = db.execute('SELECT DISTINCT substr(as_of,1,7),version FROM runs WHERE selected=1 AND substr(as_of,1,7)<=? ORDER BY 1,2',
+                                 (through_month,)).fetchall()
+        if not periods: return []
+        current = date.fromisoformat(periods[0][0] + '-01')
+        timeline = []
+        while current <= end:
+            month = current.strftime('%Y-%m')
+            versions = [version for period,version in periods if period == month]
+            if not versions:
+                timeline.append(dict(month=month,status='미실행',army='',run_id=None,
+                    rate=None,recent_rate=None,completion_rate=None,member_count=None,
+                    member_count_delta=None,rate_delta_pp=None,recent_rate_delta_pp=None))
+            for version in versions:
+                timeline.extend(dict(item,status='완료') for item in self.monthly_summary(month,version))
+            current = date(current.year + (current.month == 12),1 if current.month == 12 else current.month+1,1)
+        return timeline
+
     def stage_done(self, run_id: str, stage: str) -> bool:
         with self._connect() as db:
             return db.execute('SELECT 1 FROM stages WHERE run_id=? AND stage=?',(run_id,stage)).fetchone() is not None

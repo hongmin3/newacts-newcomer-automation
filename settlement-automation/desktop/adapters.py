@@ -5,6 +5,7 @@ from datetime import date
 from .legacy_config import use_settings
 from .runtime import SecretStore
 from .sheets import OWNER, TAB_HEADERS, CARE_TAB
+from .errors import ValidationIssue
 
 
 def _a1(name): return "'" + name.replace("'", "''") + "'"
@@ -38,7 +39,7 @@ class GoogleSheetsAdapter:
     def _owned(self,name):
         rows=self.read_tab(name)
         if self.ownership(name)!=OWNER or not rows or tuple(rows[0])!=TAB_HEADERS[name]:
-            raise ValueError('앱 관리 탭의 소유와 열 구성을 확인해 주세요.')
+            raise ValidationIssue('sheet_structure',tab=name)
         return rows
     @staticmethod
     def _row_data(rows):
@@ -101,7 +102,7 @@ class ProductionAdapter:
     def __init__(self):
         self.settings=None; self.google=None; self.gmail=None; self.sheets=None
         self.playwright=None; self.browser=None; self.page=None; self.right_frame=None
-    def authenticate(self,settings,paths,secret_store):
+    def authenticate(self,settings,paths,secret_store,*,reauthorize=False):
         from settlement_automation import get_google_credentials, spreadsheet_id_from_url, wait_for_login, PERSON_LIST_URL
         from googleapiclient.discovery import build
         from playwright.sync_api import sync_playwright
@@ -109,8 +110,8 @@ class ProductionAdapter:
         self.settings=settings
         secret_store=secret_store or SecretStore()
         if not settings.dimode_account or not secret_store.get_password(settings.dimode_account):
-            raise RuntimeError('디모데 계정과 키체인 암호를 설정해 주세요.')
-        credentials=get_google_credentials(paths=paths,settings=settings)
+            raise ValidationIssue('account')
+        credentials=get_google_credentials(paths=paths,settings=settings,reauthorize=reauthorize)
         self.google=build('sheets','v4',credentials=credentials)
         self.gmail=build('gmail','v1',credentials=credentials)
         self.sheets=GoogleSheetsAdapter(self.google,spreadsheet_id_from_url(settings.sheet_url))

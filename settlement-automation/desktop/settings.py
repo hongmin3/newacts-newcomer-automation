@@ -6,6 +6,7 @@ from datetime import date
 from pathlib import Path
 
 from .runtime import RuntimePaths, resource_path, write_private_file
+from .errors import ValidationIssue
 
 
 @dataclass(frozen=True)
@@ -32,9 +33,12 @@ class AppSettings:
             value = getattr(self, name)
             if value is not None:
                 if not isinstance(value, str):
-                    raise ValueError('명단 날짜는 YYYY-MM-DD 형식이어야 합니다.')
-                if date.fromisoformat(value).isoformat() != value:
-                    raise ValueError('명단 날짜는 YYYY-MM-DD 형식이어야 합니다.')
+                    raise ValidationIssue('date')
+                try:
+                    valid = date.fromisoformat(value).isoformat() == value
+                except ValueError:
+                    valid = False
+                if not valid: raise ValidationIssue('date')
         if not isinstance(self.army_order, tuple) or not self.army_order or any(
             not isinstance(army, str) or not army.strip() for army in self.army_order
         ):
@@ -46,7 +50,7 @@ class AppSettings:
         start = date.fromisoformat(self.roster_start) if self.roster_start else None
         end = date.fromisoformat(self.roster_end) if self.roster_end else None
         if start and end and start > end:
-            raise ValueError('명단 시작일은 종료일보다 늦을 수 없습니다.')
+            raise ValidationIssue('date')
         if self.min_query_completion_rate != 0.95:
             raise ValueError('조회 완료율 기준은 0.95입니다.')
         if not self.oauth_client_file.is_absolute() or not self.oauth_token_file.is_absolute():

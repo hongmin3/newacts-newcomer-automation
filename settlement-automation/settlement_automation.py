@@ -120,7 +120,7 @@ GOOGLE_SCOPES = [
 ]
 
 
-def get_google_credentials(*, paths=None, settings=None):
+def get_google_credentials(*, paths=None, settings=None, reauthorize=False):
     if settings is not None:
         client_file, token_file = settings.oauth_client_file, settings.oauth_token_file
     elif paths is not None:
@@ -138,6 +138,9 @@ def get_google_credentials(*, paths=None, settings=None):
             client_file = paths.oauth_client_file
             token_file = paths.oauth_token_file
     if not client_file.exists():
+        if paths is not None:
+            from desktop.errors import ValidationIssue
+            raise ValidationIssue("oauth_file")
         raise RuntimeError(f"Google OAuth 파일이 없습니다: {client_file}")
 
     from google.auth.transport.requests import Request
@@ -145,15 +148,35 @@ def get_google_credentials(*, paths=None, settings=None):
     from google_auth_oauthlib.flow import InstalledAppFlow
 
     credentials = None
-    if token_file.exists():
-        credentials = Credentials.from_authorized_user_file(str(token_file))
+    if token_file.exists() and not reauthorize:
+        try:
+            credentials = Credentials.from_authorized_user_file(str(token_file))
+        except ValueError as error:
+            if paths is None: raise
+            from desktop.errors import ValidationIssue
+            raise ValidationIssue("google_reauthorize") from error
         if not credentials.has_scopes(GOOGLE_SCOPES):
             credentials = None
     if credentials and credentials.expired and credentials.refresh_token:
-        credentials.refresh(Request())
+        try:
+            credentials.refresh(Request())
+        except Exception as error:
+            if paths is None: raise  # Preserve the CLI error contract.
+            from google.auth.exceptions import RefreshError, TransportError
+            from desktop.errors import ValidationIssue
+            if isinstance(error, TransportError) or (isinstance(error, RefreshError) and error.retryable):
+                raise ValidationIssue("connection") from error
+            if isinstance(error, RefreshError):
+                raise ValidationIssue("google_reauthorize") from error
+            raise
     if not credentials or not credentials.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(str(client_file), GOOGLE_SCOPES)
-        credentials = flow.run_local_server(port=0)
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(str(client_file), GOOGLE_SCOPES)
+        except ValueError as error:
+            if paths is None: raise
+            from desktop.errors import ValidationIssue
+            raise ValidationIssue("oauth_file") from error
+        credentials = flow.run_local_server(port=0, prompt="select_account") if reauthorize else flow.run_local_server(port=0)
     from desktop.runtime import write_private_file
     write_private_file(token_file, credentials.to_json())
     return credentials
@@ -388,7 +411,7 @@ def _registration_for_run(value, roster_start=None, roster_end=None):
 def inspect_person(page, right_frame, row, as_of, *, roster_start=None, roster_end=None):
     registration = _registration_for_run(row.get("날짜"), roster_start, roster_end)
     possible_dates = sundays_between(registration, as_of)
-    if not possible_dates:
+    if not possible_dates and (registration > as_of or roster_start is None):
         return {
             "registration": registration,
             "possible": 0,

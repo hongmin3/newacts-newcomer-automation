@@ -1,5 +1,6 @@
 """Qt presentation layer. Remote work never runs on the GUI thread."""
 import json
+import sys
 from html import escape
 import threading
 import runpy
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QForm
 from .runtime import RuntimePaths, SecretStore, write_private_file, resource_path
 from .settings import AppSettings, load_settings, save_settings
 from .service import RunRequest, RunOutcome, ProgressEvent, ReportPreview
+from .errors import ValidationIssue, diagnose
 
 def initial_settings(paths):
     try:
@@ -25,23 +27,26 @@ def initial_settings(paths):
 class Worker(QObject):
     progress=Signal(object)
     result=Signal(object)
-    failed=Signal()
+    failed=Signal(object)
     finished=Signal()
-    def __init__(self, operation): super().__init__(); self.operation=operation
+    def __init__(self, operation, paths, stage): super().__init__(); self.operation=operation; self.paths=paths; self.stage=stage
+    def report_progress(self,event):
+        self.stage=event.stage
+        self.progress.emit(event)
     @Slot()
     def execute(self):
-        try: self.result.emit(self.operation(self.progress.emit))
-        except Exception: self.failed.emit()
+        try: self.result.emit(self.operation(self.report_progress))
+        except Exception as error: self.failed.emit(diagnose(error,self.stage,self.paths))
         finally: self.finished.emit()
 
 class MainWindow(QMainWindow):
     def __init__(self, settings: AppSettings | None, paths: RuntimePaths, service_factory):
         super().__init__(); self.settings=settings; self.paths=paths; self.service=service_factory()
         self.thread=None; self.worker=None; self.cancel=threading.Event(); self.outcome=None
-        self.previews=[]; self.viewed_reports=set(); self._closing=False; self._setup_candidate=None
+        self.previews=[]; self.viewed_reports=set(); self._closing=False; self._setup_candidate=None; self._setup_trial=False; self._reauthorize=False
         self.setWindowTitle('새가족 정착률'); self.resize(900,740)
         body=QWidget(); layout=QVBoxLayout(body); self.setCentralWidget(body)
-        self.status_label=QLabel('최초 설정을 완료해 주세요.' if settings is None else '조회 준비'); layout.addWidget(self.status_label)
+        self.status_label=QLabel('최초 설정을 완료해 주세요.' if settings is None else '조회 준비'); self.status_label.setWordWrap(True); layout.addWidget(self.status_label)
         self.progress_bar=QProgressBar(); layout.addWidget(self.progress_bar)
         self.setup_panel=QWidget(); form=QFormLayout(self.setup_panel)
         defaults=settings or initial_settings(paths)
@@ -55,17 +60,21 @@ class MainWindow(QMainWindow):
         for editor in (self.roster_start,self.roster_end): editor.setCalendarPopup(True); editor.setDisplayFormat('yyyy-MM-dd')
         form.addRow('명단 시작일',self.roster_start); form.addRow('명단 종료일',self.roster_end)
         self.setup_button=QPushButton('암호 저장 · Google 승인 · 로그인 확인'); self.setup_button.clicked.connect(self.configure)
-        form.addRow(self.setup_button); layout.addWidget(self.setup_panel); self.setup_panel.setVisible(settings is None)
+        form.addRow(self.setup_button)
+        self.trial_button=QPushButton('1명 시험 조회'); self.trial_button.clicked.connect(lambda:self.configure(trial=True))
+        form.addRow(self.trial_button); layout.addWidget(self.setup_panel); self.setup_panel.setVisible(settings is None)
         controls=QHBoxLayout(); self.historical=QCheckBox('과거 기준일 선택'); controls.addWidget(self.historical)
         self.as_of=QDateEdit(QDate.currentDate()); self.as_of.setCalendarPopup(True); self.as_of.setEnabled(False)
         self.historical.toggled.connect(self.as_of.setEnabled); controls.addWidget(self.as_of)
         self.run_button=QPushButton('새 조회 시작'); self.run_button.clicked.connect(self.start_run); controls.addWidget(self.run_button)
         self.cancel_button=QPushButton('취소'); self.cancel_button.clicked.connect(self.request_cancel); controls.addWidget(self.cancel_button)
-        self.reset_button=QPushButton('인증 다시 설정'); self.reset_button.clicked.connect(lambda:self.setup_panel.show()); controls.addWidget(self.reset_button)
+        self.reset_button=QPushButton('인증 다시 설정'); self.reset_button.clicked.connect(self.reset_authentication); controls.addWidget(self.reset_button)
         layout.addLayout(controls)
         self.pending_combo=QComboBox(); self.resume_button=QPushButton('선택 실행 이어서'); self.resume_button.clicked.connect(self.resume_selected)
         recovery=QHBoxLayout(); recovery.addWidget(self.pending_combo); recovery.addWidget(self.resume_button); layout.addLayout(recovery)
         self.table=QTableWidget(); layout.addWidget(self.table)
+        layout.addWidget(QLabel("정착률 월별 이력"))
+        self.history_table=QTableWidget(); layout.addWidget(self.history_table)
         self.sheet_button=QPushButton('Google 시트 열기'); self.sheet_button.clicked.connect(self.open_sheet); layout.addWidget(self.sheet_button)
         self.preview_button=QPushButton('메일 미리보기'); self.preview_button.clicked.connect(self.preview_reports); layout.addWidget(self.preview_button)
         self.report_list=QListWidget(); self.report_list.setMaximumHeight(130); self.report_list.currentRowChanged.connect(self.display_preview); layout.addWidget(self.report_list)
@@ -87,18 +96,18 @@ class MainWindow(QMainWindow):
         if path: self.client_edit.setText(path)
 
     def set_busy(self,busy):
-        for button in (self.run_button,self.reset_button,self.setup_button,self.resume_button): button.setEnabled(not busy)
+        for button in (self.run_button,self.reset_button,self.setup_button,self.trial_button,self.resume_button): button.setEnabled(not busy)
         self.run_button.setEnabled(not busy and self.settings is not None)
         self.resume_button.setEnabled(not busy and self.settings is not None and self.pending_combo.count()>0)
         self.cancel_button.setEnabled(busy)
-        self.preview_button.setEnabled(not busy and self.outcome is not None)
+        self.preview_button.setEnabled(not busy and self.outcome is not None and self.outcome.status!='test')
         self.send_button.setEnabled(not busy and bool(self.previews))
         self.sheet_button.setEnabled(not busy and self.settings is not None)
 
-    def launch(self,operation,handler):
+    def launch(self,operation,handler,stage="query"):
         if self.thread is not None: return
         self.cancel=threading.Event(); self.set_busy(True)
-        self.thread=QThread(self); self.worker=Worker(operation); self.worker.moveToThread(self.thread)
+        self.thread=QThread(self); self.worker=Worker(operation,self.paths,stage); self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.execute); self.worker.progress.connect(self.show_progress)
         self.worker.result.connect(handler); self.worker.failed.connect(self.show_failure)
         self.worker.finished.connect(self.thread.quit); self.worker.finished.connect(self.worker.deleteLater)
@@ -109,14 +118,21 @@ class MainWindow(QMainWindow):
         old=self.thread; self.thread=None; self.worker=None; old.deleteLater(); self.set_busy(False)
         if self._closing: self.close()
         elif self._setup_candidate is not None:
-            self.settings=self._setup_candidate; self._setup_candidate=None; self.setup_panel.hide(); self.start_run()
+            self.settings=self._setup_candidate; self._setup_candidate=None; self.setup_panel.hide()
+            trial=self._setup_trial; self._setup_trial=False; self._reauthorize=False
+            self.start_run(test_mode=trial)
 
-    @Slot()
-    def show_failure(self):
-        self._setup_candidate=None; self.status_label.setText('작업을 완료하지 못했습니다. 인증과 연결을 확인한 뒤 다시 시도해 주세요.')
+    @Slot(object)
+    def show_failure(self,failure):
+        self._setup_candidate=None; self._setup_trial=False; self.status_label.setText(failure.guidance)
 
-    def configure(self):
+    def reset_authentication(self):
+        self._reauthorize=True
+        self.setup_panel.show()
+
+    def configure(self,checked=False,*,trial=False):
         if self.thread is not None: return
+        self._setup_trial=trial
         password=self.password_edit.text(); self.password_edit.clear()
         selected=self.client_edit.text(); account=self.account_edit.text().strip()
         base=self.settings or initial_settings(self.paths)
@@ -124,31 +140,36 @@ class MainWindow(QMainWindow):
             roster_end=self.roster_end.date().toString('yyyy-MM-dd'),oauth_client_file=self.paths.oauth_client_file,oauth_token_file=self.paths.oauth_token_file)
         def setup(progress):
             candidate.validate()
-            if not account or not password: raise ValueError()
+            if not account or not password: raise ValidationIssue("account")
             if selected:
-                content=Path(selected).read_text(encoding='utf-8'); data=json.loads(content)
-                if not isinstance(data,dict) or 'installed' not in data: raise ValueError()
+                content=Path(selected).read_text(encoding='utf-8')
+                try: data=json.loads(content)
+                except ValueError as error: raise ValidationIssue('oauth_file') from error
+                if not isinstance(data,dict) or not isinstance(data.get('installed'),dict): raise ValidationIssue('oauth_file')
                 write_private_file(self.paths.oauth_client_file,content)
-            if not self.paths.oauth_client_file.exists(): raise ValueError()
+            if not self.paths.oauth_client_file.exists(): raise ValidationIssue("oauth_file")
             secrets=self.service.secret_store or SecretStore(); secrets.set_password(account,password)
             self.service.secret_store=secrets
             progress(ProgressEvent('authentication',message_code='authentication_check'))
             if self.service.adapter is None:
                 from .adapters import ProductionAdapter
                 self.service.adapter=ProductionAdapter()
-            try: self.service.adapter.authenticate(candidate,self.paths,secrets)
+            try:
+                if self._reauthorize: self.service.adapter.authenticate(candidate,self.paths,secrets,reauthorize=True)
+                else: self.service.adapter.authenticate(candidate,self.paths,secrets)
             finally: self.service.adapter.close()
             if self.cancel.is_set(): return None
             save_settings(self.paths,candidate); return candidate
-        self.launch(setup,self.setup_completed)
+        self.launch(setup,self.setup_completed,stage="setup")
 
     @Slot(object)
     def setup_completed(self,candidate): self._setup_candidate=candidate
 
-    def start_run(self):
+    def start_run(self,checked=False,*,test_mode=False):
         if self.settings is None or self.thread is not None: return
         self.outcome=None; self.previews=[]; self.report_list.clear(); self.preview_browser.clear()
-        request=RunRequest(as_of=self.as_of.date().toPython() if self.historical.isChecked() else None)
+        request=RunRequest(as_of=self.as_of.date().toPython() if self.historical.isChecked() else None,
+                           limit=1 if test_mode else None,test_mode=test_mode)
         self.launch(lambda progress:self.service.run(request,self.settings,self.paths,progress,self.cancel),self.show_outcome)
 
     def refresh_pending(self):
@@ -177,7 +198,8 @@ class MainWindow(QMainWindow):
             'authentication_required':'인증을 다시 설정해 주세요.','quality_failed':'조회 완료율이 부족합니다. 확인 후 다시 조회해 주세요.',
             'publication_failed':'조회 결과는 보관했습니다. 중단 실행에서 시트 갱신을 이어서 실행해 주세요.',
             'busy':'다른 실행이 진행 중입니다. 완료 후 다시 시도해 주세요.','setup_required':'최초 설정을 확인해 주세요.'}
-        self.status_label.setText(labels.get(outcome.status,'작업 상태를 확인해 주세요.'))
+        self.status_label.setText(outcome.error or labels.get(outcome.status,'작업 상태를 확인해 주세요.'))
+        if outcome.failure and outcome.failure.code=='google_reauthorize': self._reauthorize=True
         if outcome.status in ('authentication_required','setup_required'): self.setup_panel.show()
         names={'army':'군','as_of':'기준일','member_count':'인원','completed_count':'조회 완료','review_count':'확인 대상','completion_rate':'조회 완료율','rate':'누적 출석률','recent_rate':'최근 4주 출석률','member_count_delta':'전월 인원 차이','rate_delta_pp':'누적 전월 차이 (퍼센트포인트)','recent_rate_delta_pp':'최근 4주 전월 차이 (퍼센트포인트)','insufficient_count':'관찰 기간 부족','no_target_count':'계산 대상 없음'}
         columns=[key for key in names if any(key in summary for summary in outcome.summaries)]
@@ -188,6 +210,16 @@ class MainWindow(QMainWindow):
                 text='' if value is None else (f'{value*100:.1f}%' if key in ('completion_rate','rate','recent_rate') else str(value))
                 self.table.setItem(row,col,QTableWidgetItem(text))
         self.table.resizeColumnsToContents()
+        history_columns=('month','status','army','formula_version','member_count','completion_rate','rate','recent_rate','member_count_delta','rate_delta_pp','recent_rate_delta_pp')
+        self.history_table.setColumnCount(len(history_columns))
+        self.history_table.setHorizontalHeaderLabels(['월','상태']+[names.get(key,'산식 버전') for key in history_columns[2:]])
+        self.history_table.setRowCount(len(outcome.monthly_history))
+        for row,summary in enumerate(outcome.monthly_history):
+            for col,key in enumerate(history_columns):
+                value=summary.get(key)
+                text='' if value is None else (f'{value*100:.1f}%' if key in ('completion_rate','rate','recent_rate') else str(value))
+                self.history_table.setItem(row,col,QTableWidgetItem(text))
+        self.history_table.resizeColumnsToContents()
         self.progress_bar.setRange(0,1); self.progress_bar.setValue(1 if outcome.status in ('completed','test') else 0)
         self.refresh_pending()
 
@@ -195,8 +227,8 @@ class MainWindow(QMainWindow):
         if self.settings: QDesktopServices.openUrl(QUrl(self.settings.sheet_url))
 
     def preview_reports(self):
-        if self.thread is not None or self.outcome is None: return
-        self.launch(lambda progress:self.service.preview_reports(self.outcome.run_id),self.show_previews)
+        if self.thread is not None or self.outcome is None or self.outcome.status=="test": return
+        self.launch(lambda progress:self.service.preview_reports(self.outcome.run_id),self.show_previews,stage="preview")
 
     @Slot(object)
     def show_previews(self,previews):
@@ -212,7 +244,8 @@ class MainWindow(QMainWindow):
         if 0<=row<len(self.previews):
             p=self.previews[row]; self.viewed_reports.add(p.key)
             guidance=f'{p.title}\n수신 범위: {", ".join(p.recipients)}\n조회 품질: {"발송 가능" if p.enabled else p.reason}\n상태: {p.status}\n마지막 발송: {p.last_sent_at or "없음"}\n제목: {p.subject}'
-            self.preview_browser.setHtml('<p>'+escape(guidance).replace('\n','<br>')+'</p><hr>'+(p.html or '<p>'+escape(p.text).replace('\n','<br>')+'</p>'))
+            preview_html=p.html.replace('Malgun Gothic','Apple SD Gothic Neo') if sys.platform=='darwin' else p.html
+            self.preview_browser.setHtml('<p>'+escape(guidance).replace('\n','<br>')+'</p><hr>'+(preview_html or '<p>'+escape(p.text).replace('\n','<br>')+'</p>'))
 
     def send_selected(self):
         if self.thread is not None or not self.previews or self.outcome is None: return

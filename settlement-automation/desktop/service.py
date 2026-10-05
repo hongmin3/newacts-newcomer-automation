@@ -9,7 +9,8 @@ from typing import Callable
 from zoneinfo import ZoneInfo
 
 from .history import HistoryStore
-from .metrics import FORMULA_VERSION, army_metrics
+from .metrics import FORMULA_VERSION, army_metrics, resolve_registration_date
+from .errors import Failure, diagnose
 from .runtime import RuntimePaths, SecretStore, write_private_file
 from .settings import AppSettings
 from .sheets import SheetPublisher
@@ -41,6 +42,8 @@ class RunOutcome:
     stage: str = ''
     sheet_published: bool = False
     error: str | None = None
+    failure: Failure | None = None
+    monthly_history: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -105,17 +108,18 @@ class SettlementService:
         path = self._path(state['run_id']); path.parent.mkdir(mode=0o700, exist_ok=True)
         write_private_file(path, json.dumps(state, ensure_ascii=False, default=str, indent=2))
 
-    def _outcome(self, state, error=None):
+    def _outcome(self, state, error=None, failure=None):
         return RunOutcome(state['run_id'], state['status'], date.fromisoformat(state['as_of']),
                           state.get('results', []), state.get('summaries', []), state.get('stage',''),
-                          state.get('sheet_published',False), error)
+                          state.get('sheet_published',False), error, failure,
+                          self.history.monthly_timeline(state['as_of'][:7]) if state['status']=='completed' else [])
 
     def pending_runs(self, paths: RuntimePaths) -> list[dict]:
         """Read local interrupted runs without creating adapters or authenticating."""
         runs = []
         for path in sorted(paths.runs_dir.glob('*/execution.json')):
             state = json.loads(path.read_text(encoding='utf-8'))
-            if state['status'] in ('running','publication_failed','authentication_required'):
+            if state['status'] in ('running','publication_failed','authentication_required','validation_blocked'):
                 runs.append({'run_id':state['run_id'],'as_of':state['as_of'],'stage':state['stage'],'status':state['status']})
         return runs
 
@@ -165,6 +169,16 @@ class SettlementService:
             if 'source_rows' not in state:
                 stage = 'roster'; progress(ProgressEvent(stage,message_code='reading_roster'))
                 source_rows = self.adapter.load_rows()
+                # Only exclude dates that resolve unambiguously beyond the chosen day.
+                as_of = date.fromisoformat(state['as_of'])
+                start = date.fromisoformat(self.settings.roster_start)
+                end = date.fromisoformat(self.settings.roster_end)
+                eligible = []
+                for row in source_rows:
+                    try: registration = resolve_registration_date(row.get('날짜'),start,end)
+                    except ValueError: registration = None  # Keep unresolved people visible.
+                    if registration is None or registration <= as_of: eligible.append(row)
+                source_rows = eligible
                 state['source_rows'] = source_rows[:state['limit']] if state['limit'] else source_rows
                 self._save(state)
             from settlement_automation import RunOptions
@@ -208,12 +222,17 @@ class SettlementService:
             state.update(status='completed',stage='completed',sheet_published=True); self._save(state)
             progress(ProgressEvent('completed',len(results),len(rows),'run_completed'))
             return self._outcome(state)
-        except Exception:
-            # External exceptions may contain credentials or personal information.
-            state.update(status='authentication_required' if stage=='authentication' else
-                         'publication_failed' if stage=='publication' else 'running',stage=stage)
+        except Exception as error:
+            failure = diagnose(error,stage,self.paths)
+            if failure.code in ('google_reauthorize','authentication','account'):
+                status = 'authentication_required'
+            elif not failure.retryable:
+                status = 'validation_blocked'
+            else:
+                status = 'publication_failed' if stage=='publication' else 'running'
+            state.update(status=status,stage=stage)
             self._save(state)
-            return self._outcome(state,'인증을 확인해 주세요.' if stage=='authentication' else '작업이 중단되었습니다. 같은 실행 번호로 다시 시도해 주세요.')
+            return self._outcome(state,failure.guidance,failure)
         finally:
             self.adapter.close()
 
