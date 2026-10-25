@@ -281,3 +281,7 @@ npm test
 - Configuration: `akela.json`
 
 Codex와 Claude Code는 대상 Apps Script 활동의 Knowledge만 compile한 뒤 작업하고 Evidence와 outcome을 기록합니다. `akela stats`의 후보는 `akela/CURATE.md` 절차로 검토하며, 정식 Knowledge 변경은 사람이 승인합니다.
+
+## 행축 당일 방문·등록 명단
+
+2026년 11월 1일 전용 빈 명단에서 전체·군별 입력을 양방향으로 연결한다. 1행 머리글 아래 2행부터 입력하며, 등록 체크 후에도 방문 이력은 남는다. 입력·충돌·취소 복구 방법은 [행축 당일 사용 안내](event-day-workbook/README.md)를 참고한다.

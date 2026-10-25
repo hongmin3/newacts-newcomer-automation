@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v7">
 <meta name="spec-html-renderer" content="v7">
-<meta name="spec-source-sha256" content="c4df48f525dbfc1dbe4db9e32ffafae2bfc0f0e9dcc7eaae82ed64a059d62824">
+<meta name="spec-source-sha256" content="de3035bf1272a8ba72ff4f4308c3518f045d94db1bce4fb3ba30d8bb18fe0325">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-04</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>28</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>33</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div><div class="stat st-verified"><b>6</b><span>verified</span></div></div>
+<div class="stats"><div class="stat"><b>32</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>34</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div><div class="stat st-verified"><b>10</b><span>verified</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -184,7 +184,18 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004 <span>담당자 기록 보존</span></a></li>
 <li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005 <span>발송 품질과 일부 실패</span></a></li>
 <li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006 <span>중단 복구</span></a></li>
-<li class="toc-2"><a href="#doc-settlement-desktop-sec-12">12. 요구사항 추적성</a></li></ul>
+<li class="toc-2"><a href="#doc-settlement-desktop-sec-12">12. 요구사항 추적성</a></li>
+<li class="toc-2"><a href="#doc-event-day-workbook">행축 당일 방문·등록 시트</a></li>
+<li class="toc-2"><a href="#doc-event-day-workbook-sec-1">1. 목적</a></li>
+<li class="toc-2"><a href="#doc-event-day-workbook-sec-2">2. 범위</a></li>
+<li class="toc-2"><a href="#doc-event-day-workbook-sec-5">5. 요구사항</a></li>
+<li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-001">REQ-EVENTDAYWORKBOOK-001 <span>행사 당일 빈 명단과 군별 구성</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-002">REQ-EVENTDAYWORKBOOK-002 <span>전체와 군별 명단의 양방향 입력</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003 <span>방문 이력과 등록 연결 및 집계</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004 <span>수정 충돌과 취소 복구</span></a></li>
+<li class="toc-2"><a href="#doc-event-day-workbook-sec-11">11. 테스트 사양</a></li>
+<li class="toc-id kind-test"><a href="#TEST-EVENTDAYWORKBOOK-001">TEST-EVENTDAYWORKBOOK-001 <span>양방향 입력과 안전 경계</span></a></li>
+<li class="toc-2"><a href="#doc-event-day-workbook-sec-12">12. 요구사항 추적성</a></li></ul>
 </nav>
 <main>
 <section class="chapter" id="feature-index">
@@ -242,6 +253,11 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="이름">군별 화면과 돌봄 기록 보존</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/desktop/sheets.py</code>, <code>settlement-automation/desktop/window.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_sheets.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="이름">결과 확인 후 보고서 발송</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/settlement_email.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="이름">중복 실행과 중단 복구</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/desktop/errors.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_final_fixes.py</code>, <code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td></tr>
+<tr class="group"><th colspan="5"><span class="gcode">EVENTDAYWORKBOOK</span> 행축 당일 방문·등록 양방향 입력</th></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-001">REQ-EVENTDAYWORKBOOK-001</a></td><td data-label="이름">행사 당일 빈 명단과 군별 구성</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-002">REQ-EVENTDAYWORKBOOK-002</a></td><td data-label="이름">전체와 군별 명단의 양방향 입력</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003</a></td><td data-label="이름">방문 이력과 등록 연결 및 집계</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a></td><td data-label="이름">수정 충돌과 취소 복구</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
 </tbody>
 </table></div>
 </section>
@@ -261,33 +277,40 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <p>참석자가 낸 출석이 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>으로 모이고, 요일마다 정해진 실행이 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>·<span class="term" title="등록 명단과 교육 출석을 전화번호로 묶어 다시 쓰는 시트다" tabindex="0">수료현황</span>을 맞춘 뒤 담당자에게 메일로 보고한다.
 자동으로 판단하지 못한 건은 고치지 않고 <span class="term" title="자동으로 판단할 수 없어 시트를 바꾸지 않고 사람이 확인하도록 보고하는 건이다" tabindex="0">검토 대상</span>으로 보고한다. 요일별 세부 흐름은 4절에 있다.</p>
 <figure class="flow">
-<svg viewBox="0 0 622 452" width="622" height="452" role="img" aria-label="출석 웹앱 제출 → 출석 응답 시트, 출석 응답 시트 → 교육 출석 현황, 교육 출석 현황 → 등록 명단 보정·군 현황판·하반기 방문 명단, 등록 명단 보정·군 현황판·하반기 방문 명단 → 수료현황·주간 통계, 수료현황·주간 통계 → 담당자 메일, 교육 출석 현황 → 검토 대상 보고, 검토 대상 보고 → 담당자 메일, 교육 출석 현황 → 문자공지 대상 메일, 집중교육 신청 Form → 관리자·공개 확인 명단, 디모데 출결 → 정착률 계산, 정착률 계산 → 담당자 메일, 정착률 계산 → 메일 보내지 않음">
+<svg viewBox="0 0 667 452" width="667" height="452" role="img" aria-label="출석 웹앱 제출 → 출석 응답 시트, 출석 응답 시트 → 교육 출석 현황, 교육 출석 현황 → 등록 명단 보정·군 현황판·하반기 방문 명단, 등록 명단 보정·군 현황판·하반기 방문 명단 → 수료현황·주간 통계, 수료현황·주간 통계 → 담당자 메일, 교육 출석 현황 → 검토 대상 보고, 검토 대상 보고 → 담당자 메일, 교육 출석 현황 → 문자공지 대상 메일, 집중교육 신청 Form → 관리자·공개 확인 명단, 디모데 출결 → 정착률 계산, 정착률 계산 → 담당자 메일, 정착률 계산 → 메일 보내지 않음, 행축 당일 담당자 입력 → 전체·군별 명단 양방향 연결, 전체·군별 명단 양방향 연결 → 11월 1일 방문·등록 현황, 전체·군별 명단 양방향 연결 → 입력 확인·변경 기록">
 <defs><marker id="flow-arrow-1" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker></defs>
-<path class="edge" d="M165 44 L156.5 88" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M156.5 124 L234 168" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M234 204 L157 248" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M157 284 L311 328" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M311 364 L311 408" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M234 204 L388.5 248" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="311.3" y="226">판단 못 함</text>
-<path class="edge" d="M388.5 284 L311 408" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M234 204 L542.5 248" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M321 44 L321 88" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M467 44 L475.5 88" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="471.3" y="66">마지막 화요일</text>
-<path class="edge" d="M475.5 124 L311 408" marker-end="url(#flow-arrow-1)"/>
-<path class="edge" d="M475.5 124 L381.5 168" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="428.5" y="146">조회 부족</text>
-<g class="node"><rect x="106.5" y="8" width="117" height="36" rx="8"/><text x="165" y="26">출석 웹앱 제출</text></g>
-<g class="node"><rect x="98" y="88" width="117" height="36" rx="8"/><text x="156.5" y="106">출석 응답 시트</text></g>
-<g class="node"><rect x="175.5" y="168" width="117" height="36" rx="8"/><text x="234" y="186">교육 출석 현황</text></g>
-<g class="node"><rect x="8" y="248" width="298" height="36" rx="8"/><text x="157" y="266">등록 명단 보정·군 현황판·하반기 방문 명단</text></g>
-<g class="node"><rect x="239.5" y="328" width="143" height="36" rx="8"/><text x="311" y="346">수료현황·주간 통계</text></g>
-<g class="node"><rect x="262.5" y="408" width="97" height="36" rx="8"/><text x="311" y="426">담당자 메일</text></g>
-<g class="node"><rect x="330" y="248" width="117" height="36" rx="8"/><text x="388.5" y="266">검토 대상 보고</text></g>
-<g class="node"><rect x="471" y="248" width="143" height="36" rx="8"/><text x="542.5" y="266">문자공지 대상 메일</text></g>
-<g class="node"><rect x="247.5" y="8" width="147" height="36" rx="8"/><text x="321" y="26">집중교육 신청 Form</text></g>
-<g class="node"><rect x="239" y="88" width="164" height="36" rx="8"/><text x="321" y="106">관리자·공개 확인 명단</text></g>
-<g class="node"><rect x="418.5" y="8" width="97" height="36" rx="8"/><text x="467" y="26">디모데 출결</text></g>
-<g class="node"><rect x="427" y="88" width="97" height="36" rx="8"/><text x="475.5" y="106">정착률 계산</text></g>
-<g class="node"><rect x="316.5" y="168" width="130" height="36" rx="8"/><text x="381.5" y="186">메일 보내지 않음</text></g>
+<path class="edge" d="M93.5 44 L68.5 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M68.5 124 L66.5 168" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M66.5 204 L179.5 248" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M179.5 284 L333.5 328" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M333.5 364 L333.5 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M66.5 204 L411 248" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="238.8" y="226">판단 못 함</text>
+<path class="edge" d="M411 284 L333.5 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M66.5 204 L565 248" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M249.5 44 L233 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M395.5 44 L387.5 88" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="391.5" y="66">마지막 화요일</text>
+<path class="edge" d="M387.5 124 L333.5 408" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M387.5 124 L214 168" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="300.8" y="146">조회 부족</text>
+<path class="edge" d="M550 44 L558.5 88" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M558.5 124 L393.5 168" marker-end="url(#flow-arrow-1)"/>
+<path class="edge" d="M558.5 124 L583.5 168" marker-end="url(#flow-arrow-1)"/><text class="elabel" x="571" y="146">정보 충돌</text>
+<g class="node"><rect x="35" y="8" width="117" height="36" rx="8"/><text x="93.5" y="26">출석 웹앱 제출</text></g>
+<g class="node"><rect x="10" y="88" width="117" height="36" rx="8"/><text x="68.5" y="106">출석 응답 시트</text></g>
+<g class="node"><rect x="8" y="168" width="117" height="36" rx="8"/><text x="66.5" y="186">교육 출석 현황</text></g>
+<g class="node"><rect x="30.5" y="248" width="298" height="36" rx="8"/><text x="179.5" y="266">등록 명단 보정·군 현황판·하반기 방문 명단</text></g>
+<g class="node"><rect x="262" y="328" width="143" height="36" rx="8"/><text x="333.5" y="346">수료현황·주간 통계</text></g>
+<g class="node"><rect x="285" y="408" width="97" height="36" rx="8"/><text x="333.5" y="426">담당자 메일</text></g>
+<g class="node"><rect x="352.5" y="248" width="117" height="36" rx="8"/><text x="411" y="266">검토 대상 보고</text></g>
+<g class="node"><rect x="493.5" y="248" width="143" height="36" rx="8"/><text x="565" y="266">문자공지 대상 메일</text></g>
+<g class="node"><rect x="176" y="8" width="147" height="36" rx="8"/><text x="249.5" y="26">집중교육 신청 Form</text></g>
+<g class="node"><rect x="151" y="88" width="164" height="36" rx="8"/><text x="233" y="106">관리자·공개 확인 명단</text></g>
+<g class="node"><rect x="347" y="8" width="97" height="36" rx="8"/><text x="395.5" y="26">디모데 출결</text></g>
+<g class="node"><rect x="339" y="88" width="97" height="36" rx="8"/><text x="387.5" y="106">정착률 계산</text></g>
+<g class="node"><rect x="149" y="168" width="130" height="36" rx="8"/><text x="214" y="186">메일 보내지 않음</text></g>
+<g class="node"><rect x="468" y="8" width="164" height="36" rx="8"/><text x="550" y="26">행축 당일 담당자 입력</text></g>
+<g class="node"><rect x="460" y="88" width="197" height="36" rx="8"/><text x="558.5" y="106">전체·군별 명단 양방향 연결</text></g>
+<g class="node"><rect x="303" y="168" width="181" height="36" rx="8"/><text x="393.5" y="186">11월 1일 방문·등록 현황</text></g>
+<g class="node"><rect x="508" y="168" width="151" height="36" rx="8"/><text x="583.5" y="186">입력 확인·변경 기록</text></g>
 </svg>
 </figure>
 <h3>이 문서에서 쓰는 말</h3>
@@ -341,6 +364,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 참석 결과를 <span class="term" title="교육관리 스프레드시트에 있는 기준 교육 명단이다. 자동화가 갱신한다" tabindex="0">교육 출석 현황</span>에 합치기</li>
 <li><span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 군·팀·전화번호를 교육 출석 기준으로 자동 보정하고 <span class="term" title="등록 명단을 군별로 모아 자동화가 다시 쓰는 시트다" tabindex="0">군 현황판</span> 갱신</li>
 <li>관리 기간 안 등록자를 하반기 방문 명단에 반영하고 기간 마감·방문 결과 메일 제공</li>
+<li>별도 행사 당일 파일에서 전체·군별 방문·<span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 양방향 입력 제공</li>
 <li>교육 출석과 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>을 합친 <span class="term" title="등록 명단과 교육 출석을 전화번호로 묶어 다시 쓰는 시트다" tabindex="0">수료현황</span> 다시 쓰기, 주간 전체·군별 보고 메일</li>
 <li>토요일 문자공지 대상 명단(교육 진행 중 / 교육 미진행) 메일</li>
 <li><span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 Form 접수, 관리자 명단과 공개 명단의 즉시 동기화</li>
@@ -1366,6 +1390,7 @@ SPEC에는 그 ID가 없었다.</li>
 <thead><tr><th>기능</th><th>사양 문서</th><th>상태</th></tr></thead>
 <tbody>
 <tr><td>Mac 정착률 관리 앱</td><td><a href="#doc-settlement-desktop">specs/settlement-desktop.md</a></td><td><span class="badge st-draft">draft</span></td></tr>
+<tr><td>행축 당일 방문·등록 시트</td><td><a href="#doc-event-day-workbook">specs/event-day-workbook.md</a></td><td><span class="badge st-verified">verified</span></td></tr>
 </tbody>
 </table></div>
 </div></section>
@@ -2652,6 +2677,115 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="Implementation"><code>settlement-automation/desktop/sheets.py</code>, <code>settlement-automation/desktop/window.py</code></td><td data-label="Test"><code>settlement-automation/tests/test_desktop_sheets.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="Implementation"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/settlement_email.py</code></td><td data-label="Test"><code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="Implementation"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/desktop/errors.py</code></td><td data-label="Test"><code>settlement-automation/tests/test_desktop_final_fixes.py</code>, <code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+</tbody>
+</table></div>
+</section>
+<section class="chapter" id="doc-event-day-workbook">
+<h2>행축 당일 방문·등록 시트</h2>
+<p><code>specs/event-day-workbook.md</code></p>
+</section>
+<section class="chapter" id="doc-event-day-workbook-sec-1">
+<h2>1. 목적</h2>
+<p>행사 담당자가 2026년 11월 1일에 방문자와 등록자를 적으면 전체 명단과 군별 명단에 함께 표시된다. 2025년 하반기 등록·방문 양식과 2026년 상반기 군 구분을 참고하며 과거 개인정보는 가져오지 않는다.</p>
+</section>
+<section class="chapter" id="doc-event-day-workbook-sec-2">
+<h2>2. 범위</h2>
+<p>새 스프레드시트에 연결된 별도 Apps Script로 제공한다. 기존 등록·교육·메일 자동화의 설정과 실행 시점은 바꾸지 않는다.</p>
+</section>
+<section class="chapter" id="doc-event-day-workbook-sec-5">
+<h2>5. 요구사항</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>카테고리</th><th>이름</th></tr></thead>
+<tbody>
+<tr><td>EVENTDAYWORKBOOK</td><td>행축 당일 방문·등록 양방향 입력</td></tr>
+</tbody>
+</table></div>
+<section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-001">
+<h3><span class="idtag">REQ-EVENTDAYWORKBOOK-001</span> 행사 당일 빈 명단과 군별 구성</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-25 행축 당일 방문·등록 명단</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-001">REQ-EVENTDAYWORKBOOK-001</a>: 11월 1일 전용 빈 명단과 상반기 기준 9개 군·기타를 추가했다. 입력 시트는 1행에 머리글을 고정하고 2행부터 적는다.</li>
+</ul>
+</details>
+<ul>
+<li>날짜는 <code>2026-11-01</code>, 시간대는 <code>Asia/Seoul</code>이다.</li>
+<li>전체 방문·전체 등록·신군·조군·명군·총군·영군·석군·전군·임군·슬군·기타 탭을 제공한다.</li>
+<li>입력 탭의 머리글은 1행에 두고 고정한다. 입력은 2행부터다.</li>
+<li>행사 현황과 사용 안내 탭을 제공한다. 과거 방문자·등록자·숨겨진 옛 명단은 남기지 않는다.</li>
+<li>군이 비어 있으면 기타로 기록한다. 군별 탭의 새 입력은 그 군을 기본값으로 쓴다.</li>
+</ul>
+</section>
+<section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-002">
+<h3><span class="idtag">REQ-EVENTDAYWORKBOOK-002</span> 전체와 군별 명단의 양방향 입력</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-25 행축 당일 방문·등록 명단</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-002">REQ-EVENTDAYWORKBOOK-002</a>: 전체·군별 양쪽에서 새 입력과 수정을 연결한다. 이름을 먼저 적고 연락처를 나중에 채워도 동일인 연결을 확인한다.</li>
+</ul>
+</details>
+<ol>
+<li>담당자는 전체 방문·전체 등록 또는 군별 탭에서 이름을 입력한다.</li>
+<li>관리번호를 자동으로 부여하고, 같은 기록을 해당하는 전체·군별 탭에 반영한다.</li>
+<li>어느 탭에서든 입력 항목을 수정하면 같은 관리번호의 기록이 함께 바뀐다. 군을 바꾸면 새 군으로 이동한다.</li>
+<li>여러 행 붙여넣기를 지원한다. 관리번호·수정시각·내부 비교값은 담당자가 바꾸지 않는다.</li>
+</ol>
+<ul>
+<li>이름과 정리한 휴대전화가 모두 같은 경우만 기존 사람에게 연결할 수 있다. 전화번호가 없으면 이름만으로 합치지 않는다.</li>
+<li>같은 번호의 다른 이름, 연락처 누락, 동명이인은 확인할 수 있도록 표시한다.</li>
+<li>이름·날짜·군·체크 값·나이·생년월일·전화번호를 검사한다. 맞지 않으면 기존 기록을 보존하고 입력 행에 이유를 표시한다.</li>
+</ul>
+</section>
+<section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-003">
+<h3><span class="idtag">REQ-EVENTDAYWORKBOOK-003</span> 방문 이력과 등록 연결 및 집계</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-25 행축 당일 방문·등록 명단</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003</a>: 등록한 사람은 방문 명단에도 남는다. 방문·등록 인원은 관리번호로 계산한다.</li>
+</ul>
+</details>
+<ul>
+<li>등록 체크를 하면 방문 체크도 유지한다. 전체 등록에서 처음 입력해도 방문자로 함께 표시한다.</li>
+<li>방문 명단에는 방문 체크가 있는 사람을, <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>에는 등록 체크가 있는 사람을 표시한다. 군별 탭은 해당 군의 모든 유효 기록을 보여 준다.</li>
+<li>행사 현황은 관리번호를 기준으로 군별 방문·등록 인원과 합계를 계산한다. 두 명단에 표시되는 사람을 두 사람으로 세지 않는다.</li>
+<li>등록을 해제해도 방문 이력은 남는다. 한 행사일의 재방문은 별도 인원을 만들지 않는다.</li>
+</ul>
+</section>
+<section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-004">
+<h3><span class="idtag">REQ-EVENTDAYWORKBOOK-004</span> 수정 충돌과 취소 복구</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-25 행축 당일 방문·등록 명단</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a>: 같은 항목의 수정 충돌은 저장값을 보존하고 선택해서 해결한다. 대기 입력 보존, 중단 후 다시 맞추기, 취소·복구와 연결 폐기 구분을 추가했다.</li>
+</ul>
+</details>
+<ul>
+<li>같은 항목의 동시 수정이 서로 다르면 기존 저장값을 보존하고 충돌을 기록한다. 담당자가 입력값 적용 또는 저장값 복원을 선택한다.</li>
+<li>아직 처리하지 않은 다른 담당자의 입력값을 화면 갱신으로 덮어쓰지 않는다. 서로 다른 항목의 변경은 합칠 수 있다.</li>
+<li>원본 저장 뒤 화면 반영이 중단되어도 다시 맞추기 메뉴로 복구한다. 오류와 잠금 대기는 화면에 표시한다.</li>
+<li>행 삭제를 기록 취소로 해석하지 않는다. 취소 메뉴는 원본과 변경 이력을 보관하며 마지막 취소를 복구할 수 있다.</li>
+<li>취소하거나 동일인으로 연결한 옛 기록에 대기 입력이 있으면 변경 기록에 보관한 뒤 화면에서 제외한다. 동일인 연결로 폐기한 관리번호는 취소 복구로 되살리지 않는다.</li>
+<li>변경 전후 값은 이 파일의 숨겨진 기록 탭에만 남긴다. 개인정보를 저장소에 추가하지 않는다.</li>
+</ul>
+</section>
+</section>
+<section class="chapter" id="doc-event-day-workbook-sec-11">
+<h2>11. 테스트 사양</h2>
+<section class="card kind-test" id="TEST-EVENTDAYWORKBOOK-001">
+<h3><span class="idtag">TEST-EVENTDAYWORKBOOK-001</span> 양방향 입력과 안전 경계</h3>
+<p><code>tests/event-day-workbook.test.js</code>를 <code>node</code>로 실행하여 실제 <code>onEdit</code> 진입점에 가짜 Sheets 경계를 연결한다. 전체→군, 군→전체, 등록→방문 유지, 군 이동, 여러 행 입력, 동일인 연결, 이름만 같은 사람 분리, 입력 검사, 서로 다른 항목 수정, 동일 항목 충돌, 미처리 입력 보존, 오류 후 복구, 취소·복구를 확인한다.</p>
+<p>실제 Google Sheets에서는 가상 인물로 양방향 입력·수정·등록 연결·군 이동·집계를 확인한 뒤 시험 자료를 제거한다. 로컬 검사는 권한과 Google의 편집 이벤트 전달을 대신 검증하지 않는다.</p>
+</section>
+</section>
+<section class="chapter" id="doc-event-day-workbook-sec-12">
+<h2>12. 요구사항 추적성</h2>
+<div class="table-wrap"><table class="responsive">
+<thead><tr><th>Requirement</th><th>Implementation</th><th>Test</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-001">REQ-EVENTDAYWORKBOOK-001</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-002">REQ-EVENTDAYWORKBOOK-002</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 </tbody>
 </table></div>
 </section>
