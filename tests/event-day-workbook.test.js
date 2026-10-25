@@ -6,7 +6,8 @@ const path = require('node:path');
 const file = path.join(__dirname, '../event-day-workbook/Code.gs');
 const ctx = {console, Date, JSON, Math, Set, Map};
 if (fs.existsSync(file)) vm.runInNewContext(fs.readFileSync(file, 'utf8'), ctx);
-// Validates: REQ-EVENTDAYWORKBOOK-001, REQ-EVENTDAYWORKBOOK-002, REQ-EVENTDAYWORKBOOK-003, REQ-EVENTDAYWORKBOOK-004, TEST-EVENTDAYWORKBOOK-001
+// Validates: REQ-EVENTDAYWORKBOOK-001, REQ-EVENTDAYWORKBOOK-002, REQ-EVENTDAYWORKBOOK-003, REQ-EVENTDAYWORKBOOK-004, REQ-EVENTDAYWORKBOOK-005, TEST-EVENTDAYWORKBOOK-001
+assert.equal(typeof ctx.eventPlainMap_, 'function', '체크박스 없이 방문·등록 입력 영역을 구분해야 한다');
 assert.equal(typeof ctx.onEdit, 'function', '전체와 군별 입력을 처리하는 onEdit이 있어야 한다');
 assert.equal(typeof ctx.eventApplyPatch_, 'function', '입력 검사·항목 충돌을 처리해야 한다');
 const empty = () => Array(22).fill('');
@@ -57,7 +58,7 @@ class Sheet {
 }
 let uuid=0,active,locked=false;
 const ss={sheets:{},toasts:[],getSheetByName(n){return this.sheets[n];},getActiveSheet(){return active;},toast(m){this.toasts.push(m);}};
-ctx.EVENT.groups.concat([ctx.EVENT.visitors,ctx.EVENT.registrations,ctx.EVENT.raw,ctx.EVENT.log,ctx.EVENT.conflicts,'사용 안내']).forEach(n=>ss.sheets[n]=new Sheet(ss,n));
+ctx.eventViews_().concat([ctx.EVENT.raw,ctx.EVENT.log,ctx.EVENT.conflicts,'사용 안내']).forEach(n=>ss.sheets[n]=new Sheet(ss,n));ctx.EVENT.groups.forEach(g=>ss.sheets[g]=ss.sheets[g+'::방문']);
 ctx.Utilities={getUuid:()=>`test-${++uuid}`,formatDate:(_d,_tz,fmt)=>fmt==='yyyy-MM-dd'?'2026-11-01':'2026-11-01 12:00:00'};
 ctx.LockService={getDocumentLock:()=>({tryLock:()=>!locked,releaseLock(){}})};
 ctx.SpreadsheetApp={getActive:()=>ss,flush(){},getUi:()=>({alert:()=>1,ButtonSet:{YES_NO:1},Button:{YES:1}})};
@@ -108,8 +109,8 @@ ctx.eventUndoCancel();assert.equal(rows('조군').length,1);assert.equal(rows(ct
 locked=true;edit('슬군',2,6,'가상대기');assert.equal(rows('슬군').length,0);assert.equal(ss.sheets['슬군'].getRange(2,6).getValues()[0][0],'가상대기');locked=false;ctx.eventRepair();assert.equal(rows('슬군').length,1);
 const layout=require('../event-day-workbook/layout.cjs');const requests=layout.build([]);
 assert.ok(requests.every(r=>Object.keys(r).length===1));
-assert.equal(requests.filter(r=>r.addTable).length,12);
-assert.equal(requests.filter(r=>r.addSheet&&r.addSheet.properties.gridProperties.frozenRowCount===1).length,17);
+assert.equal(requests.filter(r=>r.addTable).length,0);
+assert.equal(requests.filter(r=>r.addSheet&&r.addSheet.properties.gridProperties.frozenRowCount===1).length,15);
 assert.ok(requests.filter(r=>r.addTable).every(r=>r.addTable.table.range.startRowIndex===0));
 assert.equal(requests.filter(r=>r.setDataValidation).length,0,'유형 적용된 테이블 열에 별도 validation을 겹치지 않는다');
 // 지연된 이벤트의 과거 e.value보다 화면의 최신 입력을 처리해야 한다.
@@ -142,3 +143,51 @@ console.log('실제 onEdit 경계: 양방향·군 이동·여러 행·동일인�
 // Google Sheets의 문자 형식으로 남은 체크 값도 false를 취소로 오해하지 않는다.
 const normalized=ss.sheets[ctx.EVENT.raw];normalized.getRange(2,14).setValue('true');normalized.getRange(2,15).setValue('false');normalized.getRange(2,22).setValue('false');
 const normalizedRow=ctx.eventData_(normalized)[0];assert.equal(normalizedRow[13],true);assert.equal(normalizedRow[14],false);assert.equal(normalizedRow[21],false);
+
+// 실제 단순 명단 열 배치를 통과한다. 등록 쪽에 이름을 적으면 방문 쪽에도 생긴다.
+Range.prototype.getNote=function(){return this.sheet.notes?.[`${this.row},${this.col}`]||'';};
+Range.prototype.setNote=function(v){this.sheet.notes??={};this.sheet.notes[`${this.row},${this.col}`]=v;return this;};
+Range.prototype.clearNote=function(){this.sheet.notes??={};for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)delete this.sheet.notes[`${this.row+i},${this.col+j}`];return this;};
+Range.prototype.getNotes=function(){return Array.from({length:this.nr},(_,i)=>Array.from({length:this.nc},(_,j)=>this.sheet.notes?.[`${this.row+i},${this.col+j}`]||''));};
+const plain={sheets:{},getSheetByName(n){return this.sheets[n];},getSheets(){return Object.values(this.sheets);},toast(){}};
+ctx.EVENT.groups.concat([ctx.EVENT.visitors,ctx.EVENT.registrations,ctx.EVENT.raw,ctx.EVENT.log,ctx.EVENT.conflicts]).forEach(n=>plain.sheets[n]=new Sheet(plain,n));
+plain.namedRanges={};plain.getRangeByName=n=>plain.namedRanges[n];plain.setNamedRange=(n,r)=>{plain.namedRanges[n]=r;};
+Sheet.prototype.getParent=function(){return this.ss;};Sheet.prototype.getSheetId=function(){return this.id||310;};
+ctx.EVENT.groups.forEach((g,i)=>{const s=plain.sheets[g];s.id=310+i;plain.namedRanges[`_EVENT_${s.id}_VISIT`]=s.getRange(3,1,20,12);plain.namedRanges[`_EVENT_${s.id}_REG`]=s.getRange(27,1,10,13);});
+ctx.SpreadsheetApp.getActive=()=>plain;
+let ps=plain.sheets['신군'];ps.getRange(27,3,1,4).setValues([['단순등록시험','여',30,'01000000008']]);ctx.onEdit({source:plain,range:ps.getRange(27,3,1,4)});
+assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][0],'단순등록시험');
+assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'단순등록시험');
+assert.equal(ps.getRange(3,3).getValues()[0][0],'단순등록시험');
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][13],true);assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][14],true);
+ps.getRange(27,3).setValue('');ctx.onEdit({source:plain,range:ps.getRange(27,3)});
+assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][0],'');
+assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'단순등록시험');
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][14],false);
+const visitor=plain.sheets[ctx.EVENT.visitors];visitor.getRange(2,3).setValue('');ctx.onEdit({source:plain,range:visitor.getRange(2,3)});
+assert.equal(ps.getRange(3,3).getValues()[0][0],'');
+assert.ok(!fs.readFileSync(file,'utf8').includes('.createMenu('),'추가 메뉴를 만들지 않는다');
+assert.ok(!layout.build().some(r=>r.addTable||r.setDataValidation),'표 버튼·체크박스·드롭다운을 만들지 않는다');
+console.log('단순 명단 실제 열 배치: 군 등록 입력→전체 등록·방문, 등록 비우기→방문 유지, 방문 비우기 통과');
+// 편집 이벤트가 빠진 이름 비우기도 다시 열 때 등록 해제로 처리한다.
+ps.getRange(29,3,1,4).setValues([['다시열기시험','여',31,'01000000005']]);ctx.onEdit({source:plain,range:ps.getRange(29,3,1,4)});
+ps.getRange(29,3).setValue('');ctx.eventRepair(true);
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='다시열기시험')[14],false,'대기 중인 이름 비우기는 다시 열 때도 처리해야 한다');
+
+// 방문 칸이 차면 등록 구역을 유지하며 다섯 줄을 더한다.
+Range.prototype.copyFormatToRange=function(){};
+Sheet.prototype.insertRowsBefore=function(at,count){this.data.splice(at-1,0,...Array.from({length:count},()=>[]));for(const r of Object.values(this.ss.namedRanges||{})){if(r.sheet!==this)continue;if(r.row>=at)r.row+=count;else if(r.getLastRow()>=at)r.nr+=count;}this.max+=count;};
+const wrapped=ctx.eventPlainWrap_(plain),fullMap=wrapped.getSheetByName('신군::방문');const oldRegRow=plain.getRangeByName('_EVENT_310_REG').getRow();
+fullMap.insertRowsAfter(fullMap.getMaxRows(),100);
+assert.equal(plain.getRangeByName('_EVENT_310_VISIT').getNumRows(),25);assert.equal(plain.getRangeByName('_EVENT_310_REG').getRow(),oldRegRow+5);
+// 군별 마지막 방문 칸 다음 행에 직접 적어도 구역을 먼저 확장한다.
+const beforeDirect=plain.getRangeByName('_EVENT_310_VISIT'),nextRow=beforeDirect.getLastRow()+1,regBeforeDirect=plain.getRangeByName('_EVENT_310_REG').getRow();
+ps.getRange(nextRow,3,1,4).setValues([['직접초과시험','남',32,'01000000002']]);ctx.onEdit({source:plain,range:ps.getRange(nextRow,3,1,4)});
+assert.equal(plain.getRangeByName('_EVENT_310_VISIT').getNumRows(),30,'마지막 칸 다음 직접 입력도 다섯 줄 늘려야 한다');
+assert.equal(plain.getRangeByName('_EVENT_310_REG').getRow(),regBeforeDirect+5);
+assert.ok(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).some(r=>r[5]==='직접초과시험'));
+// 등록 구역 마지막 다음 행에 직접 적어도 방문 자동 추가와 등록 구역 확장이 함께 된다.
+const regRange=plain.getRangeByName('_EVENT_310_REG'),regNext=regRange.getLastRow()+1,oldRegSize=regRange.getNumRows();
+ps.getRange(regNext,3,1,4).setValues([['등록초과시험','여',33,'01000000001']]);ctx.onEdit({source:plain,range:ps.getRange(regNext,3,1,4)});
+assert.equal(plain.getRangeByName('_EVENT_310_REG').getNumRows(),oldRegSize+5);
+const regOverflowRecord=ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='등록초과시험');assert.equal(regOverflowRecord[13],true);assert.equal(regOverflowRecord[14],true);
