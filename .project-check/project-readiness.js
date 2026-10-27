@@ -40,6 +40,49 @@ function visibleMarkdown(text) {
   return lines.map((line, i) => (fenced[i] ? ' '.repeat(line.length) : line)).join('\n');
 }
 
+// AGENTS.md 안에서 키트 migration이 소유하는 구역. migrate-project-readiness.js가 같은 값을 쓴다.
+const MANAGED_MARKERS = {
+  guidanceStart: '<!-- project-spec-guidance: start -->', guidanceEnd: '<!-- project-spec-guidance: end -->',
+  commandStart: '<!-- project-readiness-command: start -->', commandEnd: '<!-- project-readiness-command: end -->',
+};
+const WORKFLOW_MARKER_LINE = /^\s*<!--\s*spec-workflow:\s*(\S+)\s*-->\s*$/;
+const collapse = line => line.trim().replace(/\s+/g, ' ');
+
+// 템플릿이 다음 판으로 올라간 뒤 남은 옛 판 workflow 절을 찾는다. 옛 절 = 표시되는(주석·fence 밖) 템플릿 제목 줄
+// 바로 다음(빈 줄은 건너뜀)에 다른 판의 `spec-workflow` 표시가 오는 곳부터, 다음 1·2단계 제목이나 키트 관리 표시
+// 직전까지. 관리 구역(guidance start…end) 안은 migration이 통째로 바꾸므로 보지 않는다.
+// 각 줄을 공백만 정리해 현재 템플릿(줄바꿈을 공백으로 이은 본문)에 그대로 들어 있는지 본다 — 줄바꿈 위치가
+// 달라도 같은 문장은 같다. 들어 있지 않은 줄이 하나라도 있으면 사용자 내용이 있는 것으로 보고 지우지 않는다.
+// 반환하는 줄 번호는 0부터이며 text를 '\n'으로 나눈 위치다(CRLF의 '\r'은 비교할 때만 무시한다).
+function legacyWorkflowSections(text, template, expectedVersion) {
+  const lines = text.split('\n');
+  const visible = visibleMarkdown(text).split('\n');
+  const canonical = normalize(template).trim();
+  const heading = canonical.split('\n')[0];
+  const body = ' ' + canonical.split('\n').map(collapse).filter(Boolean).join(' ') + ' ';
+  const stops = new Set(Object.values(MANAGED_MARKERS));
+  const result = [];
+  let managed = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === MANAGED_MARKERS.guidanceStart) managed = true;
+    if (line === MANAGED_MARKERS.guidanceEnd) { managed = false; continue; }
+    if (managed || lines[i].trimEnd() !== heading || (visible[i] || '').trimEnd() !== heading) continue;
+    let j = i + 1;
+    while (j < lines.length && !lines[j].trim()) j++;
+    const version = lines[j]?.match(WORKFLOW_MARKER_LINE)?.[1];
+    if (!version || version === expectedVersion) continue;
+    let end = j + 1;
+    while (end < lines.length && !/^#{1,2}\s/.test(visible[end] || '') && !stops.has(lines[end].trim())) end++;
+    let contentEnd = end;
+    while (contentEnd > j + 1 && !lines[contentEnd - 1].trim()) contentEnd--;
+    const unique = lines.slice(j + 1, contentEnd).map(collapse).filter(l => l && !body.includes(l));
+    result.push({ start: i, markerLine: j, contentEnd, end, version, unique, removable: unique.length === 0 });
+    i = end - 1;
+  }
+  return result;
+}
+
 function sections(text) {
   const result = new Map();
   const headings = [...text.matchAll(/^##\s+(\d+)\.\s*[^\n]*$/gm)];
@@ -124,8 +167,22 @@ function checkProject(projectRoot, options = {}) {
   for (const match of agents.matchAll(new RegExp('^' + template.split('\n')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'gm'))) {
     if (visibleAgents.slice(match.index, match.index + match[0].length) === match[0] && agents.slice(match.index, match.index + template.length) === template) canonicalPresent = true;
   }
-  if (canonicalPresent && version && version !== expectedVersion) warning('WORKFLOW_LEGACY_PRESERVED', `AGENTS.md: current canonical workflow present; legacy ${version} section preserved`);
-  else if (!canonicalPresent && version && version !== expectedVersion) error('WORKFLOW_OUTDATED', `AGENTS.md: workflow ${version}; expected ${expectedVersion}`);
+  if (canonicalPresent) {
+    // 현재 판이 있는데 다른 판 표시가 남아 있다. 옛 절이 현재 판에 없는 줄을 하나도 갖지 않으면 같은 규칙의 두 번째
+    // 사본일 뿐이고 어느 쪽이 이기는지 아무것도 말하지 않는다 — 오류로 두어 그 프로젝트의 완료 검사가 떠안게 한다.
+    // migration이 지우므로 워크스페이스 게이트는 다른 workflow 갱신처럼 PROJECT_UPDATE_PENDING으로 미룬다.
+    // 사용자 줄이 남은 옛 절은 지울 수 없으므로 예전처럼 경고하고, 처음 남은 줄을 보여 사람이 옮기게 한다.
+    const legacy = legacyWorkflowSections(agents, template, expectedVersion);
+    const covered = new Set(legacy.map(s => s.markerLine));
+    agents.split('\n').forEach((line, i) => {
+      const old = line.match(WORKFLOW_MARKER_LINE)?.[1];
+      if (old && old !== expectedVersion && !covered.has(i)) warning('WORKFLOW_LEGACY_PRESERVED', `AGENTS.md:${i + 1}: current canonical workflow present; legacy ${old} section preserved`);
+    });
+    for (const s of legacy) {
+      if (s.removable) error('WORKFLOW_LEGACY_DUPLICATE', `AGENTS.md:${s.start + 1}: legacy ${s.version} workflow section repeats the current ${expectedVersion} section and has no line of its own; the same rules appear twice with no precedence. Run node tools/migrate-project-readiness.js <project> --write from the kit (the request hook does this on the next prompt) to remove it; the original is backed up`);
+      else warning('WORKFLOW_LEGACY_PRESERVED', `AGENTS.md:${s.start + 1}: current canonical workflow present; legacy ${s.version} section preserved because it has ${s.unique.length} line(s) not in the current workflow (first: "${s.unique[0].slice(0, 80)}"); move what still applies outside the section, then delete it`);
+    }
+  } else if (!canonicalPresent && version && version !== expectedVersion) error('WORKFLOW_OUTDATED', `AGENTS.md: workflow ${version}; expected ${expectedVersion}`);
   else if (!canonicalPresent) error(version ? 'WORKFLOW_INCOMPLETE' : 'WORKFLOW_MISSING', 'AGENTS.md: full canonical SPEC workflow required; marker alone is insufficient');
   const claude = visibleMarkdown(docs['CLAUDE.md'] || '').replace(/`[^`\n]*`/g, '');
   if (!/^\s*@(?:\.\/)?AGENTS\.md\s*$/m.test(claude)) error('CLAUDE_IMPORT_MISSING', 'CLAUDE.md: active @AGENTS.md import missing');
@@ -201,6 +258,8 @@ function checkProject(projectRoot, options = {}) {
     const testPaths = new Map();
     const remember = (map, token, label) => { if (!map.has(token)) map.set(token, label); };
     const manualVerified = []; const ungatedVerified = [];
+    const plannedTests = new Set(); const requiredTests = new Set();
+    const plannedPaths = new Map();
     // 무엇이 게이트에서 실행되는가: 호출자가 목록을 주면(키트: check-kit.js가 돌리는 테스트) 그 목록,
     // 아니면 프로젝트의 botyard.json verify 명령이 하나라도 있을 때 그 프로젝트의 테스트 전부로 본다.
     const gated = options.gatedTests ? ref => options.gatedTests.has(ref.replace(/\\/g, '/')) : (() => {
@@ -229,9 +288,11 @@ function checkProject(projectRoot, options = {}) {
         result.counts.traceRows++;
         for (const id of cells.join(' ').match(IDS) || []) if (!defined.has(id)) error('TRACE_UNDEFINED', `${label}: traceability references undefined ${id}`);
         rowIds.forEach(id => traceIds.add(id));
+        const rowStatus = (cells[statusCol] || '').replace(/`/g, '').trim().toLowerCase();
+        const draft = rowStatus === 'draft';
         const paths = ticks(cells[implCol] || '').filter(fileToken);
-        paths.forEach(p => remember(implPaths, p, label));
-        if (!paths.length) error('TRACE_IMPLEMENTATION_MISSING', `${label}: ${rowIds.join(', ')} lacks implementation file reference`);
+        paths.forEach(p => remember(draft ? plannedPaths : implPaths, p, label));
+        if (!draft && !paths.length) error('TRACE_IMPLEMENTATION_MISSING', `${label}: ${rowIds.join(', ')} lacks implementation file reference`);
         // Test 열은 테스트 경로(`tests/…`, `test-*.js` 등), `<도구> --self-test`, 정의된 TEST-ID만 받는다.
         // 존재하기만 하면 되는 규칙이면 README.md를 적어도 통과한다.
         const refs = [];
@@ -240,6 +301,8 @@ function checkProject(projectRoot, options = {}) {
           if (r) { refs.push(r); remember(testPaths, r.file, label); } else error('TRACE_TEST_INVALID', `${label}: ${rowIds.join(', ')} Test column \`${token}\` is not a test file, "<tool> --self-test" or TEST-ID`);
         }
         const testIds = (cells[testCol] || '').match(/\bTEST-[A-Z0-9]+-\d{3}\b/g) || [];
+        const testFiles = [...refs.map(r => r.file), ...testIds.flatMap(id => ticks(defined.get(id)?.body || '').filter(testToken))];
+        testFiles.forEach(file => { (draft ? plannedTests : requiredTests).add(file); if (draft) remember(plannedPaths, file, label); });
         if (!refs.length && !testIds.some(id => defined.has(id))) error('TRACE_TEST_MISSING', `${label}: ${rowIds.join(', ')} lacks test file or defined TEST procedure`);
         if (statusCol >= 0) {
           const value = (cells[statusCol] || '').replace(/`/g, '').trim().toLowerCase();
@@ -256,6 +319,15 @@ function checkProject(projectRoot, options = {}) {
       // 정의한 문서가 추적한다. 다른 문서의 표에 적어도 이 문서의 누락은 메워지지 않는다.
       for (const id of doc.own) if (!id.startsWith('TEST-') && !traceIds.has(id)) error('TRACE_REQUIREMENT_MISSING', `${label}: ${id} missing from traceability table`);
     }
+    // 계획도 프로젝트 경계를 지켜야 한다. 파일이 아직 없는 것은 허용한다.
+    for (const [token, label] of plannedPaths) {
+      const file = token.split('#')[0].replace(/\\/g, '/');
+      const target = path.resolve(root, file);
+      if (path.isAbsolute(file) || /^[A-Za-z]:/.test(file) || !inside(root, target)) error('PATH_OUTSIDE_PROJECT', `${label}: ${token} must be project-relative`);
+      else if (fs.existsSync(target) && !inside(root, fs.realpathSync(target))) error('PATH_OUTSIDE_PROJECT', `${label}: ${token} resolves outside project`);
+    }
+    // SPEC을 먼저 쓰는 draft 경로는 계획이다. 다른 구현/검증 행도 쓰는 경로는 계속 검사한다.
+    for (const file of plannedTests) if (!requiredTests.has(file)) testPaths.delete(file);
     const labels = specDocuments.length > 1 ? 'specification documents' : 'SPEC.md';
     // 이번 workflow 판에서는 경고다. 다음 판에서 오류로 올린다(docs/project-readiness.md).
     if (manualVerified.length) warning('TRACE_VERIFIED_MANUAL', `${labels}: ${manualVerified.length} verified row(s) have only manual TEST procedures (${manualVerified.slice(0, 5).join(', ')}); set Status to implemented, or add an automated test that the gate runs`);
@@ -334,4 +406,4 @@ function main(args) {
   }
 }
 if (require.main === module) process.exitCode = main(process.argv.slice(2));
-module.exports = { checkProject, visibleMarkdown, sections, testRef, STATUSES, SPEC_SECTIONS, FEATURE_SECTIONS };
+module.exports = { checkProject, visibleMarkdown, sections, testRef, legacyWorkflowSections, MANAGED_MARKERS, STATUSES, SPEC_SECTIONS, FEATURE_SECTIONS };
