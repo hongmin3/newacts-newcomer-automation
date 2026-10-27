@@ -18,7 +18,11 @@
     "trial-run",
     "matching-debug",
     "email-sending",
-    "sheet-setup"
+    "sheet-setup",
+    "gas-role-lookup",
+    "trigger-debug",
+    "policy-change",
+    "production-cutover"
   ],
   "compiler": {
     "scope": {
