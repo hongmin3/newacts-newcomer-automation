@@ -1,0 +1,4 @@
+interface:
+  display_name: "NEWACTS 문서"
+  short_description: "구성안을 먼저 승인받고 휴대폰에서 읽기 편한 NEWACTS HTML 문서 작성"
+  default_prompt: "$newacts-document로 문서 구성안을 먼저 보여 주고, 내 승인 뒤 HTML로 만들어 줘."

@@ -12,7 +12,7 @@ npm run push      # 저장소 코드를 운영에 반영
 
 ## NEWACTS 기본 문서
 
-[HTML 기본 양식](docs/templates/newacts-document.html)을 브라우저에서 열면 NEWACTS 로고와 제목·요약·표·안내 영역을 갖춘 문서를 사용할 수 있습니다. 이 프로젝트에서 문서 작성을 요청하면 이 양식을 기본으로 사용합니다. [사용 방법](docs/templates/README.md)에 따라 내용을 바꿉니다.
+[HTML 기본 양식](docs/templates/newacts-document.html)을 브라우저에서 열면 NEWACTS 로고와 제목·요약·표·안내 영역을 갖춘 문서를 사용할 수 있습니다. 이 프로젝트에서 문서 작성을 요청하면 먼저 텍스트 구성안을 보여 드리고, 승인 후 이 양식으로 휴대폰에서 읽기 편한 HTML을 만듭니다. [사용 방법](docs/templates/README.md)에 따라 내용을 바꿉니다.
 
 ## Mac 정착률 앱
 
