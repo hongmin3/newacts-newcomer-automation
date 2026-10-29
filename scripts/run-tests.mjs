@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const testDir = path.join(root, 'tests');
-const files = readdirSync(testDir).filter((name) => name.endsWith('.test.js')).sort();
+const files = readdirSync(testDir).filter((name) => /\.test\.(?:js|mjs)$/.test(name)).sort();
 
 const failed = [];
 for (const file of files) {

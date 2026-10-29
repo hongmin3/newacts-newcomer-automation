@@ -17,6 +17,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const exec = promisify(execFile);
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = path.join(ROOT, 'scripts', 'apps-script-projects.json');
@@ -140,75 +143,90 @@ async function runPull(token, project) {
   }
 }
 
-async function runPush(token, project) {
+async function readGitFiles(project, base) {
+  const {stdout} = await exec('git', ['ls-tree', '-rz', '--name-only', base, '--', project.dir], {cwd: ROOT});
+  const files = new Map();
+  for (const name of stdout.split('\0').filter(Boolean)) {
+    if (!/\.(gs|html)$/.test(name) && !name.endsWith('/appsscript.json')) continue;
+    const {stdout: source} = await exec('git', ['show', `${base}:${name}`], {cwd: ROOT, maxBuffer: 10 * 1024 * 1024});
+    files.set(path.basename(name), source);
+  }
+  if (!files.size) throw new Error('Git 기준 판에 프로젝트 파일이 없습니다.');
+  return files;
+}
+
+async function saveBackup(data) {
+  const dir = path.join(os.homedir(), '.config', 'newacts-apps-script', 'backups',
+    `${Date.now()}-${data.project.name}-${Math.random().toString(16).slice(2, 10)}`);
+  await fs.mkdir(dir, {recursive: true, mode: 0o700});
+  await fs.writeFile(path.join(dir, 'snapshot.json'), JSON.stringify(data, null, 2), {mode: 0o600});
+  return dir;
+}
+
+function assertSame(left, right, message) {
+  const changes = compare(left, right).filter(row => row.state !== 'same');
+  if (changes.length) throw new Error(message + ': ' + changes.map(row => row.name).join(', '));
+}
+
+async function runPush(token, project, options = {}) {
+  const request = options.request || callApi;
+  const backup = options.backup || saveBackup;
+  const url = `https://script.googleapis.com/v1/projects/${project.scriptId}`;
   console.log(`\n[${project.name}] 저장소 → 운영`);
   const local = await readLocalFiles(project.dir);
+  const baseline = options.baseline || await readGitFiles(project, options.base || 'HEAD');
+  const remote = await request(token, `${url}/content`);
+  // 이미 같은 내용이면 다시 쓰거나 기준 판을 되돌릴 필요가 없습니다.
+  if (compare(local, toFileMap(remote.files)).every(row => row.state === 'same')) {
+    console.log('  운영과 동일하여 쓰기를 생략합니다.'); return;
+  }
+  assertSame(baseline, toFileMap(remote.files), '운영 원본과 Git 기준 판 충돌. 먼저 변경을 조정하세요');
+  const deployments = await request(token, `${url}/deployments`);
+  const backupPath = await backup({project, content: remote, deployments, createdAt: new Date().toISOString()});
+  console.log(`  운영 백업: ${backupPath}`);
+  assertSame(toFileMap(remote.files), toFileMap((await request(token, `${url}/content`)).files),
+    '백업 이후 운영 원본이 변경되어 중단합니다');
   const files = [...local].map(([name, source]) => ({
     name: name.slice(0, name.length - path.extname(name).length),
-    type: TYPE_BY_EXTENSION[path.extname(name)],
-    source
+    type: TYPE_BY_EXTENSION[path.extname(name)], source
   }));
-
-  await callApi(
-    token,
-    `https://script.googleapis.com/v1/projects/${project.scriptId}/content`,
-    { method: 'PUT', body: JSON.stringify({ files }) }
-  );
-
-  // 반영 결과를 그대로 다시 읽어 확인합니다.
-  const remote = toFileMap((await fetchContent(token, project.scriptId)).files);
-  const mismatched = compare(local, remote).filter((row) => row.state !== 'same');
-  if (mismatched.length) {
-    throw new Error(
-      `반영 후 확인 실패: ${mismatched.map((row) => `${row.name}(${row.state})`).join(', ')}`
-    );
-  }
+  await request(token, `${url}/content`, {method: 'PUT', body: JSON.stringify({files})});
+  assertSame(local, toFileMap((await request(token, `${url}/content`)).files), '반영 후 확인 실패');
   console.log(`  반영·확인 완료: ${files.length}개 파일`);
 }
 
-async function runDeploy(token, project, description) {
-  if (!project.webApp) {
-    throw new Error(`${project.name}은 웹앱 프로젝트가 아닙니다.`);
-  }
-  console.log(`\n[${project.name}] 새 버전 배포`);
-
-  const version = await callApi(
-    token,
-    `https://script.googleapis.com/v1/projects/${project.scriptId}/versions`,
-    { method: 'POST', body: JSON.stringify({ description }) }
-  );
-  console.log(`  버전 ${version.versionNumber} 생성`);
-
-  const { deployments = [] } = await callApi(
-    token,
-    `https://script.googleapis.com/v1/projects/${project.scriptId}/deployments`
-  );
-  // versionNumber가 없는 항목은 항상 HEAD를 가리키는 기본 배포라 갱신 대상이 아닙니다.
-  const targets = deployments.filter((item) => item.deploymentConfig?.versionNumber);
-  if (!targets.length) throw new Error('갱신할 버전 고정 배포가 없습니다.');
-
-  for (const target of targets) {
-    const updated = await callApi(
-      token,
-      `https://script.googleapis.com/v1/projects/${project.scriptId}` +
-        `/deployments/${target.deploymentId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({
-          deploymentConfig: {
-            scriptId: project.scriptId,
-            versionNumber: version.versionNumber,
-            manifestFileName: 'appsscript',
-            description
-          }
-        })
-      }
-    );
-    const webApp = (updated.entryPoints || []).find((entry) => entry.webApp)?.webApp;
-    console.log(`  배포 ${target.deploymentId} → 버전 ${version.versionNumber}`);
-    if (webApp) console.log(`  웹앱 URL: ${webApp.url}`);
-  }
-  return version.versionNumber;
+async function runDeploy(token, project, description, options = {}) {
+  if (!project.webApp) throw new Error(`${project.name}은 웹앱 프로젝트가 아닙니다.`);
+  if (!options.deploymentId) throw new Error('--deployment-id로 배포 ID를 지정하세요.');
+  const request = options.request || callApi;
+  const backup = options.backup || saveBackup;
+  const url = `https://script.googleapis.com/v1/projects/${project.scriptId}`;
+  const {deployments = []} = await request(token, `${url}/deployments`);
+  const target = deployments.find(item => item.deploymentId === options.deploymentId &&
+    item.deploymentConfig?.versionNumber && item.entryPoints?.some(entry => entry.webApp));
+  if (!target) throw new Error('지정한 버전 고정 웹앱 배포를 찾을 수 없습니다.');
+  const content = await request(token, `${url}/content`);
+  if (!options.version) assertSame(await readLocalFiles(project.dir), toFileMap(content.files), '운영과 저장소가 다릅니다');
+  if (options.version) await request(token, `${url}/versions/${options.version}`);
+  const backupPath = await backup({project, content, deployments, createdAt: new Date().toISOString()});
+  console.log(`  운영 백업: ${backupPath}`);
+  // 버전 생성 직전 원본과 선택한 배포가 바뀌지 않았는지 다시 확인합니다.
+  assertSame(toFileMap(content.files), toFileMap((await request(token, `${url}/content`)).files), '운영 코드가 변경되어 중단합니다');
+  const latest = await request(token, `${url}/deployments`);
+  if (JSON.stringify(latest.deployments.find(item => item.deploymentId === options.deploymentId)?.deploymentConfig)
+      !== JSON.stringify(target.deploymentConfig)) throw new Error('운영 배포가 변경되어 중단합니다');
+  const version = options.version || (await request(token, `${url}/versions`, {
+    method: 'POST', body: JSON.stringify({description})
+  })).versionNumber;
+  const deploymentConfig = {...target.deploymentConfig, scriptId: project.scriptId,
+    versionNumber: version, description};
+  await request(token, `${url}/deployments/${target.deploymentId}`, {
+    method: 'PUT', body: JSON.stringify({deploymentConfig})
+  });
+  const readback = await request(token, `${url}/deployments/${target.deploymentId}`);
+  if (readback.deploymentConfig?.versionNumber !== version) throw new Error('배포 버전 재확인 실패');
+  console.log(`  선택한 배포 → 버전 ${version} 확인 완료 (이전 버전 ${target.deploymentConfig.versionNumber})`);
+  return version;
 }
 
 async function main() {
@@ -216,24 +234,35 @@ async function main() {
   const command = rawCommand && !rawCommand.startsWith('--') ? rawCommand : 'diff';
   const args = rawCommand && rawCommand.startsWith('--') ? [rawCommand, ...rest] : rest;
 
-  const descriptionIndex = args.indexOf('--description');
-  const description = descriptionIndex >= 0
-    ? args[descriptionIndex + 1]
-    : `repo deploy ${new Date().toISOString().slice(0, 10)}`;
-  // --description의 값 위치만 제외합니다. 옵션이 없을 때 0번을 지우면 안 됩니다.
-  const descriptionValueIndex = descriptionIndex >= 0 ? descriptionIndex + 1 : -1;
-  const names = args.filter(
-    (value, index) =>
-      !value.startsWith('--') && index !== descriptionValueIndex
-  );
-
-  const { projects } = JSON.parse(await fs.readFile(MANIFEST, 'utf8'));
-  const selected = names.length
-    ? projects.filter((project) => names.includes(project.name))
-    : projects;
-  if (!selected.length) {
-    throw new Error(`알 수 없는 프로젝트: ${names.join(', ')}`);
+  const flags = {'--description': 'description', '--base': 'base', '--deployment-id': 'deploymentId', '--version': 'version'};
+  const options = {};
+  const names = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].startsWith('--')) {
+      const key = flags[args[i]];
+      if (!key || !args[i + 1] || args[i + 1].startsWith('--') || options[key] !== undefined) {
+        throw new Error(`알 수 없거나 값이 잘못된 옵션: ${args[i]}`);
+      }
+      options[key] = args[++i];
+    } else names.push(args[i]);
   }
+  if (!['diff', 'pull', 'push', 'deploy'].includes(command)) throw new Error(`알 수 없는 명령: ${command}`);
+  if (options.version !== undefined) {
+    if (!/^[1-9][0-9]*$/.test(options.version)) throw new Error('버전은 양의 정수여야 합니다.');
+    options.version = Number(options.version);
+  }
+  if (command !== 'deploy' && (options.deploymentId || options.version || options.description)) {
+    throw new Error('배포 옵션은 deploy에서만 사용합니다.');
+  }
+  if (options.base && command !== 'push') throw new Error('--base는 push에서만 사용합니다.');
+  const {projects} = JSON.parse(await fs.readFile(MANIFEST, 'utf8'));
+  const unknown = names.filter(name => !projects.some(project => project.name === name));
+  if (unknown.length) throw new Error(`알 수 없는 프로젝트: ${unknown.join(', ')}`);
+  const selected = names.length ? projects.filter(project => names.includes(project.name)) : projects;
+  if (command === 'deploy' && (names.length !== 1 || !options.deploymentId)) {
+    throw new Error('deploy는 프로젝트 한 개와 --deployment-id를 지정합니다.');
+  }
+  const description = options.description || `repo deploy ${new Date().toISOString().slice(0, 10)}`;
 
   const token = await readAccessToken();
 
@@ -249,20 +278,22 @@ async function main() {
     return;
   }
   if (command === 'push') {
-    for (const project of selected) await runPush(token, project);
+    for (const project of selected) await runPush(token, project, options);
     return;
   }
   if (command === 'deploy') {
     if (names.length !== 1) {
       throw new Error('deploy는 프로젝트 한 개만 지정합니다.');
     }
-    await runDeploy(token, selected[0], description);
+    await runDeploy(token, selected[0], description, options);
     return;
   }
   throw new Error(`알 수 없는 명령: ${command}`);
 }
 
-main().catch((error) => {
+export {runPush, runDeploy, readLocalFiles, readGitFiles};
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => {
   console.error(`\n오류: ${error.message}`);
   process.exitCode = 1;
 });

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="6d2884ac3eebefd19c96e6ae8309dab0b052a5147537ba7a918aaf676f63873a">
+<meta name="spec-source-sha256" content="fae27902d90798c314eebc9312829f25ff360a019208a35f83e49ef30d11c894">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-04</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>39</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>36</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>28</b><span>implemented</span></div><div class="stat st-verified"><b>16</b><span>verified</span></div></div>
+<div class="stats"><div class="stat"><b>42</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>36</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>22</b><span>verified</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -108,6 +108,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-ATTEND-002">REQ-ATTEND-002 <span>응답 시트를 최신순으로 유지</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EDU-001">REQ-EDU-001 <span>교육 출석 현황 갱신</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EDU-002">REQ-EDU-002 <span>출석 대상자 매칭 보호</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-EDU-004">REQ-EDU-004 <span>출석 보고 복구와 검토 재처리</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EDU-003">REQ-EDU-003 <span>집중교육 참석 반영</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-NOTI-001">REQ-NOTI-001 <span>주말 문자공지 대상 뽑기</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-REG-001">REQ-REG-001 <span>등록 명단 자동 보정</span></a></li>
@@ -126,6 +127,8 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-RATE-001">REQ-RATE-001 <span>조회 완료율 안전 기준</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-RATE-002">REQ-RATE-002 <span>개인별 표 선택</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-RATE-003">REQ-RATE-003 <span>마지막 화요일 판정</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-INTENSIVE-002">REQ-INTENSIVE-002 <span>신청 단계별 복구</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-SYNC-003">REQ-SYNC-003 <span>운영 변경 보호와 배포 대상 지정</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-SYNC-001">REQ-SYNC-001 <span>REST 운영 미리보기</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-SYNC-002">REQ-SYNC-002 <span>장기 OAuth 인증과 공개 앱 안내</span></a></li>
 <li class="toc-2"><a href="#sec-6">6. 비기능 요구사항</a></li>
@@ -222,11 +225,12 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a></td><td data-label="이름">출석 제출 확인</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>attendance-webapp/Code.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-ATTEND-002">REQ-ATTEND-002</a></td><td data-label="이름">응답 시트를 최신순으로 유지</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>attendance-webapp/Code.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-ATTEND-002">TEST-ATTEND-002</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">EDU</span> 교육 출석</th></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a></td><td data-label="이름">교육 출석 현황 갱신</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a> (수동)</td></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a></td><td data-label="이름">출석 대상자 매칭 보호</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-EDU-002">TEST-EDU-002</a> (수동)</td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a></td><td data-label="이름">교육 출석 현황 갱신</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="테스트"><code>tests/education-recovery.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a></td><td data-label="이름">출석 대상자 매칭 보호</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="테스트"><code>tests/education-recovery.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EDU-004">REQ-EDU-004</a></td><td data-label="이름">출석 보고 복구와 검토 재처리</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="테스트"><code>tests/education-recovery.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a></td><td data-label="이름">집중교육 참석 반영</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>education-project/집중교육 출석 현황 업데이트.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">NOTI</span> 문자공지</th></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a></td><td data-label="이름">주말 문자공지 대상 뽑기</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>education-project/문자 명단 리스트.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a></td><td data-label="이름">주말 문자공지 대상 뽑기</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>education-project/문자 명단 리스트.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a>, <code>tests/notification-selection.test.js</code></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">REG</span> 등록·군 현황</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-001">REQ-REG-001</a></td><td data-label="이름">등록 명단 자동 보정</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code>, <code>tests/registration-manual-execution.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-002">REQ-REG-002</a></td><td data-label="이름">군 현황판 다시 만들기</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></td></tr>
@@ -243,6 +247,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a></td><td data-label="이름">상반기 새가족 결산</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/제목 없음.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-SETTLE-001">TEST-SETTLE-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">INTENSIVE</span> 집중교육</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a></td><td data-label="이름">집중교육 신청 접수</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>intensive-training-application/Code.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-INTENSIVE-001">TEST-INTENSIVE-001</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-INTENSIVE-002">REQ-INTENSIVE-002</a></td><td data-label="이름">신청 단계별 복구</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>intensive-training-application/Code.gs</code></td><td data-label="테스트"><code>tests/intensive-recovery.test.js</code></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">MAIL</span> 메일 안전장치</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-MAIL-001">REQ-MAIL-001</a></td><td data-label="이름">테스트 메일 오발송 방지</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-MAIL-001">TEST-MAIL-001</a>, <a class="idref" href="#TEST-MAIL-002">TEST-MAIL-002</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">LOG</span> 실행 로그</th></tr>
@@ -252,6 +257,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATE-002">REQ-RATE-002</a></td><td data-label="이름">개인별 표 선택</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code></td><td data-label="테스트"><a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATE-003">REQ-RATE-003</a></td><td data-label="이름">마지막 화요일 판정</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code>, <code>settlement-automation/run_monthly.ps1</code></td><td data-label="테스트"><a class="idref" href="#TEST-RATE-003">TEST-RATE-003</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">SYNC</span> 배포 동기화</th></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-SYNC-003">REQ-SYNC-003</a></td><td data-label="이름">운영 변경 보호와 배포 대상 지정</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>scripts/apps-script.mjs</code></td><td data-label="테스트"><code>tests/apps-script-deploy.test.mjs</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-SYNC-001">REQ-SYNC-001</a></td><td data-label="이름">REST 운영 미리보기</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>scripts/apps-script-execution.mjs</code>, <code>scripts/apps-script-execution-auth.py</code>, <code>registration-project/appsscript.json</code></td><td data-label="테스트"><code>tests/apps-script-execution.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-SYNC-002">REQ-SYNC-002</a></td><td data-label="이름">장기 OAuth 인증과 공개 앱 안내</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>docs/oauth-public/</code>, <code>docs/rest-preview.md</code></td><td data-label="테스트"><a class="idref" href="#TEST-SYNC-002">TEST-SYNC-002</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">NFR SEC</span> 보안</th></tr>
@@ -636,9 +642,10 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 </section>
 <section class="card kind-req" id="REQ-EDU-001">
 <h3><span class="idtag">REQ-EDU-001</span> 교육 출석 현황 갱신</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a> (수동)</span><span class="meta"><b>참조됨</b> <a class="idref" href="#NFR-PERF-001">NFR-PERF-001</a>, <a class="idref" href="#REQ-ATTEND-002">REQ-ATTEND-002</a>, <a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a></span></div>
-<details class="history"><summary>변경 이력 2</summary>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <code>tests/education-recovery.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#NFR-PERF-001">NFR-PERF-001</a>, <a class="idref" href="#REQ-ATTEND-002">REQ-ATTEND-002</a>, <a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a></span></div>
+<details class="history"><summary>변경 이력 3</summary>
 <ul>
+<li><span class="hist">2026-10-29 REA 잔여 개선</span> <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a>: 실제 증분 처리의 순서·<span class="term" title="지난 실행에서 본 가장 늦은 응답의 제출 시각이다. 이보다 늦은 응답만 새로 처리한다" tabindex="0">커서</span>·<span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 중단 복구 시험을 추가했다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
 <code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
 참석 반영이 별개 경로임을 그림으로 구분했다. 실행 동작은 바꾸지 않았다.</li>
@@ -660,20 +667,21 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 </ul>
 </div></section>
 <section class="field"><h4>예외 처리</h4><div class="field-body">
-<p>원본 시트를 찾지 못하면 예외를 내고 멈춘다. 새 응답이 0건이면 정상으로 끝내고 메일을 보내지 않는다.</p>
+<p>원본 시트를 찾지 못하면 예외를 내고 멈춘다. 새 응답과 대기 보고가 모두 0건이면 메일을 보내지 않는다. 대기 보고의 복구는 <a class="idref" href="#REQ-EDU-004">REQ-EDU-004</a>를 따른다.</p>
 </div></section>
 <section class="field"><h4>관련 구현</h4><div class="field-body">
 <p><code>education-project/교육 출석 현황 업데이트.gs</code></p>
 </div></section>
 <section class="field"><h4>관련 테스트</h4><div class="field-body">
-<p>(없음. 로컬 정적 테스트가 다루지 않는다)</p>
+<p>12절의 자동 회귀 테스트를 따른다.</p>
 </div></section>
 </section>
 <section class="card kind-req" id="REQ-EDU-002">
 <h3><span class="idtag">REQ-EDU-002</span> 출석 대상자 매칭 보호</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-EDU-002">TEST-EDU-002</a> (수동)</span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-EDU-002">TEST-EDU-002</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <code>tests/education-recovery.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-EDU-002">TEST-EDU-002</a></span></div>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">2026-10-29 REA 잔여 개선</span> <a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a>: 중복 전화·이름만 일치·기존 출석 보호와 검토 재처리의 군·팀 보호 시험을 추가했다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>: 운영 시트가 있어야 관찰되는 요구사항의
 수동 절차를 추가했다. 시트를 바꾸지 않는 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수만 쓴다.</li>
 </ul>
@@ -708,8 +716,28 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <p><code>education-project/교육 출석 현황 업데이트.gs</code></p>
 </div></section>
 <section class="field"><h4>관련 테스트</h4><div class="field-body">
-<p>(없음. 로컬 정적 테스트가 다루지 않는다)</p>
+<p>12절의 자동 회귀 테스트를 따른다.</p>
 </div></section>
+</section>
+<section class="card kind-req" id="REQ-EDU-004">
+<h3><span class="idtag">REQ-EDU-004</span> 출석 보고 복구와 검토 재처리</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>education-project/교육 출석 현황 업데이트.gs</code></span><span class="meta"><b>테스트</b> <code>tests/education-recovery.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-29 REA 잔여 개선</span> <a class="idref" href="#REQ-EDU-004">REQ-EDU-004</a>: 출석과 보고의 완료 단계를 숨김 기록에 저장한다. 발송 실패 후 대기 보고를 복구하고 검토 원본을 고친 뒤 해당 응답만 재처리한다. 복구 중 새 충돌과 같은 시각의 모호한 응답은 검토 상태로 유지한다.</li>
+</ul>
+</details>
+<p>담당자는 출석이 반영된 뒤 메일 발송에 실패해도 다음 실행에서 대기 보고를 다시 보낼 수 있다.</p>
+<ol>
+<li>출석을 쓰기 전에 대상 응답과 보고 예정 결과를 교육 파일의 숨김 처리 기록에 저장한다.</li>
+<li>출석 반영·<span class="term" title="지난 실행에서 본 가장 늦은 응답의 제출 시각이다. 이보다 늦은 응답만 새로 처리한다" tabindex="0">커서</span> 저장·검토 목록 저장·보고 발송의 완료 상태를 나누어 기록한다.</li>
+<li>중단된 실행은 먼저 복구한다. 새 응답이 없어도 대기 보고를 처리한다.</li>
+<li>검토 목록은 응답 시각으로 원본을 다시 찾는다. 원본을 고친 뒤 <span class="term" title="자동으로 판단할 수 없어 시트를 바꾸지 않고 사람이 확인하도록 보고하는 건이다" tabindex="0">검토 대상</span>만 재처리할 수 있다. 같은 시각의 원본이 여러 개면 자동 재처리하지 않고 검토 상태를 유지한다. 검토 재처리에서는 기존 대상자의 현재 군·팀을 유지한다.</li>
+<li>상태 조회는 마지막 반영 시각·대기 보고 수·미해결 검토 수만 반환한다. <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>는 숨김 기록도 만들거나 바꾸지 않는다.</li>
+</ol>
+<aside class="callout callout-warn"><span class="callout-label">주의</span>
+<p>메일 서버가 접수한 직후 실행이 끊기면 재시도에서 같은 보고를 다시 받을 수 있다. 과거 전체 응답의 <span class="term" title="지난 실행에서 본 가장 늦은 응답의 제출 시각이다. 이보다 늦은 응답만 새로 처리한다" tabindex="0">커서</span>를 되돌리지는 않는다.</p>
+</aside>
 </section>
 <section class="card kind-req" id="REQ-EDU-003">
 <h3><span class="idtag">REQ-EDU-003</span> 집중교육 참석 반영</h3>
@@ -763,9 +791,10 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-req" id="REQ-NOTI-001">
 <h3><span class="idtag">REQ-NOTI-001</span> 주말 문자공지 대상 뽑기</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>education-project/문자 명단 리스트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>education-project/문자 명단 리스트.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a>, <code>tests/notification-selection.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></span></div>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">2026-10-29 REA 잔여 개선</span> <a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a>: 완료·수신 거부·기간·전화번호 중복에 따른 문자공지 대상 선정을 시험한다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a> · <a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a> · <a class="idref" href="#NFR-OPS-001">NFR-OPS-001</a>: 이미 있던 자동 테스트를 추적성 표에
 연결하는 TEST 절을 추가했다(<a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a> · <a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a> · <a class="idref" href="#TEST-OPS-001">TEST-OPS-001</a>).
 <code>tests/education-automation.test.js</code>는 본문 주석에 <code>TEST-EDU-003</code>을 적고 있었는데
@@ -1195,7 +1224,7 @@ SPEC에는 그 ID가 없었다.</li>
 <p><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></p>
 </div></section>
 <section class="field"><h4>관련 테스트</h4><div class="field-body">
-<p>(없음. 로컬 정적 테스트가 다루지 않는다)</p>
+<p>12절의 자동 회귀 테스트를 따른다.</p>
 </div></section>
 </section>
 <section class="card kind-req" id="REQ-SETTLE-001">
@@ -1428,6 +1457,41 @@ SPEC에는 그 ID가 없었다.</li>
 </tbody>
 </table></div>
 </div></section>
+</section>
+<section class="card kind-req" id="REQ-INTENSIVE-002">
+<h3><span class="idtag">REQ-INTENSIVE-002</span> 신청 단계별 복구</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>intensive-training-application/Code.gs</code></span><span class="meta"><b>테스트</b> <code>tests/intensive-recovery.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-29 REA 잔여 개선</span> <a class="idref" href="#REQ-INTENSIVE-002">REQ-INTENSIVE-002</a>: 제출 시각으로 원본을 찾고 관리자·공개 쓰기 단계를 나눠 복구한다. 쓰기 직후 중단과 정렬 뒤 재시도에서도 기존 사람을 덮지 않는다.</li>
+</ul>
+</details>
+<p>같은 제출 이벤트를 다시 실행해도 관리자·공개 명단에 각각 한 줄만 남긴다.</p>
+<ul>
+<li>관리자 파일·원본 시트·제출 시각을 제출 식별 기준으로 쓴다. 같은 시각의 응답이 여럿이면 자동 처리하지 않는다.</li>
+<li>관리자 숨김 처리 기록에 대상 행을 먼저 예약한다. 쓰기 직후 실패해도 재시도는 그 행에 같은 값을 쓴다.</li>
+<li>재시도 전에 예정 내용이 이미 기록됐는지 확인한다. 예약 행에 다른 기록이 있으면 덮어쓰지 않고 중단한다.</li>
+<li>공개 기록 완료를 저장한 뒤 정렬한다. 정렬에 실패하면 새 행을 추가하지 않고 정렬만 재시도한다.</li>
+<li>다른 시각에 같은 참석자가 다시 제출한 경우는 기존 중복 의심 규칙을 유지한다.</li>
+<li>상태 조회는 완료·처리 대기 건수만 반환한다. 공개 명단의 다섯 열 구성은 유지한다.</li>
+</ul>
+</section>
+<section class="card kind-req" id="REQ-SYNC-003">
+<h3><span class="idtag">REQ-SYNC-003</span> 운영 변경 보호와 배포 대상 지정</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>scripts/apps-script.mjs</code></span><span class="meta"><b>테스트</b> <code>tests/apps-script-deploy.test.mjs</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-29 REA 잔여 개선</span> <a class="idref" href="#REQ-SYNC-003">REQ-SYNC-003</a>: 운영 원본 충돌 차단·개인 백업·반영 전후 대조·배포 ID 지정·이전 버전 복구를 추가했다. 한글 Git 경로를 포함한 기준 파일을 모두 대조한다.</li>
+</ul>
+</details>
+<p>담당자는 운영에서 직접 고친 코드를 덮어쓰기 전에 충돌을 확인하고, 선택한 배포 한 개만 갱신한다.</p>
+<ul>
+<li>push는 Git 기준 판과 운영 원본을 대조한다. 다르면 중단하고 먼저 변경을 조정한다.</li>
+<li>쓰기 전에 운영 원본과 배포 정보를 저장소 밖 개인 백업에 저장한다. 쓰기 직전 원본을 다시 읽어 바뀌지 않았는지 확인하고, 반영 뒤에도 다시 대조한다.</li>
+<li>웹앱 배포는 프로젝트 하나와 배포 ID 하나를 지정한다. 해당 프로젝트에 속하는 버전 고정 웹앱인지 확인한 뒤 새 버전을 만든다.</li>
+<li>같은 명령에서 이전 버전을 지정하면 선택한 배포만 그 버전으로 되돌린다. 접근 권한 설정은 보존한다.</li>
+<li>알 수 없는 프로젝트·옵션은 인증이나 쓰기 전에 실패한다.</li>
+</ul>
 </section>
 <section class="card kind-req" id="REQ-SYNC-001">
 <h3><span class="idtag">REQ-SYNC-001</span> REST 운영 미리보기</h3>
@@ -2434,10 +2498,13 @@ SPEC에는 그 ID가 없었다.</li>
 <tbody>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a></td><td data-label="Implementation"><code>attendance-webapp/Code.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-ATTEND-001">TEST-ATTEND-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-ATTEND-002">REQ-ATTEND-002</a></td><td data-label="Implementation"><code>attendance-webapp/Code.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-ATTEND-002">TEST-ATTEND-002</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-EDU-001">TEST-EDU-001</a> (수동)</td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-EDU-002">TEST-EDU-002</a> (수동)</td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-004">REQ-EDU-004</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><code>tests/education-recovery.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-INTENSIVE-002">REQ-INTENSIVE-002</a></td><td data-label="Implementation"><code>intensive-training-application/Code.gs</code></td><td data-label="Test"><code>tests/intensive-recovery.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-SYNC-003">REQ-SYNC-003</a></td><td data-label="Implementation"><code class="term" title="저장소 코드와 운영 중인 Apps Script 코드를 비교하고, 가져오고, 올리고, 배포하는 도구다" tabindex="0">scripts/apps-script.mjs</code></td><td data-label="Test"><code>tests/apps-script-deploy.test.mjs</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><code>tests/education-recovery.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><code>tests/education-recovery.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a></td><td data-label="Implementation"><code>education-project/집중교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a></td><td data-label="Implementation"><code>education-project/문자 명단 리스트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a></td><td data-label="Implementation"><code>education-project/문자 명단 리스트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a>, <code>tests/notification-selection.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-001">REQ-REG-001</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code>, <code>tests/registration-manual-execution.test.js</code></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-002">REQ-REG-002</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-003">REQ-REG-003</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-004">TEST-REG-004</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
@@ -2482,8 +2549,6 @@ SPEC에는 그 ID가 없었다.</li>
 <h2>14. 향후 개선 후보</h2>
 <ul>
 <li>하반기 마감 후 담당자가 검토 내역과 행사 목표를 확인하고 시트를 보관한다(<a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a>, <a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a>).</li>
-<li>교육 새 응답 반영(<a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a>)과 <span class="term" title="응답이나 명단의 줄을 같은 사람의 줄과 짝짓는 것이다" tabindex="0">매칭</span>·검토 분류(<a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a>)의 단위 테스트. 이 프로젝트에서 가장 복잡한 판단 로직인데 로컬 검증이 없다.</li>
-<li>문자공지 대상자 선정 기준(<a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a>)의 단위 테스트.</li>
 </ul>
 </section>
 <section class="chapter" id="doc-settlement-desktop">

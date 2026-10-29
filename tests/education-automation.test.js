@@ -256,7 +256,7 @@ assert.equal(spreadsheet.active.getName(), '교육 출석 현황', '활성 시�
 assert.doesNotMatch(educationSource, /function writeEducationLog_[\s\S]{0,60}disabled: true/);
 assert.match(
   educationSource,
-  /writeEducationLog_\('processPendingAttendanceTrigger', result\)/
+  /writeEducationLog_\('processPendingAttendanceTrigger', (?:batch\.data\.)?result\)/
 );
 
 console.log('education automation checks passed');

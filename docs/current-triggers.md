@@ -31,13 +31,18 @@
 
 ## 수동 함수
 
-운영 등록 프로젝트의 미리보기는 편집기에서 실행한다. 실행 API용 배포가 없는 현재 구성에서는 `scripts.run` 호출이 `NOT_FOUND`로 끝나지만 편집기 실행은 가능하다. 미리보기 로그는 명단 없이 집계만 출력한다.
+등록 프로젝트는 본인 전용 REST 실행 API와 편집기에서 미리보기를 실행한다. `npm run preview -- registration maintenance` 또는 `reporting`을 사용한다. 교육·집중교육 신청은 편집기의 아래 함수를 사용한다. 미리보기와 상태 조회는 명단 없이 집계만 출력한다.
 
 - `previewRegistrationMaintenance`: 등록 보정·군 현황·방문 예정 집계, 데이터·메일 변경 없음
 - `previewRegistrationReporting`: 수료 반영 예정·현재 보고 집계, 데이터·메일 변경 없음
 - `applyRegistrationCorrectionsNow`: 승인 후 등록 보정만 실행, 메일 없음
 - `syncNewFamilyData`: 승인 후 수료현황만 갱신, 메일 없음
 
+- `previewEducationOperationalHealth`: 교육 반영 예정·대기 보고·미해결 검토 집계, 데이터·메일 변경 없음
+- `previewEducationReviewReprocessing`: 검토 대상 재반영 예정 집계, 변경 없음
+- `reprocessEducationReviews`: 검토 대상만 실제 반영, 커서·현재 군·팀 보존, 메일 없음
+- `getIntensiveApplicationStatus`: 신청 완료·처리 대기 집계, 변경 없음
+- `retryPendingIntensiveApplications`: 중단된 신청 단계부터 실제 재처리, 메일 없음
 - `previewEducationDetailedReport`: 교육 상세 메일 본문을 시트·메일 변경 없이 확인
 - `sortAttendanceSourceNewestFirst`: 출석 응답 시트를 타임스탬프 최신순으로 1회 정렬
 - `sortEducationManagementNewestFirst`: 교육 출석 현황과 로그를 최신순으로 1회 정렬

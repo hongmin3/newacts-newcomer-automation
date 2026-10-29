@@ -280,13 +280,13 @@ TEST-ATTEND-002
 - 미리보기 함수는 시트·속성·메일을 전혀 바꾸지 않고 처리할 예정 건수만 알려 준다.
 
 #### 예외 처리
-원본 시트를 찾지 못하면 예외를 내고 멈춘다. 새 응답이 0건이면 정상으로 끝내고 메일을 보내지 않는다.
+원본 시트를 찾지 못하면 예외를 내고 멈춘다. 새 응답과 대기 보고가 모두 0건이면 메일을 보내지 않는다. 대기 보고의 복구는 REQ-EDU-004를 따른다.
 
 #### 관련 구현
 `education-project/교육 출석 현황 업데이트.gs`
 
 #### 관련 테스트
-(없음. 로컬 정적 테스트가 다루지 않는다)
+12절의 자동 회귀 테스트를 따른다.
 
 ### REQ-EDU-002 출석 대상자 매칭 보호
 
@@ -314,7 +314,19 @@ TEST-ATTEND-002
 `education-project/교육 출석 현황 업데이트.gs`
 
 #### 관련 테스트
-(없음. 로컬 정적 테스트가 다루지 않는다)
+12절의 자동 회귀 테스트를 따른다.
+
+### REQ-EDU-004 출석 보고 복구와 검토 재처리
+
+담당자는 출석이 반영된 뒤 메일 발송에 실패해도 다음 실행에서 대기 보고를 다시 보낼 수 있다.
+
+1. 출석을 쓰기 전에 대상 응답과 보고 예정 결과를 교육 파일의 숨김 처리 기록에 저장한다.
+2. 출석 반영·커서 저장·검토 목록 저장·보고 발송의 완료 상태를 나누어 기록한다.
+3. 중단된 실행은 먼저 복구한다. 새 응답이 없어도 대기 보고를 처리한다.
+4. 검토 목록은 응답 시각으로 원본을 다시 찾는다. 원본을 고친 뒤 검토 대상만 재처리할 수 있다. 같은 시각의 원본이 여러 개면 자동 재처리하지 않고 검토 상태를 유지한다. 검토 재처리에서는 기존 대상자의 현재 군·팀을 유지한다.
+5. 상태 조회는 마지막 반영 시각·대기 보고 수·미해결 검토 수만 반환한다. 미리보기는 숨김 기록도 만들거나 바꾸지 않는다.
+
+> **주의** 메일 서버가 접수한 직후 실행이 끊기면 재시도에서 같은 보고를 다시 받을 수 있다. 과거 전체 응답의 커서를 되돌리지는 않는다.
 
 ### REQ-EDU-003 집중교육 참석 반영
 
@@ -610,7 +622,7 @@ TEST-REG-006
 `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs`
 
 #### 관련 테스트
-(없음. 로컬 정적 테스트가 다루지 않는다)
+12절의 자동 회귀 테스트를 따른다.
 
 ### REQ-SETTLE-001 상반기 새가족 결산
 
@@ -781,6 +793,27 @@ TEST-RATE-003
 | 디모데 자동 로그인 조회 | [specs/dimode-lookup.md](specs/dimode-lookup.md) | verified |
 
 <!-- spec-index: end -->
+
+### REQ-INTENSIVE-002 신청 단계별 복구
+
+같은 제출 이벤트를 다시 실행해도 관리자·공개 명단에 각각 한 줄만 남긴다.
+
+- 관리자 파일·원본 시트·제출 시각을 제출 식별 기준으로 쓴다. 같은 시각의 응답이 여럿이면 자동 처리하지 않는다.
+- 관리자 숨김 처리 기록에 대상 행을 먼저 예약한다. 쓰기 직후 실패해도 재시도는 그 행에 같은 값을 쓴다.
+- 재시도 전에 예정 내용이 이미 기록됐는지 확인한다. 예약 행에 다른 기록이 있으면 덮어쓰지 않고 중단한다.
+- 공개 기록 완료를 저장한 뒤 정렬한다. 정렬에 실패하면 새 행을 추가하지 않고 정렬만 재시도한다.
+- 다른 시각에 같은 참석자가 다시 제출한 경우는 기존 중복 의심 규칙을 유지한다.
+- 상태 조회는 완료·처리 대기 건수만 반환한다. 공개 명단의 다섯 열 구성은 유지한다.
+
+### REQ-SYNC-003 운영 변경 보호와 배포 대상 지정
+
+담당자는 운영에서 직접 고친 코드를 덮어쓰기 전에 충돌을 확인하고, 선택한 배포 한 개만 갱신한다.
+
+- push는 Git 기준 판과 운영 원본을 대조한다. 다르면 중단하고 먼저 변경을 조정한다.
+- 쓰기 전에 운영 원본과 배포 정보를 저장소 밖 개인 백업에 저장한다. 쓰기 직전 원본을 다시 읽어 바뀌지 않았는지 확인하고, 반영 뒤에도 다시 대조한다.
+- 웹앱 배포는 프로젝트 하나와 배포 ID 하나를 지정한다. 해당 프로젝트에 속하는 버전 고정 웹앱인지 확인한 뒤 새 버전을 만든다.
+- 같은 명령에서 이전 버전을 지정하면 선택한 배포만 그 버전으로 되돌린다. 접근 권한 설정은 보존한다.
+- 알 수 없는 프로젝트·옵션은 인증이나 쓰기 전에 실패한다.
 
 ### REQ-SYNC-001 REST 운영 미리보기
 
@@ -1535,10 +1568,13 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 |---|---|---|---|
 | REQ-ATTEND-001 | `attendance-webapp/Code.gs` | TEST-ATTEND-001 | implemented |
 | REQ-ATTEND-002 | `attendance-webapp/Code.gs` | TEST-ATTEND-002 | implemented |
-| REQ-EDU-001 | `education-project/교육 출석 현황 업데이트.gs` | TEST-EDU-001 (수동) | implemented |
-| REQ-EDU-002 | `education-project/교육 출석 현황 업데이트.gs` | TEST-EDU-002 (수동) | implemented |
+| REQ-EDU-004 | `education-project/교육 출석 현황 업데이트.gs` | `tests/education-recovery.test.js` | verified |
+| REQ-INTENSIVE-002 | `intensive-training-application/Code.gs` | `tests/intensive-recovery.test.js` | verified |
+| REQ-SYNC-003 | `scripts/apps-script.mjs` | `tests/apps-script-deploy.test.mjs` | verified |
+| REQ-EDU-001 | `education-project/교육 출석 현황 업데이트.gs` | `tests/education-recovery.test.js` | verified |
+| REQ-EDU-002 | `education-project/교육 출석 현황 업데이트.gs` | `tests/education-recovery.test.js` | verified |
 | REQ-EDU-003 | `education-project/집중교육 출석 현황 업데이트.gs` | TEST-EDU-003 | implemented |
-| REQ-NOTI-001 | `education-project/문자 명단 리스트.gs` | TEST-NOTI-001 | implemented |
+| REQ-NOTI-001 | `education-project/문자 명단 리스트.gs` | TEST-NOTI-001, `tests/notification-selection.test.js` | verified |
 | REQ-REG-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-002, `tests/registration-identity.test.js`, `tests/registration-manual-execution.test.js` | implemented |
 | REQ-REG-002 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-001, TEST-REG-003, TEST-REG-005 | implemented |
 | REQ-REG-003 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-004 | implemented |
@@ -1583,5 +1619,3 @@ Status 값: `draft` (사양만 있음) / `implemented` / `verified` (실제 실�
 ## 14. 향후 개선 후보
 
 - 하반기 마감 후 담당자가 검토 내역과 행사 목표를 확인하고 시트를 보관한다(REQ-VISITOR-002, REQ-VISITOR-004).
-- 교육 새 응답 반영(REQ-EDU-001)과 매칭·검토 분류(REQ-EDU-002)의 단위 테스트. 이 프로젝트에서 가장 복잡한 판단 로직인데 로컬 검증이 없다.
-- 문자공지 대상자 선정 기준(REQ-NOTI-001)의 단위 테스트.

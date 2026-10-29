@@ -285,18 +285,32 @@ function onFormSubmitHandler(e) {
       throw new Error('설치된 관리자 Spreadsheet가 아닌 곳에서 제출 이벤트가 발생했습니다.');
     }
 
+    const submittedAt = e.values[0];
+    const times = responseSheet.getRange(2, 1, responseSheet.getLastRow() - 1, 1);
+    const rawTimes = times.getValues();
+    const displayedTimes = times.getDisplayValues();
+    const eventTime = typeof submittedAt === 'string' && !/^\d{4}-\d{2}-\d{2}T/.test(submittedAt)
+      ? null : new Date(submittedAt).getTime();
+    const matchingRows = [];
+    rawTimes.forEach(function (row, i) {
+      if ((eventTime !== null && Number.isFinite(eventTime) && new Date(row[0]).getTime() === eventTime) ||
+          String(displayedTimes[i][0]).trim() === String(submittedAt).trim()) matchingRows.push(i + 2);
+    });
+    if (matchingRows.length !== 1) throw new Error('제출 응답을 하나로 찾을 수 없습니다. 원본 시각을 확인하세요.');
+    const sourceRow = matchingRows[0];
+
     const headers = responseSheet
       .getRange(1, 1, 1, e.values.length)
       .getDisplayValues()[0];
     const values = e.values;
 
     const applicantName = pickResponseValue(headers, values, Q.APPLICANT);
-    const group = pickResponseValue(headers, values, Q.GROUP);
+    const group = canonicalGroupName(pickResponseValue(headers, values, Q.GROUP));
     // Form Section마다 같은 제목의 '팀' 문항이 있으므로, 같은 헤더 중 값이 있는 항목을 선택합니다.
     const team = pickResponseValue(headers, values, Q.TEAM);
     const attendeeName = pickResponseValue(headers, values, Q.ATTENDEE);
     const rawPhone = pickResponseValue(headers, values, Q.PHONE);
-    const timestamp = responseSheet.getRange(e.range.getRow(), 1).getValue();
+    const timestamp = responseSheet.getRange(sourceRow, 1).getValue();
 
     const phone = normalizePhone(rawPhone);
     const groupValid = GROUPS.indexOf(group) !== -1;
@@ -308,14 +322,14 @@ function onFormSubmitHandler(e) {
     // Form에서는 '명군/총군/전군'처럼 안내하되 시트에는 '명/총/전'만 저장합니다.
     const groupColumn = headers.indexOf(Q.GROUP) + 1;
     if (groupColumn > 0 && groupValid) {
-      responseSheet.getRange(e.range.getRow(), groupColumn).setValue(storedGroup);
+      responseSheet.getRange(sourceRow, groupColumn).setValue(storedGroup);
     }
 
     // 원문 응답 시트의 전화번호도 010-xxxx-xxxx 형식으로 즉시 정규화합니다.
     const phoneColumn = headers.indexOf(Q.PHONE) + 1;
     if (phoneColumn > 0 && phoneValid) {
       responseSheet
-        .getRange(e.range.getRow(), phoneColumn)
+        .getRange(sourceRow, phoneColumn)
         .setNumberFormat('@')
         .setValue(phone);
     }
@@ -323,45 +337,142 @@ function onFormSubmitHandler(e) {
     const adminView = adminSs.getSheetByName(CONFIG.ADMIN_VIEW_SHEET_NAME);
     if (!adminView) throw new Error(CONFIG.ADMIN_VIEW_SHEET_NAME + ' 시트를 찾을 수 없습니다.');
 
+    const timestampMs = timestamp instanceof Date ? timestamp.getTime() : new Date(timestamp).getTime();
+    if (!Number.isFinite(timestampMs)) throw new Error('제출 시각이 올바르지 않습니다.');
+    const sameTime = responseSheet.getRange(2, 1, responseSheet.getLastRow() - 1, 1).getValues()
+      .filter(function (r) {return new Date(r[0]).getTime() === timestampMs;});
+    if (sameTime.length !== 1) throw new Error('같은 제출 시각의 응답이 여러 개입니다. 담당자 확인이 필요합니다.');
+    const key = adminSs.getId() + ':' + responseSheet.getSheetId() + ':' + timestampMs;
+    const journal = getIntensiveJournal_(adminSs, true);
+    // 이전 예약 행이 정렬로 이동하기 전에 먼저 복구합니다.
+    readIntensiveJournal_(journal).filter(function (r) {return r.values[1] !== 'DONE';})
+      .forEach(function (r) {resumeIntensiveApplication_(adminSs, publicSs, journal, r);});
+    if (readIntensiveJournal_(journal).some(function (r) {return r.values[0] === key;})) return;
+
     const duplicate = requiredValuesValid && phoneValid && isDuplicate(adminView, attendeeName, phone);
     let status = '정상';
-    if (!requiredValuesValid) {
-      status = '필수값 오류';
-    } else if (!groupValid || !teamValid) {
-      status = '군/팀 오류';
-    } else if (!phoneValid) {
-      status = '전화번호 형식 오류';
-    }
-
-    // 관리자용 명단에 기록 (전화번호 포함)
-    const nextRow = adminView.getLastRow() + 1;
-    const rowNumber = nextRow - 1;
-    adminView
-      .getRange(nextRow, 1, 1, 9)
-      .setValues([[
-        rowNumber,
-        storedGroup,
-        team,
-        attendeeName,
-        phone,
-        applicantName,
-        timestamp,
-        duplicate ? '중복 의심' : '',
-        status
-      ]]);
-    adminView.getRange(nextRow, 5).setNumberFormat('@');
-    refreshFilter(adminView, 9);
-
-    // 공개용 명단에는 모든 필드가 유효한 경우에만, 전화번호 없이 기록
-    if (requiredValuesValid && groupValid && teamValid && phoneValid) {
-      appendAndSortPublicSheet(publicSs, group, team, attendeeName, applicantName);
-    }
+    if (!requiredValuesValid) status = '필수값 오류';
+    else if (!groupValid || !teamValid) status = '군/팀 오류';
+    else if (!phoneValid) status = '전화번호 형식 오류';
+    const adminRow = adminView.getLastRow() + 1;
+    const publicSheet = publicSs.getSheetByName(CONFIG.PUBLIC_SHEET_NAME);
+    if (!publicSheet) throw new Error('공개 명단 시트를 찾을 수 없습니다.');
+    const valid = requiredValuesValid && groupValid && teamValid && phoneValid;
+    const publicRow = valid ? publicSheet.getLastRow() + 1 : 0;
+    const record = [key, 'RESERVED', adminRow, publicRow,
+      JSON.stringify([adminRow - 1, storedGroup, team, attendeeName, phone,
+        applicantName, timestamp, duplicate ? '중복 의심' : '', status]),
+      JSON.stringify([0, storedGroup, team, attendeeName, applicantName]), new Date(),
+      countIntensivePayload_(publicSheet, [0, storedGroup, team, attendeeName, applicantName])];
+    const row = journal.getLastRow() + 1;
+    journal.getRange(row, 1, 1, record.length).setValues([record]);
+    resumeIntensiveApplication_(adminSs, publicSs, journal, {row: row, values: record});
   } catch (err) {
     console.error('onFormSubmitHandler 오류: ' + err);
     throw err;
   } finally {
     lock.releaseLock();
   }
+}
+
+const INTENSIVE_JOURNAL_HEADERS = ['제출번호', '상태', '관리자행', '공개행', '관리자내용', '공개내용', '예약시각', '기존공개동일수'];
+
+function getIntensiveJournal_(adminSs, create) {
+  let sheet = adminSs.getSheetByName('신청 처리 기록');
+  if (!sheet && create) {
+    sheet = adminSs.insertSheet('신청 처리 기록');
+    sheet.getRange(1, 1, 1, INTENSIVE_JOURNAL_HEADERS.length).setValues([INTENSIVE_JOURNAL_HEADERS]);
+    const visible = adminSs.getSheets().find(function (s) {return s !== sheet && !s.isSheetHidden();});
+    if (visible) {adminSs.setActiveSheet(visible); sheet.hideSheet();}
+  }
+  if (sheet && (!sheet.isSheetHidden() ||
+      !arraysEqual(sheet.getRange(1, 1, 1, INTENSIVE_JOURNAL_HEADERS.length).getDisplayValues()[0], INTENSIVE_JOURNAL_HEADERS))) {
+    throw new Error('신청 처리 기록의 머리글·숨김 상태를 확인하세요.');
+  }
+  return sheet;
+}
+
+function readIntensiveJournal_(sheet) {
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  return sheet.getRange(2, 1, sheet.getLastRow() - 1, INTENSIVE_JOURNAL_HEADERS.length).getValues()
+    .map(function (values, i) {return {row: i + 2, values: values};});
+}
+
+function sameIntensivePayload_(left, right) {
+  return right.slice(1).every(function (value, i) {
+    const column = i + 1;
+    if (right.length === 9 && column === 6) return new Date(left[column]).getTime() === new Date(value).getTime();
+    return String(left[column] || '').trim() === String(value || '').trim();
+  });
+}
+
+function countIntensivePayload_(sheet, values) {
+  return sheet.getLastRow() < 2 ? 0 : sheet.getRange(2, 1, sheet.getLastRow() - 1, values.length).getValues()
+    .filter(function (row) {return sameIntensivePayload_(row, values);}).length;
+}
+
+function writeReservedIntensiveRow_(sheet, row, values, baseline) {
+  const existing = sheet.getLastRow() < 2 ? [] : sheet.getRange(2, 1, sheet.getLastRow() - 1, values.length).getValues();
+  const matches = [];
+  existing.forEach(function (r, i) {if (sameIntensivePayload_(r, values)) matches.push(i + 2);});
+  // 쓰기는 끝났으나 단계 저장에 실패한 경우입니다. 정렬로 위치가 바뀌어도 다시 쓰지 않습니다.
+  if (matches.length === baseline + 1) return matches[matches.length - 1];
+  if (matches.length !== baseline) throw new Error('예약 이후 명단 내용이 바뀌었습니다. 담당자 확인이 필요합니다.');
+  const target = sheet.getRange(row, 1, 1, values.length).getValues()[0];
+  if (target.some(function (v) {return String(v).trim() !== '';})) {
+    throw new Error('예약 행에 다른 기록이 있습니다. 덮어쓰지 않고 중단합니다.');
+  }
+  if (sheet.getMaxRows() < row) sheet.insertRowsAfter(sheet.getMaxRows(), row - sheet.getMaxRows());
+  sheet.getRange(row, 1, 1, values.length).setValues([values]);
+  if (!sameIntensivePayload_(sheet.getRange(row, 1, 1, values.length).getValues()[0], values)) {
+    throw new Error('신청 명단 쓰기 후 확인에 실패했습니다.');
+  }
+  return row;
+}
+
+function resumeIntensiveApplication_(adminSs, publicSs, journal, record) {
+  const data = record.values;
+  function stage(value) {journal.getRange(record.row, 2).setValue(value); data[1] = value;}
+  const admin = adminSs.getSheetByName(CONFIG.ADMIN_VIEW_SHEET_NAME);
+  const pub = publicSs.getSheetByName(CONFIG.PUBLIC_SHEET_NAME);
+  if (data[1] === 'RESERVED') {
+    const values = JSON.parse(data[4]);
+    values[6] = new Date(values[6]);
+    const actualRow = writeReservedIntensiveRow_(admin, Number(data[2]), values, 0);
+    admin.getRange(actualRow, 5).setNumberFormat('@');
+    refreshFilter(admin, 9);
+    stage('ADMIN');
+  }
+  if (data[1] === 'ADMIN') {
+    if (Number(data[3])) writeReservedIntensiveRow_(pub, Number(data[3]), JSON.parse(data[5]), Number(data[7]));
+    stage('PUBLIC');
+  }
+  if (data[1] === 'PUBLIC') {
+    if (Number(data[3])) {resortPublicSheet(pub); refreshFilter(pub, 5);}
+    stage('DONE');
+  }
+}
+
+function retryPendingIntensiveApplications() {
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const admin = SpreadsheetApp.openById(props.getProperty('ADMIN_SS_ID'));
+    const pub = SpreadsheetApp.openById(props.getProperty('PUBLIC_SS_ID'));
+    const journal = getIntensiveJournal_(admin, false);
+    readIntensiveJournal_(journal).filter(function (r) {return r.values[1] !== 'DONE';})
+      .forEach(function (r) {resumeIntensiveApplication_(admin, pub, journal, r);});
+    return getIntensiveApplicationStatus();
+  } finally {lock.releaseLock();}
+}
+
+function getIntensiveApplicationStatus() {
+  const props = PropertiesService.getScriptProperties();
+  const admin = SpreadsheetApp.openById(props.getProperty('ADMIN_SS_ID'));
+  const rows = readIntensiveJournal_(getIntensiveJournal_(admin, false));
+  const status = {completed: rows.filter(function (r) {return r.values[1] === 'DONE';}).length,
+    pending: rows.filter(function (r) {return r.values[1] !== 'DONE';}).length};
+  console.log(JSON.stringify(status)); return status;
 }
 
 function pickResponseValue(headers, values, title) {
@@ -522,9 +633,10 @@ function verifySystem() {
   }
 
   const adminSs = SpreadsheetApp.openById(adminId);
-  const adminSheetNames = adminSs.getSheets().map(function (sheet) {
-    return sheet.getName();
-  });
+  getIntensiveJournal_(adminSs, false);
+  const adminSheetNames = adminSs.getSheets().filter(function (sheet) {
+    return sheet.getName() !== '신청 처리 기록' || !sheet.isSheetHidden();
+  }).map(function (sheet) {return sheet.getName();});
   if (!arraysEqual(adminSheetNames, [CONFIG.ADMIN_VIEW_SHEET_NAME, CONFIG.RAW_SHEET_NAME])) {
     throw new Error('검증 실패: 관리자 Spreadsheet의 시트 구성이 올바르지 않습니다.');
   }

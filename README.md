@@ -111,10 +111,12 @@ Apple Silicon Mac에서 `새가족 정착률.app`을 열면 새가족 출결과 
 
 웹앱은 이름과 전화번호를 함께 확인하고, 1~4주차만 허용하며, 직전 주차 다음 주차만 접수합니다. 신규 응답은 `insertAttendanceNewestFirst_`가 **헤더 바로 아래 2행에 삽입**합니다. 기존 응답을 한 번에 최신순으로 정렬하려면 `sortAttendanceSourceNewestFirst`를 1회 실행합니다.
 
+push는 기본으로 Git HEAD와 운영 원본을 비교합니다. 운영에서 직접 수정한 코드가 있으면 중단합니다. 먼저 diff와 운영 원본을 확인해 저장소에 반영한 뒤, 검토한 기준 커밋을 `--base <커밋>`으로 지정합니다. 운영 원본·배포 정보는 저장소 밖 개인 설정의 backups 폴더에 보관하며, 쓰기 직전과 직후 원본을 다시 읽습니다.
+
 웹앱은 버전 고정 배포이므로 코드만 반영해서는 사용자 화면이 바뀌지 않습니다. `npm run deploy` 대신 아래 명령으로 새 버전을 만들고 기존 URL에 연결합니다.
 
 ```bash
-node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요약"
+node scripts/apps-script.mjs deploy attendance-webapp --deployment-id <확인한_배포_ID> --description "변경 요약"
 ```
 
 ### `education-project/`
@@ -164,6 +166,16 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 - `docs/attendance-webapp-hardening.md`: 웹앱 보강 내용
 - `docs/test-results-2026-08-12.md`: 운영 전 검증 기록
 - `docs/settlement-monthly-email-analysis.md`: 정착률/월간 메일 분석 자료
+
+## 실패 복구와 운영 상태
+
+교육 편집기에서 `previewEducationOperationalHealth`를 실행하면 반영 예정 건수와 마지막 반영 시각·대기 보고·미해결 검토 수를 확인합니다. 시트·속성·메일은 바꾸지 않습니다. 출석 처리와 보고 발송은 별도로 기록하며, 다음 정기 실행은 새 응답이 없어도 대기 보고를 재시도합니다. 메일 접수 직후 실행이 끊겼다면 같은 보고가 다시 도착할 수 있습니다.
+
+교육 파일의 숨김 `교육 검토 목록`에 남은 응답은 원본에서 수정한 뒤 `previewEducationReviewReprocessing`으로 확인하고 `reprocessEducationReviews`로 해당 응답만 반영합니다. 현재 군·팀과 기존 출석은 보존하고 커서를 되돌리지 않습니다. 재처리는 메일을 보내지 않으며 보고는 다음 정기 실행에 포함됩니다. 같은 제출 시각의 응답이 여럿이면 담당자 확인이 필요합니다. 이 목록은 개선 반영 후 실행한 건부터 기록합니다.
+
+집중교육 신청 편집기에서는 `getIntensiveApplicationStatus`로 처리 대기 수를 확인합니다. 실패 원인을 고친 뒤 `retryPendingIntensiveApplications`로 이어갑니다. 이미 기록한 행은 추가하지 않으며, 예약한 행에 다른 내용이 있으면 중단합니다. 숨김 처리 기록은 직접 정렬·수정하지 않습니다. 실제 제출이 다른 중복 신청은 기존처럼 중복 의심으로 남습니다.
+
+선택한 웹앱을 이전 버전으로 되돌릴 때는 `node scripts/apps-script.mjs deploy attendance-webapp --deployment-id <확인한_배포_ID> --version <이전_버전>`을 사용합니다. 코드 원본을 되돌려야 하는 프로젝트는 개인 백업과 diff로 원본을 먼저 복구·검토합니다. 교육·신청 제출 트리거는 Head 코드를 사용하므로 push 후 별도 웹앱 배포가 필요하지 않습니다.
 
 ## 운영 메일
 

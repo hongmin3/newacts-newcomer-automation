@@ -1,7 +1,7 @@
 /**
  * 교육 출석 자동화 - 안전한 증분 처리 버전
  *
- * 기본값은 비활성(TEST)입니다. 설치형 트리거는 EDUCATION_AUTOMATION.active가
+ * 설치형 트리거는 EDUCATION_AUTOMATION.active가
  * true일 때만 시트를 수정합니다. 테스트 메일은 항상 한 주소로 제한됩니다.
  */
 const EDUCATION_AUTOMATION = Object.freeze({
@@ -166,6 +166,7 @@ function migrateEducationCursorAndProcessPending() {
 }
 
 function processPendingAttendance_(options) {
+  if (!options.dryRun) recoverEducationBatches_(options);
   const sourceSheet = getEducationSourceSheet_();
   const properties = PropertiesService.getScriptProperties();
   const cursorTime = getEducationCursorTime_(sourceSheet, properties);
@@ -209,20 +210,196 @@ function processPendingAttendance_(options) {
     return a.timestampMs - b.timestampMs || a.sourceRow - b.sourceRow;
   });
 
-  const result = processAttendanceRows_(rows, options);
+  if (options.dryRun) return processAttendanceRows_(rows, options);
+  return queueEducationBatch_(rows, latestTimestamp, options);
 
-  if (!options.dryRun) {
-    properties.setProperty(
-      EDUCATION_AUTOMATION.cursorProperty,
-      String(latestTimestamp)
-    );
-    properties.deleteProperty(EDUCATION_AUTOMATION.legacyCursorProperty);
-    writeEducationLog_('processPendingAttendanceTrigger', result);
+}
+
+/** 처리 기록은 교육 파일 안에만 저장하며, 공개 상태 조회에는 집계만 반환합니다. */
+function readEducationBatches_() {
+  const ss = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = ss.getSheetByName('교육 처리 기록');
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const groups = new Map();
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues().forEach(function (row, i) {
+    if (!row[0]) return;
+    if (!groups.has(row[0])) groups.set(row[0], { row: i + 2, status: row[1], chunks: [] });
+    groups.get(row[0]).chunks[Number(row[2])] = row[3];
+  });
+  const records = Array.from(groups.values()).map(function (item) {
+    item.data = JSON.parse(item.chunks.join(''));
+    item.sheet = sheet;
+    return item;
+  });
+  const batches = records.filter(function (r) {return r.status !== 'RESULT';});
+  records.filter(function (r) {return r.status === 'RESULT';}).forEach(function (revision) {
+    const batch = batches.find(function (b) {return b.row === revision.data.parent;});
+    if (batch) batch.data.result = revision.data.result;
+  });
+  return batches;
+}
+
+function queueEducationBatch_(rows, cursor, options) {
+  // 출석 쓰기 전에 보고 내용을 보관합니다. 중간에 끊겨도 기존 출석 칸은 재반영하지 않습니다.
+  const result = processAttendanceRows_(rows, { dryRun: true, preserveIdentity: Boolean(options.preserveIdentity) });
+  result.dryRun = false;
+  const data = { rows: rows, cursor: cursor, result: result, preserveIdentity: Boolean(options.preserveIdentity) };
+  const batch = appendEducationRecord_(data, 'PREPARED');
+  resumeEducationBatch_(batch, options);
+  return batch.data.result;
+}
+
+function appendEducationRecord_(data, status) {
+  const json = JSON.stringify(data);
+  const id = String(Date.now()) + ':' + String(Math.random());
+  const chunks = [];
+  for (let i = 0; i < json.length; i += 40000) {
+    chunks.push([id, i === 0 ? status : '', chunks.length, json.slice(i, i + 40000)]);
   }
-  if (options.sendEmail && shouldSendEducationReport_(result)) {
-    sendEducationReport_(result, '새 응답 증분 처리', options);
+  const ss = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = getHiddenLogSheet_(ss, '교육 처리 기록', ['처리번호', '상태', '조각', '내용']);
+  const row = sheet.getLastRow() + 1;
+  ensureEducationRows_(sheet, row + chunks.length - 1);
+  sheet.getRange(row, 1, chunks.length, 4).setValues(chunks);
+  return {sheet: sheet, row: row, status: status, data: data};
+}
+
+function resumeEducationBatch_(batch, options) {
+  function stage(value) {
+    batch.sheet.getRange(batch.row, 2).setValue(value);
+    batch.status = value;
   }
-  return result;
+  if (batch.status === 'PREPARED') {
+    const actual = processAttendanceRows_(batch.data.rows, {
+      dryRun: false, preserveIdentity: batch.data.preserveIdentity
+    });
+    // 복구 사이에 명단이 바뀌었으면 실제 검토 결과가 최초 예상 성공보다 우선합니다.
+    if (actual.review.length) {
+      const rejected = new Set(actual.review.map(function (r) {return r.sourceRow;}));
+      const result = batch.data.result;
+      result.addedDetails = result.addedDetails.filter(function (r) {return !rejected.has(r.sourceRow);});
+      result.updatedDetails = result.updatedDetails.filter(function (r) {return !rejected.has(r.sourceRow);});
+      result.added = result.addedDetails.length;
+      result.updated = result.updatedDetails.length;
+      result.infoChanges = result.infoChanges.filter(function (r) {return !rejected.has(r.sourceRow);});
+      result.duplicates = result.duplicates.filter(function (r) {return !rejected.has(r.sourceRow);});
+      result.review = result.review.filter(function (r) {return !rejected.has(r.sourceRow);}).concat(actual.review);
+      appendEducationRecord_({parent: batch.row, result: result}, 'RESULT');
+    }
+    stage('APPLIED');
+  }
+  if (batch.status === 'APPLIED') {
+    const props = PropertiesService.getScriptProperties();
+    if (batch.data.cursor !== null) {
+      props.setProperty(EDUCATION_AUTOMATION.cursorProperty, String(Math.max(
+        Number(props.getProperty(EDUCATION_AUTOMATION.cursorProperty)) || 0, batch.data.cursor
+      )));
+      props.deleteProperty(EDUCATION_AUTOMATION.legacyCursorProperty);
+    }
+    updateEducationReviews_(batch.data);
+    writeEducationLog_('processPendingAttendanceTrigger', batch.data.result);
+    props.setProperty('EDUCATION_LAST_APPLIED_AT', new Date().toISOString());
+    stage('READY');
+  }
+  if (batch.status === 'READY') {
+    if (!shouldSendEducationReport_(batch.data.result)) stage('SENT');
+    else if (options.sendEmail) {
+      sendEducationReport_(batch.data.result, '새 응답·복구 처리', options);
+      stage('SENT');
+    }
+  }
+}
+
+function recoverEducationBatches_(options) {
+  readEducationBatches_().filter(function (b) {return b.status !== 'SENT';})
+    .forEach(function (b) {resumeEducationBatch_(b, options);});
+}
+
+function readEducationReviews_() {
+  const ss = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = ss.getSheetByName('교육 검토 목록');
+  return sheet && sheet.getLastRow() > 1
+    ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues() : [];
+}
+
+function updateEducationReviews_(data) {
+  const entries = readEducationReviews_();
+  const byTime = new Map(entries.map(function (row, i) {return [String(row[0]), i];}));
+  const sources = new Map();
+  data.rows.forEach(function (source) {
+    const key = String(source.timestampMs);
+    if (!sources.has(key)) sources.set(key, []);
+    sources.get(key).push(source);
+  });
+  sources.forEach(function (rows, key) {
+    const rowNumbers = new Set(rows.map(function (r) {return r.sourceRow;}));
+    const issue = data.result.review.find(function (r) {return rowNumbers.has(r.sourceRow);});
+    const reason = rows.length > 1 ? '같은 시각의 응답이 여러 개여서 담당자 확인 필요' : issue ? issue.reason : '';
+    if (!reason && !byTime.has(key)) return;
+    const value = [key, reason ? 'OPEN' : 'RESOLVED', reason, new Date()];
+    if (byTime.has(key)) entries[byTime.get(key)] = value;
+    else {byTime.set(key, entries.length); entries.push(value);}
+  });
+  if (!entries.length) return;
+  const ss = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = getHiddenLogSheet_(ss, '교육 검토 목록', ['응답시각', '상태', '검토사유', '확인시각']);
+  ensureEducationRows_(sheet, entries.length + 1);
+  sheet.getRange(2, 1, entries.length, 4).setValues(entries);
+}
+
+function educationReviewRows_() {
+  const data = getEducationSourceSheet_().getDataRange().getValues();
+  return readEducationReviews_().filter(function (r) {return r[1] === 'OPEN';}).map(function (entry) {
+    const matches = [];
+    for (let i = 1; i < data.length; i++) {
+      const date = parseEducationDate_(data[i][0]);
+      if (date && String(date.getTime()) === String(entry[0])) {
+        matches.push({sourceRow: i + 1, timestampMs: date.getTime(), values: data[i]});
+      }
+    }
+    if (matches.length !== 1) throw new Error('검토 응답을 하나로 찾을 수 없습니다. 원본 시각을 확인하세요.');
+    return matches[0];
+  }).sort(function (a, b) {return a.timestampMs - b.timestampMs;});
+}
+
+function previewEducationReviewReprocessing() {
+  return withEducationLock_(function () {
+    const result = processAttendanceRows_(educationReviewRows_(), {dryRun: true, preserveIdentity: true});
+    console.log(JSON.stringify({scanned: result.scanned, added: result.added,
+      updated: result.updated, review: result.review.length}));
+    return result;
+  });
+}
+
+function reprocessEducationReviews() {
+  return withEducationLock_(function () {
+    recoverEducationBatches_({sendEmail: false});
+    const rows = educationReviewRows_();
+    return rows.length ? queueEducationBatch_(rows, null, {sendEmail: false, preserveIdentity: true}) : createEducationResult_();
+  });
+}
+
+function getEducationOperationalStatus() {
+  const status = {
+    lastAppliedAt: PropertiesService.getScriptProperties().getProperty('EDUCATION_LAST_APPLIED_AT'),
+    pendingReports: readEducationBatches_().filter(function (b) {return b.status !== 'SENT';}).length,
+    unresolvedReviews: readEducationReviews_().filter(function (r) {return r[1] === 'OPEN';}).length
+  };
+  console.log(JSON.stringify(status));
+  return status;
+}
+
+function previewEducationOperationalHealth() {
+  return withEducationLock_(function () {
+    const result = processPendingAttendance_({dryRun: true, sendEmail: false});
+    const status = getEducationOperationalStatus();
+    const summary = {dryRun: true, scanned: result.scanned, added: result.added,
+      updated: result.updated, duplicates: result.duplicates.length,
+      review: result.review.length, initializationRequired: Boolean(result.initializationRequired),
+      lastAppliedAt: status.lastAppliedAt, pendingReports: status.pendingReports,
+      unresolvedReviews: status.unresolvedReviews};
+    console.log(JSON.stringify(summary)); return summary;
+  });
 }
 
 function processAttendanceForLastSunday_(options) {
@@ -363,7 +540,7 @@ function processAttendanceRows_(sourceRows, options) {
     } else {
       const target = masterRows[masterIndex];
 
-      if (isValidEducationGroup_(group) && target[2] !== group) {
+      if (!options.preserveIdentity && isValidEducationGroup_(group) && target[2] !== group) {
         result.infoChanges.push({
           sourceRow: source.sourceRow,
           name: name,
@@ -375,7 +552,7 @@ function processAttendanceRows_(sourceRows, options) {
         });
         target[2] = group;
       }
-      if (isValidEducationTeam_(team) && target[3] !== team) {
+      if (!options.preserveIdentity && isValidEducationTeam_(team) && target[3] !== team) {
         result.infoChanges.push({
           sourceRow: source.sourceRow,
           name: name,
