@@ -213,3 +213,5 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 ### Added
 
 - SPEC.md 도입 — 기존 동작을 Requirement로 문서화 (REQ-*/NFR-*)
+
+- 2026-10-29: 현재 SPEC·기능 사양에서 HTML을 다시 생성해 오래된 문서 오류를 해소했다.
