@@ -54,6 +54,29 @@ Google Sheets 기반 새가족 출석, 교육, 등록 명단, 수료·결산 보
 5. 머리글·오른쪽 집계표·수식·입력 선택 목록·기존 중복 경고 색은 보존한다. 명단 범위 밖의 셀은 정렬하거나 배경색을 바꾸지 않는다.
 6. 저장 후 명단 내용 보존, 날짜순 정렬, 연속 번호와 날짜 경계의 배경색을 다시 확인하고 결과를 알린다. 날짜 등 필수 정보가 모호하면 추측하지 않고 사용자에게 확인한다.
 
+## 디모데 조회
+
+디모데에서 교인 소속·등록일을 읽어야 하는 작업은 아래 도구를 쓴다. 사양은 `specs/dimode-lookup.md`(REQ-DIMODELOOKUP-001~004)다.
+
+```bash
+python3 -I settlement-automation/dimode_lookup.py search --name 홍길동 --all-states
+printf 'name\tphone\tbirth\tarmy\tteam\n홍길동\t\t\t조\t보배\n' | python3 -I settlement-automation/dimode_lookup.py match -
+```
+
+- 계정과 암호는 Mac 키체인 `kr.newacts.settlement`에서 도구가 직접 읽는다. AI는 암호를 묻거나 출력하거나 로그인 칸에 입력하지 않는다. 계정 이름도 저장소에 쓰지 않는다.
+- 키체인 항목이 없거나 로그인에 실패하면 다시 시도하지 않고, 사용자가 `security add-generic-password -s kr.newacts.settlement -a <계정> -U -w`로 직접 저장·수정하도록 안내한다.
+- 브라우저나 Chromium 자동화를 새로 띄우지 않는다. 디모데 교적은 읽기만 하며 수정 화면을 열거나 저장하지 않는다.
+- 청년 필터에서 못 찾는 사람은 장년·새가족에서 넘어온 경우가 있으니 `--all-states`로 넓혀 찾는다.
+- 결과 JSON에는 개인정보가 있으므로 화면에서만 읽고 저장소에 파일로 남기지 않는다.
+
+## 운영 시트 직접 수정
+
+운영 Google Sheets의 셀을 고칠 때는 아래 순서로 한다.
+
+1. 고치기 전에 대상 범위 전체를 읽어 둔다.
+2. 셀마다 고치기 전 값이 예상과 같은지 확인하고, 고친 직후 그 셀을 다시 읽는다. 브라우저 화면 캡처는 늦게 바뀔 수 있으니 값 확인에 쓰지 않는다.
+3. 모두 고친 뒤 처음 읽은 내용과 비교해 계획한 칸만 바뀌었는지 확인한다.
+
 ## 테스트
 
 ```bash

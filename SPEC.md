@@ -773,6 +773,7 @@ TEST-RATE-003
 |---|---|---|
 | Mac 정착률 관리 앱 | [specs/settlement-desktop.md](specs/settlement-desktop.md) | draft |
 | 행축 당일 방문·등록 시트 | [specs/event-day-workbook.md](specs/event-day-workbook.md) | verified |
+| 디모데 자동 로그인 조회 | [specs/dimode-lookup.md](specs/dimode-lookup.md) | verified |
 
 <!-- spec-index: end -->
 

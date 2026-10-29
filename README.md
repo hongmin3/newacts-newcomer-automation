@@ -20,6 +20,26 @@ Apple Silicon Mac에서 `새가족 정착률.app`을 열면 새가족 출결과 
 최초 인증과 실행 안내는 [정착률 자동화 빠른 시작](settlement-automation/README.md#mac-빠른-시작)을 확인하세요.
 보고서는 화면에서 확인한 뒤 선택하여 보내며, 앱 실행만으로 메일을 발송하지 않습니다.
 
+## 디모데 교인 조회
+
+디모데에서 교인의 소속과 등록일을 브라우저 없이 읽는다. 예: 장년부에서 넘어온 사람의 현재 군·팀과 등록일 확인.
+
+1. 처음 한 번, 터미널에서 계정과 암호를 Mac 키체인에 저장한다. `-w` 뒤에는 아무것도 쓰지 않고 엔터를 누른 뒤 암호를 입력한다.
+
+   ```bash
+   security add-generic-password -s kr.newacts.settlement -a <디모데 계정> -U -w
+   ```
+
+2. 이름이나 전화번호로 검색한다. 장년·새가족까지 찾으려면 `--all-states`를 붙인다.
+
+   ```bash
+   python3 -I settlement-automation/dimode_lookup.py search --name 홍길동 --all-states
+   ```
+
+3. 결과는 화면에 JSON으로 나온다. 개인정보가 있으니 저장소에 파일로 남기지 않는다. 원본 명단과 같은 사람인지 판정하는 `match` 명령과 판정 규칙은 [사양](specs/dimode-lookup.md)에 있다.
+
+디모데 교적은 읽기만 한다. 로그인에 실패하면 계정 잠김을 막기 위해 다시 시도하지 않는다.
+
 ## 한눈에 보는 자동화
 
 | 자동화 | 실행 함수 | 일정/방식 | 주요 기능 | 코드 위치 |
