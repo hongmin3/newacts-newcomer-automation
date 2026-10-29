@@ -29,7 +29,7 @@ function previewRegistrationReporting() {
       sendEmail: false,
       label: '미리보기'
     });
-    console.log(JSON.stringify(result));
+    console.log(JSON.stringify(summarizeRegistrationExecution_(result)));
     return result;
   });
 }
@@ -76,7 +76,9 @@ function syncNewFamilyData() {
     throw new Error('등록 자동화가 비활성 상태입니다.');
   }
   return withRegistrationLock_(function () {
-    return syncCompletionData_({ dryRun: false });
+    const result = syncCompletionData_({ dryRun: false });
+    console.log(JSON.stringify(summarizeRegistrationExecution_(result)));
+    return result;
   });
 }
 

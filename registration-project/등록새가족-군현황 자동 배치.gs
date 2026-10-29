@@ -110,9 +110,34 @@ function previewRegistrationMaintenance() {
       sendEmail: false,
       label: '미리보기'
     });
-    console.log(JSON.stringify(result));
+    console.log(JSON.stringify(summarizeRegistrationExecution_(result)));
     return result;
   });
+}
+
+/** 담당자 승인 후 등록 보정만 실행한다. 현황판·방문 명단·메일은 처리하지 않는다. */
+function applyRegistrationCorrectionsNow() {
+  if (!REGISTRATION_AUTOMATION.active || !REGISTRATION_AUTOMATION.autoCorrectionEnabled) {
+    throw new Error('등록 자동 보정이 비활성 상태입니다.');
+  }
+  return withRegistrationLock_(function () {
+    const result = reconcileRegistrationWithLatestAttendance_({ dryRun: false });
+    console.log(JSON.stringify(summarizeRegistrationExecution_(result)));
+    return result;
+  });
+}
+
+// 실행 로그에 개인정보 상세 대신 숫자·상태와 목록 건수만 남긴다.
+function summarizeRegistrationExecution_(value) {
+  if (Array.isArray(value)) return value.length;
+  if (value && typeof value === 'object') {
+    const summary = {};
+    Object.keys(value).forEach(function (key) {
+      if (typeof value[key] !== 'string') summary[key] = summarizeRegistrationExecution_(value[key]);
+    });
+    return summary;
+  }
+  return typeof value === 'number' || typeof value === 'boolean' ? value : null;
 }
 
 /**
@@ -843,9 +868,15 @@ function reconcileRegistrationWithLatestAttendance_(options) {
       });
 
       if (!options.dryRun) {
-        registrationSheet.getRange(
-          registrationRow, field.column
-        ).setValue(field.latest);
+        const targetCell = registrationSheet.getRange(registrationRow, field.column);
+        if (field.normalize(targetCell.getValue()) !== field.normalize(field.current)) {
+          throw new Error('등록 명단 값이 처리 중 바뀌었습니다. 다시 미리보기 후 실행하세요.');
+        }
+        targetCell.setValue(field.latest);
+        SpreadsheetApp.flush();
+        if (field.normalize(targetCell.getValue()) !== field.normalize(field.latest)) {
+          throw new Error('등록 보정 저장값 확인에 실패했습니다. 실행을 중단합니다.');
+        }
         savedState.fields[field.key] = {
           previousValue: field.current,
           lastAutoValue: field.latest,

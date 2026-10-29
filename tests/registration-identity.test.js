@@ -19,6 +19,7 @@ function fixture(rows, responses, initial = {}) {
     data, getLastRow: () => data.length, getLastColumn: () => 15,
     getRange(r, c, n = 1, w = 1) {
       return {
+        getValue: () => data[r - 1]?.[c - 1] ?? '',
         getValues: () => Array.from({ length: n }, (_, i) => Array.from({ length: w }, (_, j) => data[r - 1 + i]?.[c - 1 + j] ?? '')),
         setValue: value => { writes.cells++; data[r - 1][c - 1] = value; }
       };
@@ -137,6 +138,18 @@ test('손상된 상태 또는 다른 소유자 표시는 기존 값을 유지하
     const before = JSON.stringify(f.properties);const result = f.run();
     assert.equal(row[3], '명');assert.equal(result.review.length, 1);assert.equal(JSON.stringify(f.properties), before);
   }
+});
+test('쓰기 직전 값이 바뀌었으면 덮어쓰지 않는다', () => {
+  const row = registration(1, '확인사람', '010-0000-0001');
+  const f = fixture([row], [attendance('확인사람', '010-0000-0001')]);
+  const getRange = f.registrations.getRange;
+  f.registrations.getRange = function(r,c,n,w) {
+    const range = getRange(r,c,n,w);
+    if (r === 2 && c === 4 && n === undefined) range.getValue = () => '명';
+    return range;
+  };
+  assert.throws(() => f.run(), /처리 중 바뀌/);
+  assert.equal(row[3], '신');
 });
 let failed = 0;
 for (const [name, run] of tests) {

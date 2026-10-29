@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="20c65f97b0a4925ab4a3ec510c5917d66b9acf82accc42bf0e2167f77aad1867">
+<meta name="spec-source-sha256" content="ddc835e468628257c4cfbfb7e27c8664e3f7f90a346a8642b2a5d89ae5088f63">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -225,7 +225,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr class="group"><th colspan="5"><span class="gcode">NOTI</span> 문자공지</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a></td><td data-label="이름">주말 문자공지 대상 뽑기</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>education-project/문자 명단 리스트.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">REG</span> 등록·군 현황</th></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-REG-001">REQ-REG-001</a></td><td data-label="이름">등록 명단 자동 보정</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-REG-001">REQ-REG-001</a></td><td data-label="이름">등록 명단 자동 보정</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code>, <code>tests/registration-manual-execution.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-002">REQ-REG-002</a></td><td data-label="이름">군 현황판 다시 만들기</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-003">REQ-REG-003</a></td><td data-label="이름">군을 정해 줄 사람 주간 메일</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-004">TEST-REG-004</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-REG-004">REQ-REG-004</a></td><td data-label="이름">현황판 인원 세기와 대조</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REG-006">TEST-REG-006</a></td></tr>
@@ -235,7 +235,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a></td><td data-label="이름">방문 관리 결과 메일</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a></td><td data-label="이름">하반기 행사 집계</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/하반기 방문 관리.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">REPORT</span> 보고</th></tr>
-<tr><td data-label="ID"><a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a></td><td data-label="이름">수료현황·주간 통계 보고</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동), <code>tests/completion-write-safety.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a></td><td data-label="이름">수료현황·주간 통계 보고</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동), <code>tests/completion-write-safety.test.js</code>, <code>tests/registration-manual-execution.test.js</code></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">SETTLE</span> 결산</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a></td><td data-label="이름">상반기 새가족 결산</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>registration-project/제목 없음.gs</code></td><td data-label="테스트"><a class="idref" href="#TEST-SETTLE-001">TEST-SETTLE-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">INTENSIVE</span> 집중교육</th></tr>
@@ -803,9 +803,10 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-req" id="REQ-REG-001">
 <h3><span class="idtag">REQ-REG-001</span> 등록 명단 자동 보정</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REG-003">REQ-REG-003</a>, <a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a>, <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span></div>
-<details class="history"><summary>변경 이력 4</summary>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록새가족-군현황 자동 배치.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code>, <code>tests/registration-manual-execution.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-REG-003">REQ-REG-003</a>, <a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a>, <a class="idref" href="#TEST-REG-002">TEST-REG-002</a></span></div>
+<details class="history"><summary>변경 이력 5</summary>
 <ul>
+<li><span class="hist">2026-10-29 운영 미리보기·실제 시트 검증</span> <a class="idref" href="#REQ-REG-001">REQ-REG-001</a>: 메일 없이 등록 보정만 실행하는 수동 함수를 추가하고 셀 쓰기 직전·직후 값을 확인한다. <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 수동 보정의 로그를 집계로 줄였다.</li>
 <li><span class="hist">2026-10-29 등록 보정·수료 기록·디모데 조회 보호</span> <a class="idref" href="#REQ-REG-001">REQ-REG-001</a>: 번호를 다시 매겨도 다른 사람의 보정 상태를 사용하지 않도록 이름·등록일로 상태를 구분한다. 기존 수동 보호 상태는 소유자를 확인한 경우에만 이전하고 불명확한 건은 검토로 남긴다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
 <code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
@@ -824,7 +825,7 @@ SPEC에는 그 ID가 없었다.</li>
 <li>보정 상태는 순번과 무관한 이름·등록일 식별자로 저장한다. 기존 상태는 이름과 전화번호로 소유가 확인된 유일 후보만 이전하며 삭제하지 않는다. 식별 중복·소유 불명확·손상 상태는 검토로 보고하고 해당 행을 자동 수정하지 않는다. 이름·등록일 수정 뒤 기존 이름이나 전화번호로 연결된 상태가 있으면 새 상태로 초기화하지 않고 검토로 남긴다.</li>
 <li>자동으로 보정하는 항목은 군·팀·전화번호다.</li>
 <li><strong>이름은 자동으로 보정하지 않는다.</strong> <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 이름과 교육 출석의 이름이 다르면 검토 내역으로 보고하고, 어느 쪽이 맞는지는 사람이 확인한다.</li>
-<li>값이 다르면 교육 쪽 최신 값으로 보정한다. 보정한 값과 바로 전 값은 <span class="term" title="Apps Script 프로젝트에 값을 저장해 두는 곳이다. 커서와 등록 보정 상태가 여기에 있다" tabindex="0">스크립트 속성</span>에 기록한다.</li>
+<li>값이 다르면 쓰기 직전 셀을 다시 읽어 예상 값과 같은지 확인하고 교육 쪽 최신 값으로 보정한다. 저장 직후 다시 읽어 값이 다르면 중단한다. 보정한 값과 바로 전 값은 <span class="term" title="Apps Script 프로젝트에 값을 저장해 두는 곳이다. 커서와 등록 보정 상태가 여기에 있다" tabindex="0">스크립트 속성</span>에 기록한다.</li>
 <li>다음 실행에서 현재 값이 <strong>바로 전에 자동 보정한 값과 다르면</strong> 사람이 고친 것으로 본다. 그 항목은 보호 대상으로 바꾸고, 이후 자동으로 고치지 않는다.</li>
 <li>이미 보호 대상인 항목은 값이 달라도 건드리지 않고 보호 내역으로만 보고한다.</li>
 <li>결과 메일에는 다음을 담는다.
@@ -833,8 +834,10 @@ SPEC에는 그 ID가 없었다.</li>
 <li>자동수정 상세: 행 / 이름 / 항목 / 기존값→교육 최신값 / 판단 근거</li>
 </ul>
 </li>
+<li><span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 수동 보정 로그에는 명단 대신 집계만 출력한다.</li>
 <li>결과 메일은 <strong>정기 실행 때도 <span class="term" title="안전장치가 메일 수신자로 고정하는 한 사람이다" tabindex="0">테스트 수신자</span> 한 명</strong>에게만 간다. 관리자 전체에게 보내도록 바꾸려면 그 자체를 사양 변경으로 다룬다.</li>
 <li><span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 테스트 실행은 시트를 바꾸지 않는다.</li>
+<li>담당자가 요청하면 <code>applyRegistrationCorrectionsNow</code>로 등록 보정만 메일 없이 실행한다.</li>
 </ul>
 </div></section>
 <section class="field"><h4>예외 처리</h4><div class="field-body">
@@ -1153,9 +1156,10 @@ SPEC에는 그 ID가 없었다.</li>
 </section>
 <section class="card kind-req" id="REQ-REPORT-001">
 <h3><span class="idtag">REQ-REPORT-001</span> 수료현황·주간 통계 보고</h3>
-<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동), <code>tests/completion-write-safety.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a></span></div>
-<details class="history"><summary>변경 이력 3</summary>
+<div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동), <code>tests/completion-write-safety.test.js</code>, <code>tests/registration-manual-execution.test.js</code></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a></span></div>
+<details class="history"><summary>변경 이력 4</summary>
 <ul>
+<li><span class="hist">2026-10-29 운영 미리보기·실제 시트 검증</span> <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>: 수료 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 수동 갱신에 개인정보 없는 집계 로그를 출력해 긴 명단 때문에 결과가 잘리는 문제를 고쳤다.</li>
 <li><span class="hist">2026-10-29 등록 보정·수료 기록·디모데 조회 보호</span> <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a>: <span class="term" title="등록 명단과 교육 출석을 전화번호로 묶어 다시 쓰는 시트다" tabindex="0">수료현황</span>을 먼저 지우지 않고 새 결과와 빈 행을 한 번에 기록해 쓰기 실패 후 재실행에 필요한 문자 제외·미확인·비고를 보존한다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#REQ-ATTEND-001">REQ-ATTEND-001</a> · <a class="idref" href="#REQ-EDU-001">REQ-EDU-001</a> · <a class="idref" href="#REQ-REG-001">REQ-REG-001</a> · <a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a> · <a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a> · <a class="idref" href="#REQ-INTENSIVE-001">REQ-INTENSIVE-001</a>:
 <code>SPEC.md</code> 3·4절에 기능 연결도와 정기·수동 실행 흐름도를 더했다. <span class="term" title="일반 교육과 따로 진행하는 교육이다. 참석 결과를 교육 출석 현황에 합친다" tabindex="0">집중교육</span> 신청 접수와
@@ -1174,6 +1178,7 @@ SPEC에는 그 ID가 없었다.</li>
 <li>전체 관리자에게는 전체 통계 메일을, 군 담당자에게는 그 군의 통계 메일을 보낸다.</li>
 <li><span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>와 테스트 실행은 시트를 바꾸지 않는다. 테스트 실행은 메일을 한 통만 보낸다.</li>
 <li>새 결과와 남는 빈 행을 한 번에 기록한다. 쓰기 전에 기존 내용을 지우지 않아 기록 요청이 실패해도 재실행에 필요한 수동 항목이 남도록 한다.</li>
+<li><span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 로그에는 명단 대신 집계만 출력한다.</li>
 <li>실행 결과는 수료 자동화 로그에 기록한다(<a class="idref" href="#REQ-LOG-001">REQ-LOG-001</a>).</li>
 </ul>
 </div></section>
@@ -1518,8 +1523,9 @@ SPEC에는 그 ID가 없었다.</li>
 <section class="card kind-nfr" id="NFR-SYNC-001">
 <h3><span class="idtag">NFR-SYNC-001</span> 운영 Apps Script 동기화</h3>
 <div class="card-meta"><span class="badge st-implemented">implemented</span><span class="meta"><b>구현</b> <code>scripts/apps-script.mjs</code>, <code>scripts/apps-script-projects.json</code></span><span class="meta"><b>테스트</b> <a class="idref" href="#TEST-SYNC-001">TEST-SYNC-001</a></span><span class="meta"><b>참조됨</b> <a class="idref" href="#TEST-SYNC-001">TEST-SYNC-001</a></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">2026-10-29 운영 미리보기·실제 시트 검증</span> <a class="idref" href="#NFR-SYNC-001">NFR-SYNC-001</a>: 실행 API 배포가 없는 현재 구성에서 사용하는 편집기 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>·수동 실행 절차를 안내한다.</li>
 <li><span class="hist">[Unreleased] · Added</span> <a class="idref" href="#NFR-DATA-001">NFR-DATA-001</a> / <a class="idref" href="#NFR-SYNC-001">NFR-SYNC-001</a>: 보존·동기화 계약 검사
 (<code>tests/data-retention-and-sync.test.js</code>, <a class="idref" href="#TEST-DATA-001">TEST-DATA-001</a> · <a class="idref" href="#TEST-SYNC-001">TEST-SYNC-001</a>). 여섯 개
 <code>.gs</code>에 자동 삭제·만료 코드가 없는지, <span class="term" title="네 Apps Script 프로젝트의 script ID를 모아 둔 파일이다" tabindex="0">매니페스트</span>의 네 프로젝트와 clasp 인증 파일
@@ -2382,7 +2388,7 @@ SPEC에는 그 ID가 없었다.</li>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-002">REQ-EDU-002</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-EDU-002">TEST-EDU-002</a> (수동)</td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-EDU-003">REQ-EDU-003</a></td><td data-label="Implementation"><code>education-project/집중교육 출석 현황 업데이트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-EDU-003">TEST-EDU-003</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-NOTI-001">REQ-NOTI-001</a></td><td data-label="Implementation"><code>education-project/문자 명단 리스트.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-NOTI-001">TEST-NOTI-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-001">REQ-REG-001</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-001">REQ-REG-001</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-002">TEST-REG-002</a>, <code>tests/registration-identity.test.js</code>, <code>tests/registration-manual-execution.test.js</code></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-002">REQ-REG-002</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-001">TEST-REG-001</a>, <a class="idref" href="#TEST-REG-003">TEST-REG-003</a>, <a class="idref" href="#TEST-REG-005">TEST-REG-005</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-003">REQ-REG-003</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-004">TEST-REG-004</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-REG-004">REQ-REG-004</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REG-006">TEST-REG-006</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
@@ -2390,7 +2396,7 @@ SPEC에는 그 ID가 없었다.</li>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-002">REQ-VISITOR-002</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-004">REQ-VISITOR-004</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-VISITOR-003">REQ-VISITOR-003</a></td><td data-label="Implementation"><code>registration-project/하반기 방문 관리.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-VISITOR-001">TEST-VISITOR-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
-<tr><td data-label="Requirement"><a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a></td><td data-label="Implementation"><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동), <code>tests/completion-write-safety.test.js</code></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-REPORT-001">REQ-REPORT-001</a></td><td data-label="Implementation"><code>registration-project/등록 새가족 새가족교육 수료현황 자동화.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-REPORT-001">TEST-REPORT-001</a> (수동), <code>tests/completion-write-safety.test.js</code>, <code>tests/registration-manual-execution.test.js</code></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-SETTLE-001">REQ-SETTLE-001</a></td><td data-label="Implementation"><code>registration-project/제목 없음.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-SETTLE-001">TEST-SETTLE-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATE-001">REQ-RATE-001</a></td><td data-label="Implementation"><code>settlement-automation/settlement_email.py</code></td><td data-label="Test"><a class="idref" href="#TEST-RATE-001">TEST-RATE-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATE-002">REQ-RATE-002</a></td><td data-label="Implementation"><code>settlement-automation/settlement_email.py</code></td><td data-label="Test"><a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>

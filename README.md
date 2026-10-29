@@ -181,6 +181,10 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 
 등록 보정 상태는 이름·등록일로 구분하므로 명단 정렬과 번호 재부여 후에도 수동 수정 보호가 이어집니다. 같은 식별값이 중복되거나 기존 상태의 소유자를 확인할 수 없으면 자동 수정하지 않고 검토 내역으로 보고합니다. 이 경우 담당자가 이름·등록일·전화번호를 확인해야 합니다.
 
+운영 미리보기는 Apps Script 편집기에서 `previewRegistrationMaintenance`와 `previewRegistrationReporting`을 실행합니다. 로그에는 상세 명단 대신 집계가 표시됩니다. 메일 없는 실제 실행은 등록 보정만 하는 `applyRegistrationCorrectionsNow`, 수료현황만 갱신하는 `syncNewFamilyData`입니다. 실제 실행은 담당자가 요청한 범위에서만 합니다.
+
+현재 등록 프로젝트에는 실행 API용 배포가 없어 `scripts.run`이 `NOT_FOUND`로 끝납니다. 코드 비교·반영 API는 정상이며, 실행은 위 편집기 경로를 사용합니다. API 실행에는 별도 실행 배포와 호출 앱의 공통 Cloud 프로젝트 등이 필요합니다([Google 실행 API 안내](https://developers.google.com/apps-script/api/how-tos/execute)). 편집기에서 새로고침할 때는 브라우저 도구 막대 버튼을 사용하고 실행 전 선택 함수와 미저장 변경 없음 상태를 확인합니다.
+
 ### 금요일 11:00 — 수료현황·주간 통계 (`runSystem`)
 
 관리자 5명에게 전체 통계, 군 리더 9명에게 각 군 통계가 갑니다.

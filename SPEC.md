@@ -384,14 +384,16 @@ TEST-EDU-003
 - 보정 상태는 순번과 무관한 이름·등록일 식별자로 저장한다. 기존 상태는 이름과 전화번호로 소유가 확인된 유일 후보만 이전하며 삭제하지 않는다. 식별 중복·소유 불명확·손상 상태는 검토로 보고하고 해당 행을 자동 수정하지 않는다. 이름·등록일 수정 뒤 기존 이름이나 전화번호로 연결된 상태가 있으면 새 상태로 초기화하지 않고 검토로 남긴다.
 - 자동으로 보정하는 항목은 군·팀·전화번호다.
 - **이름은 자동으로 보정하지 않는다.** 등록 명단의 이름과 교육 출석의 이름이 다르면 검토 내역으로 보고하고, 어느 쪽이 맞는지는 사람이 확인한다.
-- 값이 다르면 교육 쪽 최신 값으로 보정한다. 보정한 값과 바로 전 값은 스크립트 속성에 기록한다.
+- 값이 다르면 쓰기 직전 셀을 다시 읽어 예상 값과 같은지 확인하고 교육 쪽 최신 값으로 보정한다. 저장 직후 다시 읽어 값이 다르면 중단한다. 보정한 값과 바로 전 값은 스크립트 속성에 기록한다.
 - 다음 실행에서 현재 값이 **바로 전에 자동 보정한 값과 다르면** 사람이 고친 것으로 본다. 그 항목은 보호 대상으로 바꾸고, 이후 자동으로 고치지 않는다.
 - 이미 보호 대상인 항목은 값이 달라도 건드리지 않고 보호 내역으로만 보고한다.
 - 결과 메일에는 다음을 담는다.
   - 건수: 등록자, 매칭, 미매칭, 자동수정, 수동수정 보호, 검토
   - 자동수정 상세: 행 / 이름 / 항목 / 기존값→교육 최신값 / 판단 근거
+- 미리보기와 수동 보정 로그에는 명단 대신 집계만 출력한다.
 - 결과 메일은 **정기 실행 때도 테스트 수신자 한 명**에게만 간다. 관리자 전체에게 보내도록 바꾸려면 그 자체를 사양 변경으로 다룬다.
 - 미리보기와 테스트 실행은 시트를 바꾸지 않는다.
+- 담당자가 요청하면 `applyRegistrationCorrectionsNow`로 등록 보정만 메일 없이 실행한다.
 
 #### 예외 처리
 매칭되지 않는 등록자는 오류로 보지 않고 미매칭으로 세어 보고한다.
@@ -598,6 +600,7 @@ TEST-REG-006
 - 전체 관리자에게는 전체 통계 메일을, 군 담당자에게는 그 군의 통계 메일을 보낸다.
 - 미리보기와 테스트 실행은 시트를 바꾸지 않는다. 테스트 실행은 메일을 한 통만 보낸다.
 - 새 결과와 남는 빈 행을 한 번에 기록한다. 쓰기 전에 기존 내용을 지우지 않아 기록 요청이 실패해도 재실행에 필요한 수동 항목이 남도록 한다.
+- 미리보기 로그에는 명단 대신 집계만 출력한다.
 - 실행 결과는 수료 자동화 로그에 기록한다(REQ-LOG-001).
 
 #### 예외 처리
@@ -1507,7 +1510,7 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 | REQ-EDU-002 | `education-project/교육 출석 현황 업데이트.gs` | TEST-EDU-002 (수동) | implemented |
 | REQ-EDU-003 | `education-project/집중교육 출석 현황 업데이트.gs` | TEST-EDU-003 | implemented |
 | REQ-NOTI-001 | `education-project/문자 명단 리스트.gs` | TEST-NOTI-001 | implemented |
-| REQ-REG-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-002, `tests/registration-identity.test.js` | implemented |
+| REQ-REG-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-002, `tests/registration-identity.test.js`, `tests/registration-manual-execution.test.js` | implemented |
 | REQ-REG-002 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-001, TEST-REG-003, TEST-REG-005 | implemented |
 | REQ-REG-003 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-004 | implemented |
 | REQ-REG-004 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-006 | implemented |
@@ -1515,7 +1518,7 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 | REQ-VISITOR-002 | `registration-project/하반기 방문 관리.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-VISITOR-001 | implemented |
 | REQ-VISITOR-004 | `registration-project/하반기 방문 관리.gs` | TEST-VISITOR-001 | implemented |
 | REQ-VISITOR-003 | `registration-project/하반기 방문 관리.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-VISITOR-001 | implemented |
-| REQ-REPORT-001 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` | TEST-REPORT-001 (수동), `tests/completion-write-safety.test.js` | implemented |
+| REQ-REPORT-001 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` | TEST-REPORT-001 (수동), `tests/completion-write-safety.test.js`, `tests/registration-manual-execution.test.js` | implemented |
 | REQ-SETTLE-001 | `registration-project/제목 없음.gs` | TEST-SETTLE-001 | implemented |
 | REQ-RATE-001 | `settlement-automation/settlement_email.py` | TEST-RATE-001 | implemented |
 | REQ-RATE-002 | `settlement-automation/settlement_email.py` | TEST-RATE-002 | implemented |
