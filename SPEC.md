@@ -6,7 +6,7 @@
 |---|---|
 | Document Version | 1.1.0 |
 | Project Version | 1.0.0 |
-| Last Updated | 2026-10-04 |
+| Last Updated | 2026-10-29 |
 | Status | active |
 | Owner | 새가족부 운영 담당자 (역할명) |
 

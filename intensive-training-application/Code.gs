@@ -344,29 +344,37 @@ function onFormSubmitHandler(e) {
     if (sameTime.length !== 1) throw new Error('같은 제출 시각의 응답이 여러 개입니다. 담당자 확인이 필요합니다.');
     const key = adminSs.getId() + ':' + responseSheet.getSheetId() + ':' + timestampMs;
     const journal = getIntensiveJournal_(adminSs, true);
-    // 이전 예약 행이 정렬로 이동하기 전에 먼저 복구합니다.
+    const records = readIntensiveJournal_(journal);
+    // 이전 실패가 새 제출 기록을 막지 않도록, 현재 제출부터 예약한 뒤 순서대로 복구합니다.
+    if (!records.some(function (r) {return r.values[0] === key;})) {
+      const duplicate = requiredValuesValid && phoneValid && (isDuplicate(adminView, attendeeName, phone) ||
+        records.some(function (r) {
+          const prior = JSON.parse(r.values[4]);
+          return prior[3] === attendeeName && prior[4] === phone;
+        }));
+      let status = '정상';
+      if (!requiredValuesValid) status = '필수값 오류';
+      else if (!groupValid || !teamValid) status = '군/팀 오류';
+      else if (!phoneValid) status = '전화번호 형식 오류';
+      const adminRow = Math.max(adminView.getLastRow(), ...records.map(function (r) {return Number(r.values[2]);})) + 1;
+      const publicSheet = publicSs.getSheetByName(CONFIG.PUBLIC_SHEET_NAME);
+      if (!publicSheet) throw new Error('공개 명단 시트를 찾을 수 없습니다.');
+      const valid = requiredValuesValid && groupValid && teamValid && phoneValid;
+      const publicValues = [0, storedGroup, team, attendeeName, applicantName];
+      const pending = records.filter(function (r) {return r.values[1] !== 'DONE' && Number(r.values[3]);});
+      const publicRow = valid ? Math.max(publicSheet.getLastRow(), ...pending.map(function (r) {return Number(r.values[3]);})) + 1 : 0;
+      const precedingMatches = pending.filter(function (r) {return sameIntensivePayload_(JSON.parse(r.values[5]), publicValues);});
+      const baseline = Math.max(countIntensivePayload_(publicSheet, publicValues),
+        ...precedingMatches.map(function (r) {return Number(r.values[7]) + 1;}));
+      const record = [key, 'RESERVED', adminRow, publicRow,
+        JSON.stringify([adminRow - 1, storedGroup, team, attendeeName, phone,
+          applicantName, timestamp, duplicate ? '중복 의심' : '', status]),
+        JSON.stringify(publicValues), new Date(), baseline];
+      const row = journal.getLastRow() + 1;
+      journal.getRange(row, 1, 1, record.length).setValues([record]);
+    }
     readIntensiveJournal_(journal).filter(function (r) {return r.values[1] !== 'DONE';})
       .forEach(function (r) {resumeIntensiveApplication_(adminSs, publicSs, journal, r);});
-    if (readIntensiveJournal_(journal).some(function (r) {return r.values[0] === key;})) return;
-
-    const duplicate = requiredValuesValid && phoneValid && isDuplicate(adminView, attendeeName, phone);
-    let status = '정상';
-    if (!requiredValuesValid) status = '필수값 오류';
-    else if (!groupValid || !teamValid) status = '군/팀 오류';
-    else if (!phoneValid) status = '전화번호 형식 오류';
-    const adminRow = adminView.getLastRow() + 1;
-    const publicSheet = publicSs.getSheetByName(CONFIG.PUBLIC_SHEET_NAME);
-    if (!publicSheet) throw new Error('공개 명단 시트를 찾을 수 없습니다.');
-    const valid = requiredValuesValid && groupValid && teamValid && phoneValid;
-    const publicRow = valid ? publicSheet.getLastRow() + 1 : 0;
-    const record = [key, 'RESERVED', adminRow, publicRow,
-      JSON.stringify([adminRow - 1, storedGroup, team, attendeeName, phone,
-        applicantName, timestamp, duplicate ? '중복 의심' : '', status]),
-      JSON.stringify([0, storedGroup, team, attendeeName, applicantName]), new Date(),
-      countIntensivePayload_(publicSheet, [0, storedGroup, team, attendeeName, applicantName])];
-    const row = journal.getLastRow() + 1;
-    journal.getRange(row, 1, 1, record.length).setValues([record]);
-    resumeIntensiveApplication_(adminSs, publicSs, journal, {row: row, values: record});
   } catch (err) {
     console.error('onFormSubmitHandler 오류: ' + err);
     throw err;
@@ -418,7 +426,8 @@ function writeReservedIntensiveRow_(sheet, row, values, baseline) {
   // 쓰기는 끝났으나 단계 저장에 실패한 경우입니다. 정렬로 위치가 바뀌어도 다시 쓰지 않습니다.
   if (matches.length === baseline + 1) return matches[matches.length - 1];
   if (matches.length !== baseline) throw new Error('예약 이후 명단 내용이 바뀌었습니다. 담당자 확인이 필요합니다.');
-  const target = sheet.getRange(row, 1, 1, values.length).getValues()[0];
+  const target = row > sheet.getMaxRows() ? new Array(values.length).fill('')
+    : sheet.getRange(row, 1, 1, values.length).getValues()[0];
   if (target.some(function (v) {return String(v).trim() !== '';})) {
     throw new Error('예약 행에 다른 기록이 있습니다. 덮어쓰지 않고 중단합니다.');
   }
