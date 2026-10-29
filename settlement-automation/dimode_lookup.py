@@ -252,12 +252,26 @@ class DimodeClient:
         total = _pages(page)
         if total > MAX_PAGES:
             return {'cards': [], 'pages': total, 'truncated': True}
-        cards = {c['id']: c for c in parse_cards(page)}
+        cards = {}
+        seen_pages = set()
+
+        def add_cards(text, number):
+            parsed = parse_cards(text)
+            signature = json.dumps(parsed, ensure_ascii=False, sort_keys=True)
+            if signature in seen_pages:
+                return
+            seen_pages.add(signature)
+            for index, candidate in enumerate(parsed):
+                # A missing ID is not an identity: retain every such candidate.
+                key = ('id', candidate['id']) if candidate['id'] else ('anonymous', number, index)
+                cards[key] = candidate
+
+        add_cards(page, 1)
         for number in range(2, total + 1):
             form = [(k, v) for k, v in parse_form(page) if k not in ('__EVENTTARGET', '__EVENTARGUMENT')]
             page = self._list('POST', form + [('__EVENTTARGET', PAGER_TARGET), ('__EVENTARGUMENT', str(number))])
             before = len(cards)
-            cards.update({c['id']: c for c in parse_cards(page)})
+            add_cards(page, number)
             if len(cards) == before:
                 raise DimodeError(f'{number}쪽에서 새 교인이 나오지 않았습니다(쪽 넘김 실패).')
         return {'cards': list(cards.values()), 'pages': total, 'truncated': False}
@@ -296,14 +310,18 @@ def match_person(row, searcher):
             return {'status': 'check', 'reason': f'{method} 후보 여러 명', 'candidates': cands}
         return None
 
-    if exp['phone']:
-        result = searcher(phone=exp['phone'])
+    def by_phone(all_states):
+        if not exp['phone']:
+            return None
+        result = searcher(phone=exp['phone'], all_states=all_states)
         same = [c for c in result['cards'] if c['phone'] == exp['phone']]
-        found = (pick([c for c in same if c['name'] == exp['name'] and (org_same(c) or birth_same(c))], '전화+이름+생년월일/군팀')
-                 or pick([c for c in same if c['name'] == exp['name']], '전화+이름(생년월일·소속 차이 허용)')
-                 or pick([c for c in same if birth_same(c) and c['name'] != exp['name']], '전화+생년월일(이름은 디모데 기준)'))
-        if found:
-            return found
+        return (pick([c for c in same if c['name'] == exp['name'] and (org_same(c) or birth_same(c))], '전화+이름+생년월일/군팀', all_states)
+                or pick([c for c in same if c['name'] == exp['name']], '전화+이름(생년월일·소속 차이 허용)', all_states)
+                or pick([c for c in same if birth_same(c) and c['name'] != exp['name']], '전화+생년월일(이름은 디모데 기준)', all_states))
+
+    phone_found = by_phone(False)
+    if phone_found and phone_found['status'] == 'matched':
+        return phone_found
 
     def by_name(all_states):
         result = searcher(name=exp['name'], all_states=all_states)
@@ -316,15 +334,20 @@ def match_person(row, searcher):
                          and not (exp['phone'] and c['phone'] and c['phone'] != exp['phone'])],
                         '이름+군팀', all_states)), cands
 
-    found, cands = by_name(False)
+    found, cands = (phone_found, []) if phone_found else by_name(False)
     if found and found['status'] == 'matched':
         return found
     # 청년 필터로 정하지 못하면 장년·새가족에서 넘어온 사람까지 넓혀 다시 찾는다.
+    wide_phone = by_phone(True)
+    if wide_phone:
+        return wide_phone
     wide, wide_cands = by_name(True)
     if wide:
         return wide
     if found:
         return found
+    if phone_found:
+        return phone_found
     cands = wide_cands or cands
     reason = '이름 후보가 있으나 확정할 수 없음' if cands else '디모데 검색 결과 없음'
     return {'status': 'check', 'reason': reason, 'candidates': cands}

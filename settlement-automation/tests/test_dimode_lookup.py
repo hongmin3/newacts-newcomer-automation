@@ -167,6 +167,44 @@ def cardinfo(pid, name, phone='', birth='', army='조', team='보배', state='�
             'orgs': [{'army': army, 'team': team, 'raw': ''}] if army else []}
 
 
+def plain_card(pid, name, **kwargs):
+    return card(pid, name, **kwargs).replace(
+        f'<span style="cursor:pointer" onclick="OpenPerosonModify(\'{pid}\');">{name}</span>', name)
+
+
+class MissingIdTests(unittest.TestCase):
+    # Validates: REQ-DIMODELOOKUP-002, REQ-DIMODELOOKUP-003
+    def client(self, pages):
+        def routes(method, url, fields, n):
+            if method == 'GET':
+                return url, list_page()
+            number = int(fields.get('__EVENTARGUMENT') or '1')
+            return url, list_page(name='홍길동', cards=pages[number - 1], pages=len(pages))
+        return dl.DimodeClient(FakeHttp(routes))
+
+    def test_search_preserves_two_missing_ids_on_one_page(self):
+        result = self.client([plain_card('1', '홍길동') + plain_card('2', '홍길동')]).search(name='홍길동')
+        self.assertEqual(len(result['cards']), 2)
+        self.assertEqual([c['id'] for c in result['cards']], ['', ''])
+
+    def test_search_preserves_missing_ids_across_pages(self):
+        client = self.client([plain_card('1', '홍길동', birth='1990-01-02'),
+                              plain_card('2', '홍길동', birth='1991-01-02')])
+        result = client.search(name='홍길동')
+        self.assertEqual([c['birth'] for c in result['cards']], ['19900102', '19910102'])
+
+    def test_missing_id_namesakes_remain_check(self):
+        client = self.client([plain_card('1', '홍길동') + plain_card('2', '홍길동')])
+        result = dl.match_person({'name': '홍길동', 'army': '조', 'team': '보배'}, client.search)
+        self.assertEqual(result['status'], 'check')
+        self.assertEqual(len(result['candidates']), 2)
+
+    def test_repeated_missing_id_page_still_stops(self):
+        markup = plain_card('1', '홍길동')
+        with self.assertRaises(dl.DimodeError):
+            self.client([markup, markup]).search(name='홍길동')
+
+
 class FakeSearcher:
     def __init__(self, by_phone=None, by_name=None, by_name_all=None):
         self.by_phone, self.by_name, self.by_name_all = by_phone or {}, by_name or {}, by_name_all or {}
@@ -185,6 +223,23 @@ ROW = {'name': '홍길동A', 'phone': '01011112222', 'birth': '19900102', 'army'
 
 
 class MatchTests(unittest.TestCase):
+    def test_ambiguous_phone_candidates_are_not_replaced_by_partial_name_search(self):
+        candidates = [cardinfo('1', '홍길동', '010-1111-2222'),
+                      cardinfo('2', '홍길동', '010-1111-2222')]
+        def search(name='', phone='', all_states=False):
+            return {'cards': candidates if phone else candidates[:1], 'pages': 1, 'truncated': False}
+        result = dl.match_person({**ROW, 'birth': ''}, search)
+        self.assertEqual(result['status'], 'check')
+        self.assertEqual(len(result['candidates']), 2)
+
+    def test_all_states_repeats_phone_birth_rule_for_changed_name(self):
+        def search(name='', phone='', all_states=False):
+            cards = [cardinfo('9', '홍길순', '010-1111-2222', '19900102')] if phone and all_states else []
+            return {'cards': cards, 'pages': 1, 'truncated': False}
+        result = dl.match_person(ROW, search)
+        self.assertEqual(result['status'], 'matched')
+        self.assertEqual((result['card']['id'], result['all_states'], result['name_differs']), ('9', True, True))
+
     def test_phone_name_and_birth(self):
         s = FakeSearcher(by_phone={'010-1111-2222': [cardinfo('1', '홍길동B', '010-1111-2222', '19900102', army='명', team='하이')]})
         r = dl.match_person(ROW, s)

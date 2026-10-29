@@ -648,7 +648,13 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     : [];
 
   const registrationNameCounts = new Map();
+  const identityCounts = new Map();
   registrationRows.forEach(function (row) {
+    const owner = registrationCorrectionOwner_(row);
+    if (owner) {
+      const identity = JSON.stringify(owner);
+      identityCounts.set(identity, (identityCounts.get(identity) || 0) + 1);
+    }
     const key = normalizeRegistrationName_(row[5]);
     if (key) registrationNameCounts.set(
       key, (registrationNameCounts.get(key) || 0) + 1
@@ -711,13 +717,17 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     if (!currentNameKey && !currentPhoneKey) return;
     result.registrations += 1;
 
-    const stateKey = REGISTRATION_AUTOMATION.correctionStatePrefix +
-      (no || ('ROW_' + registrationRow));
-    const savedState = parseRegistrationCorrectionState_(
-      Object.prototype.hasOwnProperty.call(storedStates, stateKey)
-        ? storedStates[stateKey]
-        : null
+    const state = resolveRegistrationCorrectionState_(
+      row, registrationRow, storedStates, identityCounts, registrationNameCounts
     );
+    if (state.error) {
+      result.review.push({ registrationRow: registrationRow, name: currentName,
+        reason: state.error });
+      result.unmatched += 1;
+      return;
+    }
+    const stateKey = state.key;
+    const savedState = state.value;
     let match = null;
     let strategy = '';
 
@@ -777,7 +787,7 @@ function reconcileRegistrationWithLatestAttendance_(options) {
 
     const fields = registrationCorrectionFields_(row, match);
 
-    let stateChanged = false;
+    let stateChanged = state.migrated;
     fields.forEach(function (field) {
       if (!field.latest ||
           field.normalize(field.current) === field.normalize(field.latest)) {
@@ -886,6 +896,86 @@ function registrationCorrectionFields_(row, match) {
         normalize: normalizeRegistrationPhone_
       }
     ];
+}
+
+// 순번은 명단 정렬 때 바뀐다. 자동 보정하지 않는 이름·등록일로 상태 소유자를 구분한다.
+function registrationCorrectionOwner_(row) {
+  const nameKey = normalizeRegistrationName_(row[5]);
+  const rawDate = row[1];
+  if (!nameKey || !rawDate) return null;
+  const text = String(rawDate).trim();
+  const short = text.match(/^(\d{1,2})\/(\d{1,2})$/);
+  let dateKey;
+  if (short) {
+    const month = Number(short[1]), day = Number(short[2]);
+    const probe = new Date(2000, month - 1, day);
+    if (probe.getMonth() !== month - 1 || probe.getDate() !== day) return null;
+    // 연도 없는 입력은 실행 연도가 바뀌어도 같은 키를 쓴다.
+    dateKey = 'month-day:' + month + '/' + day;
+  } else {
+    const date = parseRegistrationDate_(rawDate);
+    if (!date) return null;
+    dateKey = Utilities.formatDate(date, 'Asia/Seoul', 'yyyy-MM-dd');
+  }
+  return { nameKey: nameKey, dateKey: dateKey };
+}
+
+function readOwnedRegistrationState_(raw) {
+  try {
+    const value = JSON.parse(raw);
+    if (!value || !value.fields || typeof value.fields !== 'object' ||
+        Array.isArray(value.fields)) return null;
+    return value;
+  } catch (error) { return null; }
+}
+
+function registrationStateHasPhone_(value, phone) {
+  if (!phone || !value) return false;
+  const phoneState = value.fields.phone || {};
+  return [value.sourcePhoneKey, phoneState.lastAutoValue, phoneState.manualValue]
+    .map(normalizeRegistrationPhone_).filter(Boolean).indexOf(phone) >= 0;
+}
+
+function resolveRegistrationCorrectionState_(row, rowNumber, stored, counts, nameCounts) {
+  const owner = registrationCorrectionOwner_(row);
+  const blocked = { error: '자동 보정 상태의 소유자 확인 필요: 기존 상태를 보존하고 수정하지 않음' };
+  if (!owner || counts.get(JSON.stringify(owner)) !== 1) {
+    return { error: '이름·등록일이 없거나 같은 식별값이 여러 명이므로 자동 수정하지 않음' };
+  }
+  const prefix = REGISTRATION_AUTOMATION.correctionStatePrefix;
+  const key = prefix + 'V2_' + encodeURIComponent(JSON.stringify(owner));
+  if (Object.prototype.hasOwnProperty.call(stored, key)) {
+    const value = readOwnedRegistrationState_(stored[key]);
+    if (!value || value.version !== 2 || !value.owner ||
+        value.owner.nameKey !== owner.nameKey || value.owner.dateKey !== owner.dateKey ||
+        (value.sourceNameKey && value.sourceNameKey !== owner.nameKey)) return blocked;
+    return { key: key, value: value, migrated: false };
+  }
+
+  const legacyKey = prefix + (String(row[0] || '').trim() || ('ROW_' + rowNumber));
+  const phone = normalizeRegistrationPhone_(row[9]);
+  const related = Object.keys(stored).filter(function (candidateKey) {
+    if (!candidateKey.startsWith(prefix)) return false;
+    const value = readOwnedRegistrationState_(stored[candidateKey]);
+    return candidateKey === legacyKey || (value &&
+      (value.sourceNameKey === owner.nameKey ||
+       (value.owner && value.owner.nameKey === owner.nameKey) ||
+       registrationStateHasPhone_(value, phone)));
+  }).map(function (candidateKey) {
+    return { key: candidateKey, value: readOwnedRegistrationState_(stored[candidateKey]) };
+  });
+  if (!related.length) return { key: key, value: { version: 2, owner: owner, fields: {} }, migrated: false };
+
+  // 날짜가 달라진 v2 상태나 손상된 기존 상태를 신규 상태로 만들어 덮지 않는다.
+  if (related.some(function (item) { return !item.value || item.key.startsWith(prefix + 'V2_'); })) return blocked;
+  const sameName = related.filter(function (item) { return item.value.sourceNameKey === owner.nameKey; });
+  if (sameName.length !== 1 || nameCounts.get(owner.nameKey) !== 1 || !phone) return blocked;
+  const previous = sameName[0].value;
+  if (!registrationStateHasPhone_(previous, phone)) return blocked;
+  previous.version = 2;
+  previous.owner = owner;
+  // 기존 키는 지우지 않는다. 보호값을 그대로 복사하고 새 키만 추가한다.
+  return { key: key, value: previous, migrated: true };
 }
 
 function parseRegistrationCorrectionState_(value) {

@@ -243,13 +243,14 @@ function syncCompletionData_(options) {
   result.outputRows = output.length;
 
   if (!options.dryRun) {
-    const oldRows = Math.max(completionSheet.getLastRow() - 1, 0);
-    if (oldRows > 0) {
-      completionSheet.getRange(2, 1, oldRows, 15).clearContent();
-    }
-    ensureRegistrationRows_(completionSheet, output.length + 1);
-    if (output.length > 0) {
-      completionSheet.getRange(2, 1, output.length, 15).setValues(output);
+    // 기존 수동값을 지운 뒤 쓰지 않는다. 결과와 남는 빈 행을 한 요청으로 교체한다.
+    const writeCount = Math.max(oldCompletionRows.length, output.length);
+    ensureRegistrationRows_(completionSheet, writeCount + 1);
+    if (writeCount > 0) {
+      const replacement = output.concat(Array.from(
+        { length: writeCount - output.length }, function () { return new Array(15).fill(''); }
+      ));
+      completionSheet.getRange(2, 1, writeCount, 15).setValues(replacement);
     }
   }
 

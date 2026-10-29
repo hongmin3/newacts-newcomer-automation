@@ -380,7 +380,8 @@ TEST-EDU-003
 등록 명단의 군·팀·전화번호를 교육 출석의 최신 값에 맞춘다. 단, 사람이 손으로 고친 값을 자동화가 되돌리지 않게 한다.
 
 #### 동작
-- 등록 명단의 각 줄을 교육 출석 원본 응답과 매칭한다. 판단 순서는 ① 저장된 매칭 이름 ② 현재 이름과 전화번호 ③ 등록 명단에서 하나뿐인 이름이다. 최신 응답을 앞세운다.
+- 등록 명단의 각 줄을 교육 출석 원본 응답과 매칭한다. 판단 순서는 ① 현재 등록자 소유가 확인된 저장 매칭 이름 ② 현재 이름과 전화번호 ③ 등록 명단에서 하나뿐인 이름이다. 최신 응답을 앞세운다.
+- 보정 상태는 순번과 무관한 이름·등록일 식별자로 저장한다. 기존 상태는 이름과 전화번호로 소유가 확인된 유일 후보만 이전하며 삭제하지 않는다. 식별 중복·소유 불명확·손상 상태는 검토로 보고하고 해당 행을 자동 수정하지 않는다. 이름·등록일 수정 뒤 기존 이름이나 전화번호로 연결된 상태가 있으면 새 상태로 초기화하지 않고 검토로 남긴다.
 - 자동으로 보정하는 항목은 군·팀·전화번호다.
 - **이름은 자동으로 보정하지 않는다.** 등록 명단의 이름과 교육 출석의 이름이 다르면 검토 내역으로 보고하고, 어느 쪽이 맞는지는 사람이 확인한다.
 - 값이 다르면 교육 쪽 최신 값으로 보정한다. 보정한 값과 바로 전 값은 스크립트 속성에 기록한다.
@@ -596,6 +597,7 @@ TEST-REG-006
 - 이 과정에서 등록 시트의 군·팀·전화번호는 자동으로 덮어쓰지 않는다. 서로 다르면 보고만 한다.
 - 전체 관리자에게는 전체 통계 메일을, 군 담당자에게는 그 군의 통계 메일을 보낸다.
 - 미리보기와 테스트 실행은 시트를 바꾸지 않는다. 테스트 실행은 메일을 한 통만 보낸다.
+- 새 결과와 남는 빈 행을 한 번에 기록한다. 쓰기 전에 기존 내용을 지우지 않아 기록 요청이 실패해도 재실행에 필요한 수동 항목이 남도록 한다.
 - 실행 결과는 수료 자동화 로그에 기록한다(REQ-LOG-001).
 
 #### 예외 처리
@@ -874,7 +876,7 @@ TEST-PERF-001
 
 군 현황판은 14열로 다시 쓴다. 1~2행이 머리글, 3행이 합계, 4행부터 명단이다. 다시 쓰기 전에, 예전 20열 배치가 3행부터 아래에 남긴 내용과 배경색을 먼저 지운다.
 
-수료현황은 2행부터 15열의 기존 내용을 지운 뒤 다시 쓴다. 수료현황의 문자 제외·미확인·비고 값은 기존 전화번호가 정확히 한 줄에 대응할 때만 남긴다.
+수료현황은 새 결과와 남는 빈 행을 한 번에 써서 교체한다. 새 결과를 쓰기 전에 기존 내용을 지우지 않는다. 수료현황의 문자 제외·미확인·비고 값은 기존 전화번호가 정확히 한 줄에 대응할 때만 남긴다.
 
 보정 상태 속성에도 개인정보 값이 들어 있을 수 있다.
 
@@ -1505,7 +1507,7 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 | REQ-EDU-002 | `education-project/교육 출석 현황 업데이트.gs` | TEST-EDU-002 (수동) | implemented |
 | REQ-EDU-003 | `education-project/집중교육 출석 현황 업데이트.gs` | TEST-EDU-003 | implemented |
 | REQ-NOTI-001 | `education-project/문자 명단 리스트.gs` | TEST-NOTI-001 | implemented |
-| REQ-REG-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-002 | implemented |
+| REQ-REG-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-002, `tests/registration-identity.test.js` | implemented |
 | REQ-REG-002 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-001, TEST-REG-003, TEST-REG-005 | implemented |
 | REQ-REG-003 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-004 | implemented |
 | REQ-REG-004 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-REG-006 | implemented |
@@ -1513,7 +1515,7 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 | REQ-VISITOR-002 | `registration-project/하반기 방문 관리.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-VISITOR-001 | implemented |
 | REQ-VISITOR-004 | `registration-project/하반기 방문 관리.gs` | TEST-VISITOR-001 | implemented |
 | REQ-VISITOR-003 | `registration-project/하반기 방문 관리.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-VISITOR-001 | implemented |
-| REQ-REPORT-001 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` | TEST-REPORT-001 (수동) | implemented |
+| REQ-REPORT-001 | `registration-project/등록 새가족 새가족교육 수료현황 자동화.gs` | TEST-REPORT-001 (수동), `tests/completion-write-safety.test.js` | implemented |
 | REQ-SETTLE-001 | `registration-project/제목 없음.gs` | TEST-SETTLE-001 | implemented |
 | REQ-RATE-001 | `settlement-automation/settlement_email.py` | TEST-RATE-001 | implemented |
 | REQ-RATE-002 | `settlement-automation/settlement_email.py` | TEST-RATE-002 | implemented |
