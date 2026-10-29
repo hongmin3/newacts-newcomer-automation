@@ -792,6 +792,15 @@ TEST-RATE-003
 - 설정 누락, Cloud 프로젝트 불일치, HTTP 오류, 함수 실행 오류, 미완료 응답은 실패로 처리한다. 자동 재시도와 편집기 대체 실행은 하지 않는다.
 - 진단 명령은 배포·인증·권한 조건을 확인한다. 실제 운영 성공은 두 미리보기의 REST 응답과 변경 전후 시트 대조로 확인한다.
 
+### REQ-SYNC-002 장기 OAuth 인증과 공개 앱 안내
+
+담당자는 OAuth 앱을 `In production`으로 게시하고 새 인증을 연결해 테스트 상태의 7일 재인증 제한 없이 운영 미리보기를 사용한다.
+
+- 앱 소개·개인정보처리방침·이용 안내를 공개하고 OAuth 브랜딩에서 같은 주소로 연결한다. 실제 명단·시트 ID·인증값은 공개 페이지에 넣지 않는다.
+- 공개되는 것은 앱 안내 페이지다. 운영 실행 API 접근 범위는 계속 본인만(`MYSELF`)으로 둔다.
+- 게시 뒤 새 갱신 토큰을 발급받아 두 미리보기와 배포 진단을 확인한다. 기존 인증은 새 인증의 성공을 확인할 때까지 보관한다.
+- 동의 철회·계정 정책 등으로 인증이 만료되는 경우에는 다시 인증한다. 모든 재인증이 영구히 없어지는 것으로 안내하지 않는다.
+
 ## 6. 비기능 요구사항
 
 ### NFR-SEC-001 개인정보·인증 정보는 저장소 밖에 보관
@@ -1510,6 +1519,16 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 
 > **참고** 운영 시트 변경·메일 도착·예약 실행은 이 로컬 테스트로 확인하지 않는다. 운영 반영 후 미리보기와 시트 결과를 별도로 확인한다.
 
+### TEST-SYNC-002 OAuth 장기 운영과 공개 안내 확인
+
+검증 대상: REQ-SYNC-002
+
+1. 공개 앱 소개·개인정보처리방침·이용 안내의 연결, 연락처, PC·390px 화면과 개인정보·인증값이 없는지 확인한다.
+2. Google Cloud에서 공개 주소와 게시 상태 `In production`을 다시 읽는다.
+3. 게시 뒤 새 OAuth 인증을 발급받고 기존 인증을 보관한 채 `doctor`, `maintenance`, `reporting`을 실행한다.
+4. 진단의 접근 범위 `MYSELF`와 두 미리보기의 완료 응답·운영 시트 무변경을 확인한다.
+5. 이 검사는 7일 경과 시험과 구분한다. 게시 상태·새 인증·Google 만료 정책을 함께 근거로 남긴다.
+
 ## 12. 요구사항 추적성
 
 | Requirement | Implementation | Test | Status |
@@ -1540,6 +1559,7 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 | NFR-OPS-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-OPS-001 | implemented |
 | NFR-DATA-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` (자동 삭제 코드를 두지 않는다는 금지) | TEST-DATA-001 | implemented |
 | NFR-PERF-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-PERF-001 | implemented |
+| REQ-SYNC-002 | `docs/oauth-public/`, `docs/rest-preview.md` | TEST-SYNC-002 | implemented |
 | REQ-SYNC-001 | `scripts/apps-script-execution.mjs`, `scripts/apps-script-execution-auth.py`, `registration-project/appsscript.json` | `tests/apps-script-execution.test.js` | verified |
 | NFR-SYNC-001 | `scripts/apps-script.mjs`, `scripts/apps-script-projects.json` | TEST-SYNC-001 | implemented |
 

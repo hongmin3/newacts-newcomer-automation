@@ -181,7 +181,7 @@ node scripts/apps-script.mjs deploy attendance-webapp --description "변경 요�
 
 등록 보정 상태는 이름·등록일로 구분하므로 명단 정렬과 번호 재부여 후에도 수동 수정 보호가 이어집니다. 같은 식별값이 중복되거나 기존 상태의 소유자를 확인할 수 없으면 자동 수정하지 않고 검토 내역으로 보고합니다. 이 경우 담당자가 이름·등록일·전화번호를 확인해야 합니다.
 
-편집기를 열지 않고 REST 명령으로 운영 미리보기를 실행할 수 있습니다. `npm run preview -- registration doctor`로 전용 인증·배포를 확인하고, `maintenance` 또는 `reporting`으로 미리보기를 요청합니다. 본인 전용 실행 API와 전용 인증으로 두 명령의 운영 실행을 확인했습니다. 현재 OAuth 앱은 테스트 상태라 7일 뒤 재인증이 필요합니다. [최초 설정과 현재 상태](docs/rest-preview.md)를 참고하세요.
+편집기를 열지 않고 REST 명령으로 운영 미리보기를 실행할 수 있습니다. `npm run preview -- registration doctor`로 전용 인증·배포를 확인하고, `maintenance` 또는 `reporting`으로 미리보기를 요청합니다. 본인 전용 실행 API와 전용 인증으로 두 명령의 운영 실행을 확인했습니다. OAuth 앱은 프로덕션으로 게시했고 새 인증을 연결해 테스트 상태의 7일 재인증 제한을 해소했습니다. 접근 철회·계정 정책 변경 등으로 인증이 만료되면 다시 연결해야 합니다. [최초 설정과 현재 상태](docs/rest-preview.md)를 참고하세요.
 
 Apps Script 편집기에서도 운영 미리보기인 `previewRegistrationMaintenance`와 `previewRegistrationReporting`을 실행합니다. 로그에는 상세 명단 대신 집계가 표시됩니다. 메일 없는 실제 실행은 등록 보정만 하는 `applyRegistrationCorrectionsNow`, 수료현황만 갱신하는 `syncNewFamilyData`입니다. 실제 실행은 담당자가 요청한 범위에서만 합니다.
 

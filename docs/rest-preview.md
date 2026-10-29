@@ -10,7 +10,11 @@
 
 Chrome의 Cloud 인증 화면에서 발생한 `Failed to load`는 Safari로 접근해 해결했다. 비밀 인증값과 실행 배포 ID는 Mac의 개인 설정에만 보관한다. 공용 clasp 인증과 기존 Windows용 OAuth 클라이언트는 바꾸지 않았다.
 
-> **제한** 현재 OAuth 앱은 외부 사용자·‘테스트 중’ 상태다. [Google 정책](https://developers.google.com/identity/protocols/oauth2#expiration)에 따라 갱신 토큰이 7일 뒤 만료되므로 다시 OAuth 인증해야 한다. 장기 사용을 위한 앱 게시에는 현재 비어 있는 홈페이지·개인정보처리방침 등 브랜딩 구성을 별도로 확인해야 한다. 이번에 앱을 게시하거나 사용자 범위를 넓히지는 않았다.
+2026-10-29에 OAuth 앱을 ‘프로덕션 단계’(`In production`)로 게시하고 게시 뒤 발급한 새 인증을 연결했다. 테스트 상태의 7일 갱신 토큰 제한이 적용되지 않는 구성이다. 실행 API 접근은 계속 본인만(`MYSELF`)이다.
+
+[앱 소개](https://newacts-automation-info.secret-drum-8851.chatgpt.site/), [개인정보처리방침](https://newacts-automation-info.secret-drum-8851.chatgpt.site/privacy.html), [이용 안내·약관](https://newacts-automation-info.secret-drum-8851.chatgpt.site/terms.html)을 공개하고 Google 브랜딩에 같은 주소를 저장했다. 공개 페이지에는 업무 명단이나 인증값을 넣지 않는다.
+
+> **참고** 프로덕션 게시와 Google의 앱 검증은 서로 다르다. 현재는 본인용으로 사용하며 Google의 미인증 앱 안내와 사용자 한도가 남아 있다. 접근 철회, 계정 정책 등 [일반적인 인증 만료 조건](https://developers.google.com/identity/protocols/oauth2#expiration)에서는 다시 인증해야 한다. 7일이 지난 뒤의 실행 시험을 했다는 뜻은 아니다.
 
 ## 실행 명령
 
@@ -52,7 +56,7 @@ settlement-automation/.venv/bin/python -I scripts/apps-script-execution-auth.py 
 
 2026-10-29 등록 스크립트 개요에서는 위 두 범위를 확인했다. 실제 설정 전에 다시 확인한다. 미리보기만 호출해도 실행 API는 스크립트 전체 범위를 요구하므로 메일 권한이 인증 목록에 포함된다. 미리보기 명령은 메일 함수를 호출하지 않는다.
 
-도구가 출력하는 Google 인증 주소를 브라우저에서 연다. 이 인증은 최초 설정과 갱신 토큰 만료 뒤에 필요하다. 유효한 인증이 있는 동안 미리보기는 브라우저 없이 갱신 토큰을 사용한다. 기존 전용 설정 파일이 있으면 덮어쓰지 않는다. 재인증할 때는 같은 Cloud 번호·실행 배포 ID와 확인한 범위로 `--config`에 별도 개인 파일을 지정한다. 새 파일로 `NEWACTS_EXECUTION_CONFIG`를 지정해 `doctor`와 두 미리보기를 확인한 뒤 사용한다. 기존 파일은 새 인증이 성공할 때까지 보관한다.
+도구가 출력하는 Google 인증 주소를 브라우저에서 연다. 이 인증은 최초 설정과 접근 철회 등으로 갱신 토큰이 만료된 뒤에 필요하다. 유효한 인증이 있는 동안 미리보기는 브라우저 없이 갱신 토큰을 사용한다. 운영용 인증은 OAuth 앱을 프로덕션으로 게시한 뒤 발급한다. 테스트 중에 받은 토큰은 새 운영 인증으로 교체한다. 기존 전용 설정 파일이 있으면 덮어쓰지 않는다. 재인증할 때는 같은 Cloud 번호·실행 배포 ID와 확인한 범위로 `--config`에 별도 개인 파일을 지정한다. 새 파일로 `NEWACTS_EXECUTION_CONFIG`를 지정해 `doctor`와 두 미리보기를 확인한 뒤 사용한다. 기존 파일은 새 인증이 성공할 때까지 보관한다.
 
 생성 위치는 `~/.config/newacts-apps-script/registration.json`이며 파일 권한은 600이다. 다른 위치는 `--config`로 지정하고 미리보기 실행 때 같은 경로를 `NEWACTS_EXECUTION_CONFIG` 환경 변수로 넘긴다. 인증 파일은 저장소 안에 둘 수 없다.
 
