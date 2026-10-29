@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="ddc835e468628257c4cfbfb7e27c8664e3f7f90a346a8642b2a5d89ae5088f63">
+<meta name="spec-source-sha256" content="e44c960403c60ad9aaee1d2d48365e60716a3a0a284856d2c00aded911ad7030">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-04</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>37</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>35</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div><div class="stat st-verified"><b>15</b><span>verified</span></div></div>
+<div class="stats"><div class="stat"><b>38</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>35</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>27</b><span>implemented</span></div><div class="stat st-verified"><b>16</b><span>verified</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -126,6 +126,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-RATE-001">REQ-RATE-001 <span>조회 완료율 안전 기준</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-RATE-002">REQ-RATE-002 <span>개인별 표 선택</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-RATE-003">REQ-RATE-003 <span>마지막 화요일 판정</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-SYNC-001">REQ-SYNC-001 <span>REST 운영 미리보기</span></a></li>
 <li class="toc-2"><a href="#sec-6">6. 비기능 요구사항</a></li>
 <li class="toc-id kind-nfr"><a href="#NFR-SEC-001">NFR-SEC-001 <span>개인정보·인증 정보는 저장소 밖에 보관</span></a></li>
 <li class="toc-id kind-nfr"><a href="#NFR-OPS-001">NFR-OPS-001 <span>겹치지 않는 정기 실행</span></a></li>
@@ -248,6 +249,8 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATE-001">REQ-RATE-001</a></td><td data-label="이름">조회 완료율 안전 기준</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code></td><td data-label="테스트"><a class="idref" href="#TEST-RATE-001">TEST-RATE-001</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATE-002">REQ-RATE-002</a></td><td data-label="이름">개인별 표 선택</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code></td><td data-label="테스트"><a class="idref" href="#TEST-RATE-002">TEST-RATE-002</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATE-003">REQ-RATE-003</a></td><td data-label="이름">마지막 화요일 판정</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>settlement-automation/settlement_email.py</code>, <code>settlement-automation/run_monthly.ps1</code></td><td data-label="테스트"><a class="idref" href="#TEST-RATE-003">TEST-RATE-003</a></td></tr>
+<tr class="group"><th colspan="5"><span class="gcode">SYNC</span> 배포 동기화</th></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-SYNC-001">REQ-SYNC-001</a></td><td data-label="이름">REST 운영 미리보기</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>scripts/apps-script-execution.mjs</code>, <code>scripts/apps-script-execution-auth.py</code>, <code>registration-project/appsscript.json</code></td><td data-label="테스트"><code>tests/apps-script-execution.test.js</code></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">NFR SEC</span> 보안</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#NFR-SEC-001">NFR-SEC-001</a></td><td data-label="이름">개인정보·인증 정보는 저장소 밖에 보관</td><td data-label="상태"><span class="badge st-implemented">implemented</span></td><td data-label="구현"><code>intensive-training-application/Code.gs</code>, <code>.gitignore</code></td><td data-label="테스트"><a class="idref" href="#TEST-SEC-001">TEST-SEC-001</a></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">NFR OPS</span> 운영</th></tr>
@@ -1423,6 +1426,23 @@ SPEC에는 그 ID가 없었다.</li>
 </table></div>
 </div></section>
 </section>
+<section class="card kind-req" id="REQ-SYNC-001">
+<h3><span class="idtag">REQ-SYNC-001</span> REST 운영 미리보기</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>scripts/apps-script-execution.mjs</code>, <code>scripts/apps-script-execution-auth.py</code>, <code>registration-project/appsscript.json</code></span><span class="meta"><b>테스트</b> <code>tests/apps-script-execution.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-10-29 REST 운영 미리보기</span> <a class="idref" href="#REQ-SYNC-001">REQ-SYNC-001</a>: 두 등록 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>만 호출하는 REST 명령, 본인 전용 실행 배포 진단과 저장소 밖 최초 OAuth 인증 도구를 추가했다. 명단·인증 비밀값은 출력하지 않는다. 표준 Cloud 연결과 본인 전용 실행 API를 구성하고 두 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>의 운영 REST 응답을 확인했다. OAuth 테스트 상태의 7일 인증 제한도 안내한다.</li>
+</ul>
+</details>
+<p>담당자는 편집기를 열지 않고 <code>npm run preview -- registration maintenance</code> 또는 <code>reporting</code>으로 운영 반영 예정 집계를 확인한다.</p>
+<ul>
+<li>호출 대상은 등록 프로젝트의 두 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span> 함수로 제한한다. 시트·속성·메일을 변경하는 함수는 이 명령에서 실행하지 않는다.</li>
+<li>접근 범위가 본인만(<code>MYSELF</code>)인 실행 API 배포와 같은 표준 Cloud 프로젝트의 전용 OAuth 인증을 사용한다. 인증 파일과 배포 ID는 저장소 밖 개인 설정에 둔다.</li>
+<li>서버 응답의 집계만 출력한다. 명단과 토큰·클라이언트 비밀값은 출력하지 않는다.</li>
+<li>설정 누락, Cloud 프로젝트 불일치, HTTP 오류, 함수 실행 오류, 미완료 응답은 실패로 처리한다. 자동 재시도와 편집기 대체 실행은 하지 않는다.</li>
+<li>진단 명령은 배포·인증·권한 조건을 확인한다. 실제 운영 성공은 두 <span class="term" title="시트·속성·메일을 바꾸지 않고 결과만 보여 주는 실행이다(dry-run)" tabindex="0">미리보기</span>의 REST 응답과 변경 전후 시트 대조로 확인한다.</li>
+</ul>
+</section>
 </section>
 <section class="chapter" id="sec-6">
 <h2>6. 비기능 요구사항</h2>
@@ -2408,6 +2428,7 @@ SPEC에는 그 ID가 없었다.</li>
 <tr><td data-label="Requirement"><a class="idref" href="#NFR-OPS-001">NFR-OPS-001</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-OPS-001">TEST-OPS-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#NFR-DATA-001">NFR-DATA-001</a></td><td data-label="Implementation"><code>education-project/교육 출석 현황 업데이트.gs</code>, <code>registration-project/등록새가족-군현황 자동 배치.gs</code> (자동 삭제 코드를 두지 않는다는 금지)</td><td data-label="Test"><a class="idref" href="#TEST-DATA-001">TEST-DATA-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#NFR-PERF-001">NFR-PERF-001</a></td><td data-label="Implementation"><code>registration-project/등록새가족-군현황 자동 배치.gs</code></td><td data-label="Test"><a class="idref" href="#TEST-PERF-001">TEST-PERF-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-SYNC-001">REQ-SYNC-001</a></td><td data-label="Implementation"><code>scripts/apps-script-execution.mjs</code>, <code>scripts/apps-script-execution-auth.py</code>, <code>registration-project/appsscript.json</code></td><td data-label="Test"><code>tests/apps-script-execution.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#NFR-SYNC-001">NFR-SYNC-001</a></td><td data-label="Implementation"><code class="term" title="저장소 코드와 운영 중인 Apps Script 코드를 비교하고, 가져오고, 올리고, 배포하는 도구다" tabindex="0">scripts/apps-script.mjs</code>, <code class="term" title="네 Apps Script 프로젝트의 script ID를 모아 둔 파일이다" tabindex="0">scripts/apps-script-projects.json</code></td><td data-label="Test"><a class="idref" href="#TEST-SYNC-001">TEST-SYNC-001</a></td><td data-label="Status"><span class="badge st-implemented">implemented</span></td></tr>
 </tbody>
 </table></div>

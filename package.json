@@ -7,7 +7,8 @@
     "test": "node scripts/run-tests.mjs",
     "diff": "node scripts/apps-script.mjs diff",
     "pull": "node scripts/apps-script.mjs pull",
-    "push": "node scripts/apps-script.mjs push"
+    "push": "node scripts/apps-script.mjs push",
+    "preview": "node scripts/apps-script-execution.mjs"
   },
   "engines": {
     "node": ">=18"

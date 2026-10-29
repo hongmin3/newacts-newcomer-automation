@@ -782,6 +782,16 @@ TEST-RATE-003
 
 <!-- spec-index: end -->
 
+### REQ-SYNC-001 REST 운영 미리보기
+
+담당자는 편집기를 열지 않고 `npm run preview -- registration maintenance` 또는 `reporting`으로 운영 반영 예정 집계를 확인한다.
+
+- 호출 대상은 등록 프로젝트의 두 미리보기 함수로 제한한다. 시트·속성·메일을 변경하는 함수는 이 명령에서 실행하지 않는다.
+- 접근 범위가 본인만(`MYSELF`)인 실행 API 배포와 같은 표준 Cloud 프로젝트의 전용 OAuth 인증을 사용한다. 인증 파일과 배포 ID는 저장소 밖 개인 설정에 둔다.
+- 서버 응답의 집계만 출력한다. 명단과 토큰·클라이언트 비밀값은 출력하지 않는다.
+- 설정 누락, Cloud 프로젝트 불일치, HTTP 오류, 함수 실행 오류, 미완료 응답은 실패로 처리한다. 자동 재시도와 편집기 대체 실행은 하지 않는다.
+- 진단 명령은 배포·인증·권한 조건을 확인한다. 실제 운영 성공은 두 미리보기의 REST 응답과 변경 전후 시트 대조로 확인한다.
+
 ## 6. 비기능 요구사항
 
 ### NFR-SEC-001 개인정보·인증 정보는 저장소 밖에 보관
@@ -1530,6 +1540,7 @@ REQ-VISITOR-001, REQ-VISITOR-002, REQ-VISITOR-003, REQ-VISITOR-004
 | NFR-OPS-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-OPS-001 | implemented |
 | NFR-DATA-001 | `education-project/교육 출석 현황 업데이트.gs`, `registration-project/등록새가족-군현황 자동 배치.gs` (자동 삭제 코드를 두지 않는다는 금지) | TEST-DATA-001 | implemented |
 | NFR-PERF-001 | `registration-project/등록새가족-군현황 자동 배치.gs` | TEST-PERF-001 | implemented |
+| REQ-SYNC-001 | `scripts/apps-script-execution.mjs`, `scripts/apps-script-execution-auth.py`, `registration-project/appsscript.json` | `tests/apps-script-execution.test.js` | verified |
 | NFR-SYNC-001 | `scripts/apps-script.mjs`, `scripts/apps-script-projects.json` | TEST-SYNC-001 | implemented |
 
 
