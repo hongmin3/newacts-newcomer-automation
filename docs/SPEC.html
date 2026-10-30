@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="89c92d4de483d787fee329f433e41862c1be43672efd834237a6a0062d3141eb">
+<meta name="spec-source-sha256" content="c98350f2c8911b0b85d08f280d4d97eee317b4774209f66c107aaae3eea0d428">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -3089,8 +3089,9 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <section class="card kind-req" id="REQ-DIMODELOOKUP-003">
 <h3><span class="idtag">REQ-DIMODELOOKUP-003</span> 동일인 판정</h3>
 <div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>settlement-automation/dimode_lookup.py</code></span><span class="meta"><b>테스트</b> <code>settlement-automation/tests/test_dimode_lookup.py</code></span></div>
-<details class="history"><summary>변경 이력 2</summary>
+<details class="history"><summary>변경 이력 3</summary>
 <ul>
+<li><span class="hist">2026-10-30 디모데 조회 Windows 지원</span> <a class="idref" href="#REQ-DIMODELOOKUP-003">REQ-DIMODELOOKUP-003</a>: Windows 콘솔 기본 인코딩(cp949) 때문에 <code>match</code>의 한글 이름 입력이 깨져 이름 비교가 어긋나던 문제를 고쳤다. 표준 입력과 출력을 UTF-8로 읽고 쓴다.</li>
 <li><span class="hist">2026-10-29 등록 보정·수료 기록·디모데 조회 보호</span> <a class="idref" href="#REQ-DIMODELOOKUP-002">REQ-DIMODELOOKUP-002</a>, <a class="idref" href="#REQ-DIMODELOOKUP-003">REQ-DIMODELOOKUP-003</a>: ID 없는 교인 후보 누락과 전체 교인 범위 전화 검색 누락을 수정하고 복수 후보는 확인 대상으로 유지한다.</li>
 <li><span class="hist">2026-10-29 디모데 자동 로그인 조회</span> <a class="idref" href="#REQ-DIMODELOOKUP-003">REQ-DIMODELOOKUP-003</a>: 2026 명단 정리에서 정한 동일인 판정 규칙을 도구로 옮겼다. 청년 필터로 정하지 못하면 범위를 넓혀 한 번 더 찾는다.</li>
 </ul>

@@ -317,6 +317,21 @@ class CliTests(unittest.TestCase):
         self.assertEqual(json.loads(out.getvalue())['cards'][0]['id'], '1')
         fake.search.assert_called_once_with(name='홍길동', phone='', all_states=True)
 
+    def test_match_reads_and_writes_utf8_on_cp949_console(self):
+        # Windows 콘솔 기본 인코딩(cp949)이어도 UTF-8 한글 입력·출력을 그대로 다룬다.
+        tsv = 'name\tphone\tbirth\tarmy\tteam\n홍길동\t\t\t\t\n'.encode('utf-8')
+        stdin = io.TextIOWrapper(io.BytesIO(tsv), encoding='cp949', errors='replace')
+        raw_out = io.BytesIO()
+        stdout = io.TextIOWrapper(raw_out, encoding='cp949', errors='replace')
+        seen = []
+        with mock.patch.object(dl, 'open_client', return_value=mock.Mock()), \
+                mock.patch.object(dl, 'match_person', side_effect=lambda row, s: seen.append(row['name']) or {'status': 'check'}), \
+                mock.patch.object(dl.sys, 'stdin', stdin), mock.patch.object(dl.sys, 'stdout', stdout):
+            code = dl.main(['match', '-'])
+            dl.sys.stdout.flush()
+        self.assertEqual((code, seen), (0, ['홍길동']))
+        self.assertIn('홍길동', raw_out.getvalue().decode('utf-8'))
+
 
 if __name__ == '__main__':
     unittest.main()

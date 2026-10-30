@@ -414,6 +414,10 @@ def main(argv=None):
     m = sub.add_parser('match', help='TSV 행(name, phone, birth, army, team)을 동일인 판정')
     m.add_argument('input', help="TSV 파일 경로 또는 '-'(표준 입력)")
     args = parser.parse_args(argv)
+    # Windows 콘솔 기본 인코딩(cp949)으로 읽으면 한글 이름 비교가 어긋난다.
+    for stream in (sys.stdin, sys.stdout):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     try:
         client = open_client(args.account)
         if args.command == 'search':

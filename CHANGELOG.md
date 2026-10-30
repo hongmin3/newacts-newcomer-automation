@@ -18,6 +18,7 @@ Semantic Versioning은 강제하지 않는다. 프로젝트에 Versioning 정책
 ## 2026-10-30 디모데 조회 Windows 지원
 
 - REQ-DIMODELOOKUP-001: Windows에서는 자격 증명 관리자의 일반 자격 증명 `kr.newacts.settlement`에서 디모데 계정과 암호를 읽는다. 저장 안내는 `cmdkey` 명령으로 보여 준다. 정한 계정이 저장된 계정과 다르면 멈춘다. Mac 키체인 동작은 그대로다.
+- REQ-DIMODELOOKUP-003: Windows 콘솔 기본 인코딩(cp949) 때문에 `match`의 한글 이름 입력이 깨져 이름 비교가 어긋나던 문제를 고쳤다. 표준 입력과 출력을 UTF-8로 읽고 쓴다.
 
 ## 2026-10-29 REA 잔여 개선
 
