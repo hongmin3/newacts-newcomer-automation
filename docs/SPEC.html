@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="dcb64d1c1c8c2864661662c59d9934e936e7eee5c01182a8dcc804ac3a0e69a5">
+<meta name="spec-source-sha256" content="89c92d4de483d787fee329f433e41862c1be43672efd834237a6a0062d3141eb">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -3023,22 +3023,36 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <section class="card kind-req" id="REQ-DIMODELOOKUP-001">
 <h3><span class="idtag">REQ-DIMODELOOKUP-001</span> 키체인 자동 로그인</h3>
 <div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>settlement-automation/dimode_lookup.py</code></span><span class="meta"><b>테스트</b> <code>settlement-automation/tests/test_dimode_lookup.py</code></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">2026-10-30 디모데 조회 Windows 지원</span> <a class="idref" href="#REQ-DIMODELOOKUP-001">REQ-DIMODELOOKUP-001</a>: Windows에서는 자격 증명 관리자의 일반 자격 증명 <code>kr.newacts.settlement</code>에서 디모데 계정과 암호를 읽는다. 저장 안내는 <code>cmdkey</code> 명령으로 보여 준다. 정한 계정이 저장된 계정과 다르면 멈춘다. Mac 키체인 동작은 그대로다.</li>
 <li><span class="hist">2026-10-29 디모데 자동 로그인 조회</span> <a class="idref" href="#REQ-DIMODELOOKUP-001">REQ-DIMODELOOKUP-001</a>: Mac 키체인에 저장한 디모데 계정으로 사람 입력 없이 로그인한다. 실패하면 다시 시도하지 않고 멈춘다.</li>
 </ul>
 </details>
 <ul>
 <li><strong>하는 일</strong>: 사람이 로그인 화면에 입력하지 않아도 디모데에 로그인한다.</li>
-<li><strong>입력</strong>: 계정 이름은 <code>--account</code>, 환경 변수 <code>NEWACTS_DIMODE_ACCOUNT</code>, 키체인에 저장된 항목 하나의 순서로 정한다.</li>
+<li><strong>입력</strong>: 계정 이름은 <code>--account</code>, 환경 변수 <code>NEWACTS_DIMODE_ACCOUNT</code>, 저장된 항목 하나의 순서로 정한다.</li>
+<li><strong>설정</strong>: 운영체제마다 암호를 읽는 곳이 다르다. 두 곳 모두 이름 <code>kr.newacts.settlement</code>를 쓴다.</li>
+</ul>
+<div class="table-wrap"><table>
+<thead><tr><th>운영체제</th><th>읽는 곳</th><th>담당자가 저장하는 명령</th></tr></thead>
+<tbody>
+<tr><td>Mac</td><td>키체인</td><td><code>security add-generic-password -s kr.newacts.settlement -a &lt;계정&gt; -U -w</code></td></tr>
+<tr><td>Windows</td><td>자격 증명 관리자의 일반 자격 증명</td><td><code>cmdkey /generic:kr.newacts.settlement /user:&lt;계정&gt; /pass</code></td></tr>
+</tbody>
+</table></div>
+<aside class="callout callout-info"><span class="callout-label">참고</span>
+<p>Windows 자격 증명은 이름 하나에 계정 하나만 저장된다. <code>--account</code>나 환경 변수로 정한 계정이 저장된 계정과 다르면 멈춘다.</p>
+</aside>
+<ul>
 <li><strong>순서</strong>:
 <ol>
-<li>키체인 서비스 <code>kr.newacts.settlement</code>에서 계정의 암호를 읽는다.</li>
+<li>위 저장소에서 계정의 암호를 읽는다.</li>
 <li>로그인 화면을 받아 숨은 입력값을 그대로 담고 계정과 암호를 보낸다.</li>
 <li>응답 주소가 다시 로그인 화면이면 실패로 본다.</li>
 </ol>
 </li>
-<li><strong>안 될 때</strong>: <span class="term" title="Mac 키체인에 서비스 이름 kr.newacts.settlement로 저장한 디모데 계정과 암호" tabindex="0">키체인 항목</span>이 없거나 여러 개인데 계정을 정하지 않았으면 저장 방법을 안내하고 멈춘다. 로그인에 실패하면 다시 시도하지 않고 멈춘다.</li>
+<li><strong>안 될 때</strong>: 저장된 항목이 없거나 여러 개인데 계정을 정하지 않았으면 저장 방법을 안내하고 멈춘다. 로그인에 실패하면 다시 시도하지 않고 멈춘다.</li>
 <li><strong>지킬 것</strong>: 암호를 화면·파일·로그·오류 문장에 남기지 않는다. 계정과 암호를 저장소에 쓰지 않는다.</li>
 </ul>
 <aside class="callout callout-warn"><span class="callout-label">주의</span>

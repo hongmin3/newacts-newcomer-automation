@@ -24,10 +24,18 @@ Apple Silicon Mac에서 `새가족 정착률.app`을 열면 새가족 출결과 
 
 디모데에서 교인의 소속과 등록일을 브라우저 없이 읽는다. 예: 장년부에서 넘어온 사람의 현재 군·팀과 등록일 확인.
 
-1. 처음 한 번, 터미널에서 계정과 암호를 Mac 키체인에 저장한다. `-w` 뒤에는 아무것도 쓰지 않고 엔터를 누른 뒤 암호를 입력한다.
+1. 처음 한 번, 계정과 암호를 컴퓨터의 암호 저장소에 직접 저장한다. 명령을 실행하면 암호를 묻는다. 암호는 명령줄에 쓰지 않는다.
+
+   Mac(키체인):
 
    ```bash
    security add-generic-password -s kr.newacts.settlement -a <디모데 계정> -U -w
+   ```
+
+   Windows(자격 증명 관리자, PowerShell):
+
+   ```bash
+   cmdkey /generic:kr.newacts.settlement /user:<디모데 계정> /pass
    ```
 
 2. 이름이나 전화번호로 검색한다. 장년·새가족까지 찾으려면 `--all-states`를 붙인다.
@@ -35,6 +43,8 @@ Apple Silicon Mac에서 `새가족 정착률.app`을 열면 새가족 출결과 
    ```bash
    python3 -I settlement-automation/dimode_lookup.py search --name 홍길동 --all-states
    ```
+
+   Windows에서는 `python3` 대신 `python`으로 실행한다.
 
 3. 결과는 화면에 JSON으로 나온다. 개인정보가 있으니 저장소에 파일로 남기지 않는다. 원본 명단과 같은 사람인지 판정하는 `match` 명령과 판정 규칙은 [사양](specs/dimode-lookup.md)에 있다.
 

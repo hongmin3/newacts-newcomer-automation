@@ -63,8 +63,8 @@ python3 -I settlement-automation/dimode_lookup.py search --name 홍길동 --all-
 printf 'name\tphone\tbirth\tarmy\tteam\n홍길동\t\t\t조\t보배\n' | python3 -I settlement-automation/dimode_lookup.py match -
 ```
 
-- 계정과 암호는 Mac 키체인 `kr.newacts.settlement`에서 도구가 직접 읽는다. AI는 암호를 묻거나 출력하거나 로그인 칸에 입력하지 않는다. 계정 이름도 저장소에 쓰지 않는다.
-- 키체인 항목이 없거나 로그인에 실패하면 다시 시도하지 않고, 사용자가 `security add-generic-password -s kr.newacts.settlement -a <계정> -U -w`로 직접 저장·수정하도록 안내한다.
+- 계정과 암호는 Mac 키체인 또는 Windows 자격 증명 관리자의 `kr.newacts.settlement`에서 도구가 직접 읽는다. Windows에서는 `python3` 대신 `python`으로 실행한다. AI는 암호를 묻거나 출력하거나 로그인 칸에 입력하지 않는다. 계정 이름도 저장소에 쓰지 않는다.
+- 키체인 항목이 없거나 로그인에 실패하면 다시 시도하지 않고, 사용자가 Mac은 `security add-generic-password -s kr.newacts.settlement -a <계정> -U -w`, Windows는 `cmdkey /generic:kr.newacts.settlement /user:<계정> /pass`로 직접 저장·수정하도록 안내한다.
 - 브라우저나 Chromium 자동화를 새로 띄우지 않는다. 디모데 교적은 읽기만 하며 수정 화면을 열거나 저장하지 않는다.
 - 청년 필터에서 못 찾는 사람은 장년·새가족에서 넘어온 경우가 있으니 `--all-states`로 넓혀 찾는다.
 - 결과 JSON에는 개인정보가 있으므로 화면에서만 읽고 저장소에 파일로 남기지 않는다.

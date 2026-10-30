@@ -61,24 +61,46 @@ class KeychainTests(unittest.TestCase):
     def test_account_from_keychain_hex_blob(self):
         out = '"acct"<blob>=0xED858CEC8AA4ED8AB8EAB384ECA095  "x"\n"svce"<blob>="kr.newacts.settlement"\n'
         run = mock.Mock(return_value=subprocess.CompletedProcess([], 0, stdout=out, stderr=''))
-        self.assertEqual(dl.resolve_account(None, env={}, run=run), '테스트계정')
+        self.assertEqual(dl.resolve_account(None, env={}, run=run, platform='darwin'), '테스트계정')
 
     def test_account_priority_and_missing_item(self):
         run = mock.Mock(return_value=subprocess.CompletedProcess([], 44, stdout='', stderr='not found'))
-        self.assertEqual(dl.resolve_account('직접', env={'NEWACTS_DIMODE_ACCOUNT': '환경'}, run=run), '직접')
-        self.assertEqual(dl.resolve_account(None, env={'NEWACTS_DIMODE_ACCOUNT': '환경'}, run=run), '환경')
+        self.assertEqual(dl.resolve_account('직접', env={'NEWACTS_DIMODE_ACCOUNT': '환경'}, run=run, platform='darwin'), '직접')
+        self.assertEqual(dl.resolve_account(None, env={'NEWACTS_DIMODE_ACCOUNT': '환경'}, run=run, platform='darwin'), '환경')
         with self.assertRaises(dl.DimodeError) as caught:
-            dl.resolve_account(None, env={}, run=run)
+            dl.resolve_account(None, env={}, run=run, platform='darwin')
         self.assertIn('security add-generic-password', str(caught.exception))
 
     def test_password_never_in_error_text(self):
         run = mock.Mock(return_value=subprocess.CompletedProcess([], 0, stdout='s3cret!\n', stderr=''))
-        self.assertEqual(dl.read_password('계정', run=run), 's3cret!')
+        self.assertEqual(dl.read_password('계정', run=run, platform='darwin'), 's3cret!')
         self.assertIn('-w', run.call_args.args[0])
         bad = mock.Mock(return_value=subprocess.CompletedProcess([], 44, stdout='', stderr='s3cret!'))
         with self.assertRaises(dl.DimodeError) as caught:
-            dl.read_password('계정', run=bad)
+            dl.read_password('계정', run=bad, platform='darwin')
         self.assertNotIn('s3cret', str(caught.exception))
+
+
+class WindowsCredentialTests(unittest.TestCase):
+    def test_account_and_password_from_credential_manager(self):
+        cred = mock.Mock(return_value=('윈도계정', 's3cret!'))
+        self.assertEqual(dl.resolve_account(None, env={}, platform='win32', read_cred=cred), '윈도계정')
+        self.assertEqual(dl.read_password('윈도계정', platform='win32', read_cred=cred), 's3cret!')
+        cred.assert_called_with(dl.KEYCHAIN_SERVICE)
+
+    def test_missing_credential_shows_cmdkey_hint(self):
+        cred = mock.Mock(return_value=None)
+        with self.assertRaises(dl.DimodeError) as caught:
+            dl.resolve_account(None, env={}, platform='win32', read_cred=cred)
+        self.assertIn('cmdkey /generic:kr.newacts.settlement', str(caught.exception))
+
+    def test_other_account_or_empty_password_stops_without_password(self):
+        cred = mock.Mock(return_value=('윈도계정', 's3cret!'))
+        with self.assertRaises(dl.DimodeError) as caught:
+            dl.read_password('다른계정', platform='win32', read_cred=cred)
+        self.assertNotIn('s3cret', str(caught.exception))
+        with self.assertRaises(dl.DimodeError):
+            dl.read_password('윈도계정', platform='win32', read_cred=mock.Mock(return_value=('윈도계정', '')))
 
 
 class LoginTests(unittest.TestCase):
