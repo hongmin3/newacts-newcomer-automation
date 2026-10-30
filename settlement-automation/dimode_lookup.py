@@ -1,6 +1,6 @@
 """디모데 읽기 전용 조회 도구 (REQ-DIMODELOOKUP-001~004).
 
-Mac 키체인(kr.newacts.settlement)에 저장한 계정으로 로그인해 교인을 검색하고
+Mac 키체인 또는 Windows 자격 증명 관리자(kr.newacts.settlement)에 저장한 계정으로 로그인해 교인을 검색하고
 원본 명단 행과 같은 사람인지 판정한다. 표준 라이브러리만 쓴다.
 암호는 화면·파일·오류 문장에 남기지 않는다. 교적 수정 화면은 열지 않는다.
 """
@@ -26,24 +26,59 @@ PAGER_TARGET = 'ctl00$cph1$PersonListYouth1$AspNetPager1'
 MAX_PAGES = 15
 ALIASES = {'조': {'조', '아너스'}, '신': {'신', '아하'}}
 SAVE_HINT = 'security add-generic-password -s kr.newacts.settlement -a <디모데 계정> -U -w'
+WIN_SAVE_HINT = 'cmdkey /generic:kr.newacts.settlement /user:<디모데 계정> /pass'
 
 
 class DimodeError(RuntimeError):
     pass
 
 
-# --- 키체인 ---------------------------------------------------------------
+# --- 암호 저장소(Mac 키체인 · Windows 자격 증명 관리자) -----------------------
 
 def _run(args):
     return subprocess.run(args, capture_output=True, text=True, check=False)
 
 
-def resolve_account(account=None, env=None, run=_run):
+def _read_windows_credential(target):
+    """Windows 일반 자격 증명에서 (계정, 암호)를 읽는다. 없으면 None."""
+    import ctypes
+    from ctypes import wintypes
+
+    class CREDENTIAL(ctypes.Structure):
+        _fields_ = [('Flags', wintypes.DWORD), ('Type', wintypes.DWORD),
+                    ('TargetName', wintypes.LPWSTR), ('Comment', wintypes.LPWSTR),
+                    ('LastWritten', wintypes.FILETIME), ('CredentialBlobSize', wintypes.DWORD),
+                    ('CredentialBlob', ctypes.POINTER(ctypes.c_ubyte)), ('Persist', wintypes.DWORD),
+                    ('AttributeCount', wintypes.DWORD), ('Attributes', ctypes.c_void_p),
+                    ('TargetAlias', wintypes.LPWSTR), ('UserName', wintypes.LPWSTR)]
+
+    advapi = ctypes.WinDLL('advapi32', use_last_error=True)
+    advapi.CredReadW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                 ctypes.POINTER(ctypes.POINTER(CREDENTIAL))]
+    advapi.CredReadW.restype = wintypes.BOOL
+    advapi.CredFree.argtypes = [ctypes.c_void_p]
+    pointer = ctypes.POINTER(CREDENTIAL)()
+    if not advapi.CredReadW(target, 1, 0, ctypes.byref(pointer)):  # 1 = CRED_TYPE_GENERIC
+        return None
+    try:
+        cred = pointer.contents
+        blob = ctypes.string_at(cred.CredentialBlob, cred.CredentialBlobSize)
+        return cred.UserName or '', blob.decode('utf-16-le')
+    finally:
+        advapi.CredFree(pointer)
+
+
+def resolve_account(account=None, env=None, run=_run, platform=None, read_cred=_read_windows_credential):
     if account:
         return account
     env = os.environ if env is None else env
     if env.get('NEWACTS_DIMODE_ACCOUNT'):
         return env['NEWACTS_DIMODE_ACCOUNT']
+    if (platform or sys.platform) == 'win32':
+        cred = read_cred(KEYCHAIN_SERVICE)
+        if not cred or not cred[0]:
+            raise DimodeError(f'자격 증명 관리자에 디모데 계정이 없습니다. PowerShell에서 직접 저장하세요: {WIN_SAVE_HINT}')
+        return cred[0]
     result = run(['security', 'find-generic-password', '-s', KEYCHAIN_SERVICE])
     if result.returncode != 0:
         raise DimodeError(f'키체인에 디모데 계정이 없습니다. 터미널에서 직접 저장하세요: {SAVE_HINT}')
@@ -53,7 +88,12 @@ def resolve_account(account=None, env=None, run=_run):
     return bytes.fromhex(match.group(1)).decode('utf-8') if match.group(1) else match.group(2)
 
 
-def read_password(account, run=_run):
+def read_password(account, run=_run, platform=None, read_cred=_read_windows_credential):
+    if (platform or sys.platform) == 'win32':
+        cred = read_cred(KEYCHAIN_SERVICE)
+        if not cred or cred[0] != account or not cred[1]:
+            raise DimodeError(f'자격 증명 관리자에서 이 계정의 디모데 암호를 읽지 못했습니다. 저장 방법: {WIN_SAVE_HINT}')
+        return cred[1]
     result = run(['security', 'find-generic-password', '-s', KEYCHAIN_SERVICE, '-a', account, '-w'])
     if result.returncode != 0 or not result.stdout.strip():
         raise DimodeError(f'키체인에서 디모데 암호를 읽지 못했습니다. 저장 방법: {SAVE_HINT}')
@@ -374,6 +414,10 @@ def main(argv=None):
     m = sub.add_parser('match', help='TSV 행(name, phone, birth, army, team)을 동일인 판정')
     m.add_argument('input', help="TSV 파일 경로 또는 '-'(표준 입력)")
     args = parser.parse_args(argv)
+    # Windows 콘솔 기본 인코딩(cp949)으로 읽으면 한글 이름 비교가 어긋난다.
+    for stream in (sys.stdin, sys.stdout):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     try:
         client = open_client(args.account)
         if args.command == 'search':
