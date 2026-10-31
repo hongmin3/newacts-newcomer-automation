@@ -191,3 +191,58 @@ const regRange=plain.getRangeByName('_EVENT_310_REG'),regNext=regRange.getLastRo
 ps.getRange(regNext,3,1,4).setValues([['등록초과시험','여',33,'01000000001']]);ctx.onEdit({source:plain,range:ps.getRange(regNext,3,1,4)});
 assert.equal(plain.getRangeByName('_EVENT_310_REG').getNumRows(),oldRegSize+5);
 const regOverflowRecord=ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='등록초과시험');assert.equal(regOverflowRecord[13],true);assert.equal(regOverflowRecord[14],true);
+
+// Validates: REQ-EVENTDAYWORKBOOK-006. 순번만 수정, 중간 빈칸, 등록의 순 보존.
+const numSheet=plain.sheets['조군'];
+numSheet.getRange(27,3,1,9).setValues([['번호등록','여',24,'01000000007','','','조군','팀','등록순']]);
+ctx.onEdit({source:plain,range:numSheet.getRange(27,3,1,9)});
+numSheet.getRange(7,3).setValue('빈칸뒤방문');ctx.onEdit({source:plain,range:numSheet.getRange(7,3)});
+assert.equal(numSheet.getRange(7,1).getValues()[0][0],2,'중간 빈 행을 제외하고 순번을 매긴다');
+assert.equal(numSheet.getRange(3,11).getValues()[0][0],'-','등록에서 연결된 방문도 순은 -다');
+assert.equal(numSheet.getRange(27,11).getValues()[0][0],'등록순','등록 순을 보존한다');
+numSheet.getRange(7,1).setValue(999);ctx.onEdit({source:plain,range:numSheet.getRange(7,1)});
+assert.equal(numSheet.getRange(7,1).getValues()[0][0],2,'순번 직접 수정도 복구한다');
+numSheet.getRange(7,11).setValue('방문입력순');ctx.onEdit({source:plain,range:numSheet.getRange(7,11)});
+assert.equal(numSheet.getRange(7,11).getValues()[0][0],'-');
+const visitId=numSheet.getRange(7,29).getValues()[0][0];
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===visitId)[4],'','방문의 -를 원본에 저장하지 않는다');
+numSheet.getRange(7,3).setValue('');ctx.onEdit({source:plain,range:numSheet.getRange(7,3)});
+assert.equal(numSheet.getRange(7,1).getValues()[0][0],'');
+numSheet.getRange(3,1).setValue(48);ctx.eventRepair(true);
+assert.equal(numSheet.getRange(3,1).getValues()[0][0],1,'다시 열어도 순번을 고친다');
+assert.equal(numSheet.getRange(27,11).getValues()[0][0],'등록순');
+console.log('자동 연속 순번·번호 수정 복구·방문 순 표시·등록 순 보존 통과');
+
+// 군 이동 후 전체·군별 방문과 등록 모두 빈 행을 빼고 번호가 이어진다.
+numSheet.getRange(27,9).setValue('명군');ctx.onEdit({source:plain,range:numSheet.getRange(27,9)});
+assert.equal(numSheet.getRange(3,1).getValues()[0][0],'');
+assert.equal(numSheet.getRange(27,1).getValues()[0][0],'');
+for(const name of ctx.eventViews_()){
+ const sh=ctx.eventPlainWrap_(plain).getSheetByName(name),map=sh.plainMap;
+ const visible=sh.physical.getRange(map.offset+2,1,map.limit-1,11).getValues();
+ assert.deepEqual(visible.filter(r=>r[2]).map(r=>r[0]),Array.from({length:visible.filter(r=>r[2]).length},(_,i)=>i+1),name+' 번호');
+ if(!map.registered)assert.ok(visible.filter(r=>r[2]).every(r=>r[10]==='-'),name+' 방문 순');
+}
+const moved=plain.sheets['명군'];assert.equal(moved.getRange(27,11).getValues()[0][0],'등록순');
+console.log('군 이동 뒤 전체·군별 각 명단의 연속 번호와 등록 순 보존 통과');
+// Validates: REQ-EVENTDAYWORKBOOK-004. 이전 편집 이벤트가 대기한 칸도 다음 편집에서 처리한다.
+const pendingSheet=plain.sheets[ctx.EVENT.visitors];
+pendingSheet.getRange(2,10).setValue('대기팀자동반영');
+pendingSheet.getRange(3,8).setValue('대기전도자자동반영');
+pendingSheet.getRange(2,12).setValue('후속수정');ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});
+const pendingRaw=ctx.eventData_(plain.sheets[ctx.EVENT.raw]);
+const pendingId=pendingSheet.getRange(2,29).getValues()[0][0],pendingOtherId=pendingSheet.getRange(3,29).getValues()[0][0];
+assert.equal(pendingRaw.find(r=>r[0]===pendingId)[3],'대기팀자동반영','이전 이벤트의 다른 칸도 함께 처리한다');
+assert.equal(pendingRaw.find(r=>r[0]===pendingOtherId)[11],'대기전도자자동반영','같은 명단의 대기 행을 함께 처리한다');
+assert.doesNotMatch(pendingSheet.getRange(2,3).getNote(),/처리 대기/);
+console.log('이전 이벤트의 대기 항목·다른 행 자동 처리 통과');
+// 단순 편집의 정상 처리 시간이 5초를 넘을 때도 다음 편집이 차례를 기다린다.
+const originalLocks=ctx.LockService;
+ctx.LockService={getDocumentLock:()=>({tryLock:ms=>ms>=10000,releaseLock(){}})};
+pendingSheet.getRange(2,12).setValue('차례대기후반영');ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===pendingId)[17],'차례대기후반영');
+ctx.LockService=originalLocks;
+// 처리가 끝난 행에 과거 대기 메모만 남으면 다음 편집에서 정상 안내로 되돌린다.
+pendingSheet.getRange(2,3).setNote('다른 입력 처리 대기: 시트를 다시 열면 확인합니다.');
+ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});
+assert.doesNotMatch(pendingSheet.getRange(2,3).getNote(),/처리 대기/);

@@ -104,7 +104,7 @@ function eventProject_(ss,record,oldGroup,sourceName,cache) {
   names.forEach(function(name){
     var sheet=ss.getSheetByName(name);if(!sheet)throw new Error('필수 탭이 없습니다: '+name);
     var matches=cache?(cache[name].byId[record[0]]||[]):eventFind_(sheet,record[0]);
-    matches=matches.map(function(item){return {row:item.row,values:sheet.getRange(item.row,1,1,EVENT.width).getValues()[0]};});
+    if(cache)matches=matches.map(function(item){return {row:item.row,values:sheet.getRange(item.row,1,1,EVENT.width).getValues()[0]};});
     if(matches.length>1)throw new Error(name+': 관리번호가 복사되었습니다. 입력 내용을 확인해 주세요.');
     if(!eventMember_(record,name)){
       matches.forEach(function(item){
@@ -206,9 +206,9 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   eventProject_(ss,after,candidate[2],sheet.getName());
 
 }
-function eventWithLock_(ss,fn) {
+function eventWithLock_(ss,fn,waitMs) {
   var lock=LockService.getDocumentLock();
-  if(!lock.tryLock(5000)){ss.toast('다른 입력을 처리 중입니다. 입력값은 남아 있습니다. 시트를 다시 열어 주세요.','입력 대기',8);return false;}
+  if(!lock.tryLock(waitMs||5000)){ss.toast('다른 입력을 처리 중입니다. 입력값은 남아 있습니다. 시트를 다시 열어 주세요.','입력 대기',8);return false;}
   try{fn();SpreadsheetApp.flush();return true;}finally{lock.releaseLock();}
 }
 function eventEditInternal_(e) {
@@ -237,6 +237,7 @@ function eventRepair(silent) {
     });});
     var cache={};eventViews_().forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});cache[name]={byId:byId,nextRow:data.length+2};});
     eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(row){var needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20]);});if(needs)eventProject_(ss,row,'','*',cache);});
+    eventPlainLabels_(ss);
     if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
   });
 }
@@ -266,7 +267,7 @@ function eventPlainMap_(name) {
 function eventPlainWrap_(real) {
   if(!real.getSheets)return real;
   var cache={};
-  return {getSheetByName:function(name){if(!eventIsView_(name))return real.getSheetByName(name);if(!cache[name])cache[name]=eventPlainSheet_(real.getSheetByName(eventPlainMap_(name).physical),eventPlainMap_(name),function(){Object.keys(cache).forEach(function(k){cache[k].refresh();});});return cache[name];},
+  return {labelNames:cache,getSheetByName:function(name){if(!eventIsView_(name))return real.getSheetByName(name);if(!cache[name])cache[name]=eventPlainSheet_(real.getSheetByName(eventPlainMap_(name).physical),eventPlainMap_(name),function(){Object.keys(cache).forEach(function(k){cache[k].refresh();});});return cache[name];},
     toast:function(a,b,c){real.toast(a,b,c);},getActiveSheet:function(){var p=real.getActiveSheet(),m=eventPlainMapForColumn_(p.getName(),p.getActiveRange().getColumn(),p.getActiveRange().getRow(),p);return m?this.getSheetByName(m.name):p;}};
 }
 function eventPlainConfigure_(physical,map){
@@ -289,11 +290,12 @@ function eventPlainMapForColumn_(name,col,row,physical){
 function eventPlainSheet_(physical,map,onResize) {
   eventPlainConfigure_(physical,map);
   function readRows(row,count){
-    var values=physical.getRange(row+map.offset,map.start,count,map.cols.length).getValues(),metas=physical.getRange(row+map.offset,map.meta,count,2).getValues(),notes=physical.getRange(row+map.offset,map.start+2,count,1).getNotes();
+    var physicalRows=physical.getRange(row+map.offset,1,count,32).getValues(),notes=physical.getRange(row+map.offset,map.start+2,count,1).getNotes();
+    var values=physicalRows.map(function(r){return r.slice(map.start-1,map.start-1+map.cols.length);}),metas=physicalRows.map(function(r){return r.slice(map.meta-1,map.meta+1);});
     return values.map(function(visible,index){var meta=metas[index],base;
       try{base=JSON.parse(meta[1]);}catch(_){}
       var out=Array(22).fill('');if(Array.isArray(base)&&base.length===21)out=base.slice().concat(['']);
-      out[0]=meta[0]||'';out[21]=meta[1]||'';map.cols.forEach(function(c,i){if(c>=0)out[c]=visible[i];});
+      out[0]=meta[0]||'';out[21]=meta[1]||'';map.cols.forEach(function(c,i){if(c>=0&&(map.registered||c!==4))out[c]=visible[i];});
       if(notes[index][0])out[18]=notes[index][0];return out;
     });
   }
@@ -303,13 +305,13 @@ function eventPlainSheet_(physical,map,onResize) {
     if(col===0)physical.getRange(row+map.offset,map.meta).setValue(value);
     else if(col===21)physical.getRange(row+map.offset,map.meta+1).setValue(value);
     else if(col===18)note(row,value);
-    else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(value);
+    else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(!map.registered&&col===4?'-':value);
   }
-  var sheet={plainMap:map,refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;physical.insertRowsBefore(at,5);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+4);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+5,map.cols.length));onResize();},
+  var sheet={plainMap:map,physical:physical,refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;physical.insertRowsBefore(at,5);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+4);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+5,map.cols.length));onResize();},
     getActiveRange:function(){return {getRow:function(){return physical.getActiveRange().getRow()-map.offset;}};},
     getRange:function(row,col,nr,nc){nr=nr||1;nc=nc||1;return {
       getValues:function(){return readRows(row,nr).map(function(r){return r.slice(col-1,col-1+nc);});},
-      setValues:function(values){values.forEach(function(values,r){if(col===1&&values.length===22){var view=map.cols.map(function(c){return c<0?row+r-1:values[c];});eventWrite_(physical.getRange(row+r+map.offset,map.start,1,map.cols.length),[view]);eventWrite_(physical.getRange(row+r+map.offset,map.meta,1,2),[[values[0],values[21]]]);note(row+r,values[18]);}else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
+      setValues:function(values){values.forEach(function(values,r){if(col===1&&values.length===22){var view=map.cols.map(function(c){return c<0?row+r-1:!map.registered&&c===4?'-':values[c];});eventWrite_(physical.getRange(row+r+map.offset,map.start,1,map.cols.length),[view]);eventWrite_(physical.getRange(row+r+map.offset,map.meta,1,2),[[values[0],values[21]]]);note(row+r,values[18]);}else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
       setValue:function(v){return this.setValues([[v]]);},
       clearContent:function(){physical.getRange(row+map.offset,map.start,nr,map.cols.length).clearContent();physical.getRange(row+map.offset,map.meta,nr,2).clearContent();physical.getRange(row+map.offset,map.start+2,nr,1).clearNote();return this;}
     };}};
@@ -347,11 +349,35 @@ function onEdit(e) {
       physical.getRange(eventLast+5,1,1,map.cols.length).clearContent().clearNote();
       physical.getRange(eventLast,1,1,map.cols.length).setValues([payload]);eventPlainConfigure_(physical,map);eventPlainFooter_(physical,map);
     }
-    var columns=[];map.cols.forEach(function(c,i){var physicalCol=map.start+i;if(c>=0&&physicalCol>=eventCol&&physicalCol<=eventColLast)columns.push(c);});
+    var columns=[];map.cols.forEach(function(c,i){var physicalCol=map.start+i;if(c>=0&&(map.registered||c!==4)&&physicalCol>=eventCol&&physicalCol<=eventColLast)columns.push(c);});
     if(!columns.length)return;
-    for(var row=Math.max(2,eventRow-map.offset);row<=Math.min(map.limit,eventLast-map.offset);row++){
-      try{var values=sheet.getRange(row,1,1,22).getValues()[0];if(columns.indexOf(5)>=0&&!eventText_(values[5])&&values[0])eventPlainClear_(ss,sheet,row,map);else eventProcessRow_(ss,sheet,row,columns,undefined,false);}
+    // 마지막 이벤트의 칸뿐 아니라 같은 명단에서 먼저 대기한 입력도 반영한다.
+    eventData_(sheet).forEach(function(values,i){
+      var row=i+2,base=eventBaseline_(values),changed=[];
+      var inEvent=row>=eventRow-map.offset&&row<=eventLast-map.offset;
+      if(/^충돌:/.test(eventText_(values[18]))&&!inEvent)return;
+      if(!values[0]){if(!eventText_(values[5]))return;changed=columns.slice();}
+      else if(base){for(var c=1;c<=17;c++)if(!eventEqual_(values[c],base[c]))changed.push(c);}
+      if(!changed.length){if(base&&/^다른 입력 처리 대기:/.test(eventText_(values[18])))sheet.getRange(row,19).setValue(base[18]||'');return;}
+      try{if(changed.indexOf(5)>=0&&!eventText_(values[5])&&values[0])eventPlainClear_(ss,sheet,row,map);else eventProcessRow_(ss,sheet,row,changed,undefined,false);}
       catch(err){sheet.getRange(row,19).setValue('입력 확인: '+err.message);e.source.toast(err.message,'입력 확인',6);}
-    }
-  });});
+    });
+  });eventPlainLabels_(ss,true);},15000);
+}
+
+/** 파생 표시만 정리한다. 행 순서와 입력값·내부 연결값은 이동하지 않는다. */
+function eventPlainLabels_(ss,onlyTouched) {
+  (onlyTouched?Object.keys(ss.labelNames||{}):eventViews_()).forEach(function(name){
+    var sheet=ss.getSheetByName(name),map=sheet.plainMap;
+    if(!map)return;
+    var physical=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
+    if(!count)return;
+    var visible=physical.getRange(start,1,count,11).getValues(),number=0;
+    visible.forEach(function(row,i){
+      var hasName=!!eventText_(row[2]),wanted=hasName?++number:'';
+      // 쓰기 직전에 이름을 확인해 새 입력을 이전 상태로 표시하지 않는다.
+      if(!eventEqual_(row[0],wanted)&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2]))physical.getRange(start+i,1).setValue(wanted);
+      if(!map.registered&&hasName&&row[10]!=='-'&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2]))physical.getRange(start+i,11).setValue('-');
+    });
+  });
 }

@@ -43,7 +43,8 @@
 ### REQ-EVENTDAYWORKBOOK-004 정보 차이와 입력 보존
 
 - 같은 항목의 수정이 겹치면 저장값과 입력값을 셀 메모로 안내한다. 확인 후 그 칸을 다시 입력하면 반영한다.
-- 아직 처리되지 않은 다른 입력은 화면 갱신으로 덮어쓰지 않는다. 서로 다른 항목의 변경은 합칠 수 있다.
+- 아직 처리되지 않은 다른 입력은 화면 갱신으로 덮어쓰지 않는다. 서로 다른 항목의 변경은 합칠 수 있다. 다음 편집에서는 같은 명단의 대기 행과 항목을 함께 처리한다.
+- 다른 편집이 진행 중이면 최대 15초 동안 차례를 기다린다. 그래도 처리하지 못하면 입력값을 남기고 안내한다.
 - 입력을 비우거나 같은 사람으로 연결한 기록은 숨겨진 변경 기록에 남긴다. 개인정보는 저장소에 넣지 않는다.
 
 ### REQ-EVENTDAYWORKBOOK-005 기존 양식처럼 단순한 명단
@@ -54,6 +55,12 @@
 - 방문은 처음 20명, 등록은 10명분을 가까이 배치한다. 자동 반영할 빈칸이 부족하거나 마지막 입력 칸의 다음 행에 직접 입력하면 5행을 더하고 아래쪽 등록 구역을 함께 옮긴다. 사람이 행을 더해도 이름이 지정된 입력 범위로 구역을 구분한다.
 - 체크박스·결신 열·등록 비율·테이블 버튼·사용자 메뉴·별도 현황판은 표시하지 않는다.
 - 내부 연결 정보와 오류 기록은 숨긴다. 화면에는 명단과 인원수만 남긴다.
+
+### REQ-EVENTDAYWORKBOOK-006 자동 순번과 방문 명단의 순 표시
+
+- 전체 방문·전체 등록·군별 방문·군별 등록은 이름이 있는 행에 화면 순서대로 1부터 연속 번호를 표시한다. 빈 행과 머리글·계 행에는 번호를 넣지 않는다.
+- 어느 명단에서 입력·이름 삭제·군 이동·여러 행 붙여넣기·순번 직접 수정을 해도 순번을 다시 매긴다. 시트를 다시 열 때도 확인한다. 사람의 다른 입력과 행 순서는 보존한다.
+- 방문 명단의 소그룹 열(`순`)은 이름이 있는 행에 `-`로 표시한다. 등록 명단의 `순`과 숨겨진 원본 값은 보존하며 방문 화면의 `-`를 등록 정보로 저장하지 않는다.
 
 ## 11. 테스트 사양
 
@@ -72,3 +79,4 @@
 | REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |

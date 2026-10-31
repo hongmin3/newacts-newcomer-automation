@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="dcb64d1c1c8c2864661662c59d9934e936e7eee5c01182a8dcc804ac3a0e69a5">
+<meta name="spec-source-sha256" content="33c369e46a3d40bd32900ff8fe85ce4ab8eaf0053f9a203e9b914687f11e013b">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-29</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>42</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>36</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>22</b><span>verified</span></div></div>
+<div class="stats"><div class="stat"><b>43</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>36</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>23</b><span>verified</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -200,6 +200,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003 <span>방문 이력과 등록 연결 및 집계</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004 <span>정보 차이와 입력 보존</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-005">REQ-EVENTDAYWORKBOOK-005 <span>기존 양식처럼 단순한 명단</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-006">REQ-EVENTDAYWORKBOOK-006 <span>자동 순번과 방문 명단의 순 표시</span></a></li>
 <li class="toc-2"><a href="#doc-event-day-workbook-sec-11">11. 테스트 사양</a></li>
 <li class="toc-id kind-test"><a href="#TEST-EVENTDAYWORKBOOK-001">TEST-EVENTDAYWORKBOOK-001 <span>양방향 입력과 안전 경계</span></a></li>
 <li class="toc-2"><a href="#doc-event-day-workbook-sec-12">12. 요구사항 추적성</a></li>
@@ -283,6 +284,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003</a></td><td data-label="이름">방문 이력과 등록 연결 및 집계</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a></td><td data-label="이름">정보 차이와 입력 보존</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-005">REQ-EVENTDAYWORKBOOK-005</a></td><td data-label="이름">기존 양식처럼 단순한 명단</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-006">REQ-EVENTDAYWORKBOOK-006</a></td><td data-label="이름">자동 순번과 방문 명단의 순 표시</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">DIMODELOOKUP</span> 디모데 자동 로그인 조회</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-DIMODELOOKUP-001">REQ-DIMODELOOKUP-001</a></td><td data-label="이름">키체인 자동 로그인</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/dimode_lookup.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_dimode_lookup.py</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-DIMODELOOKUP-002">REQ-DIMODELOOKUP-002</a></td><td data-label="이름">읽기 전용 교인 검색</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/dimode_lookup.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_dimode_lookup.py</code></td></tr>
@@ -2901,14 +2903,16 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-004">
 <h3><span class="idtag">REQ-EVENTDAYWORKBOOK-004</span> 정보 차이와 입력 보존</h3>
 <div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">2026-11-01 행축 명단 자동 순번과 입력 대기 개선</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a>: 연속 입력 중 먼저 대기한 행·항목을 다음 편집에서 함께 처리한다. 처리 차례를 기다리는 시간을 15초로 늘렸다.</li>
 <li><span class="hist">2026-10-25 행축 당일 방문·등록 명단</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a>: 다른 항목의 수정은 함께 반영하고 같은 항목의 충돌은 셀 메모로 안내한다. 입력값과 변경 기록은 숨김 영역에 보관한다.</li>
 </ul>
 </details>
 <ul>
 <li>같은 항목의 수정이 겹치면 저장값과 입력값을 셀 메모로 안내한다. 확인 후 그 칸을 다시 입력하면 반영한다.</li>
-<li>아직 처리되지 않은 다른 입력은 화면 갱신으로 덮어쓰지 않는다. 서로 다른 항목의 변경은 합칠 수 있다.</li>
+<li>아직 처리되지 않은 다른 입력은 화면 갱신으로 덮어쓰지 않는다. 서로 다른 항목의 변경은 합칠 수 있다. 다음 편집에서는 같은 명단의 대기 행과 항목을 함께 처리한다.</li>
+<li>다른 편집이 진행 중이면 최대 15초 동안 차례를 기다린다. 그래도 처리하지 못하면 입력값을 남기고 안내한다.</li>
 <li>입력을 비우거나 같은 사람으로 연결한 기록은 숨겨진 변경 기록에 남긴다. 개인정보는 저장소에 넣지 않는다.</li>
 </ul>
 </section>
@@ -2927,6 +2931,20 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <li>방문은 처음 20명, 등록은 10명분을 가까이 배치한다. 자동 반영할 빈칸이 부족하거나 마지막 입력 칸의 다음 행에 직접 입력하면 5행을 더하고 아래쪽 등록 구역을 함께 옮긴다. 사람이 행을 더해도 이름이 지정된 입력 범위로 구역을 구분한다.</li>
 <li>체크박스·결신 열·등록 비율·테이블 버튼·사용자 메뉴·별도 현황판은 표시하지 않는다.</li>
 <li>내부 연결 정보와 오류 기록은 숨긴다. 화면에는 명단과 인원수만 남긴다.</li>
+</ul>
+</section>
+<section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-006">
+<h3><span class="idtag">REQ-EVENTDAYWORKBOOK-006</span> 자동 순번과 방문 명단의 순 표시</h3>
+<div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-11-01 행축 명단 자동 순번과 입력 대기 개선</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-006">REQ-EVENTDAYWORKBOOK-006</a>: 전체·군별 방문과 <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 순번을 빈 행 없이 1부터 자동으로 매긴다. 입력·삭제·군 이동·번호 수정과 다시 열기에 적용한다. 방문 명단의 <code>순</code>은 <code>-</code>로 표시하고 등록의 <code>순</code> 값은 보존한다.</li>
+</ul>
+</details>
+<ul>
+<li>전체 방문·전체 등록·군별 방문·군별 등록은 이름이 있는 행에 화면 순서대로 1부터 연속 번호를 표시한다. 빈 행과 머리글·계 행에는 번호를 넣지 않는다.</li>
+<li>어느 명단에서 입력·이름 삭제·군 이동·여러 행 붙여넣기·순번 직접 수정을 해도 순번을 다시 매긴다. 시트를 다시 열 때도 확인한다. 사람의 다른 입력과 행 순서는 보존한다.</li>
+<li>방문 명단의 소그룹 열(<code>순</code>)은 이름이 있는 행에 <code>-</code>로 표시한다. <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>의 <code>순</code>과 숨겨진 원본 값은 보존하며 방문 화면의 <code>-</code>를 등록 정보로 저장하지 않는다.</li>
 </ul>
 </section>
 </section>
@@ -2948,6 +2966,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-004">REQ-EVENTDAYWORKBOOK-004</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-005">REQ-EVENTDAYWORKBOOK-005</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
+<tr><td data-label="Requirement"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-006">REQ-EVENTDAYWORKBOOK-006</a></td><td data-label="Implementation"><code>event-day-workbook/Code.gs</code></td><td data-label="Test"><code>tests/event-day-workbook.test.js</code></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 </tbody>
 </table></div>
 </section>
