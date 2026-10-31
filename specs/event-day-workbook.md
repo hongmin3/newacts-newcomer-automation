@@ -8,6 +8,12 @@
 
 새 스프레드시트에 연결된 별도 Apps Script로 제공한다. 기존 등록·교육·메일 자동화의 설정과 실행 시점은 바꾸지 않는다.
 
+## 4. 자동 실행
+
+| 실행 | 시각·시간대 | 실행 위치 | 실행 조건 | 결과 저장 | 알림 |
+|---|---|---|---|---|---|
+| 대기 입력 재처리(`eventAutoSync`) | 1분 간격, Asia/Seoul | 행사 시트의 Apps Script | 대기 표시가 있거나 마지막 전체 확인 후 15분 경과 | 같은 파일의 전체·군별 명단과 숨김 원본·변경 기록 | 입력 오류·충돌은 셀 메모 |
+
 ## 5. 요구사항
 
 | 카테고리 | 이름 |
@@ -62,6 +68,22 @@
 - 어느 명단에서 입력·이름 삭제·군 이동·여러 행 붙여넣기·순번 직접 수정을 해도 순번을 다시 매긴다. 시트를 다시 열 때도 확인한다. 사람의 다른 입력과 행 순서는 보존한다.
 - 방문 명단의 소그룹 열(`순`)은 이름이 있는 행에 `-`로 표시한다. 등록 명단의 `순`과 숨겨진 원본 값은 보존하며 방문 화면의 `-`를 등록 정보로 저장하지 않는다.
 
+### REQ-EVENTDAYWORKBOOK-007 새로고침 없는 대기 입력 자동 반영
+
+1. 어느 명단에서든 편집이 시작되면 재처리가 필요하다는 표시를 저장한다. 다른 입력을 기다리다가 중단돼도 이 표시를 유지한다.
+2. 1분 간격의 자동 실행이 전체·군별 명단의 대기 입력을 처리하고 순번을 확인한다. 추가 입력이나 새로고침은 필요하지 않다.
+3. 다른 처리가 진행 중이거나 일시적으로 실패하면 완료로 표시하지 않고 다음 실행에서 다시 시도한다. 처리 도중 들어온 편집도 다음 확인 대상으로 남긴다.
+4. 편집 이벤트 자체가 누락된 경우를 위해 마지막 전체 확인 후 15분이 지나면 다시 명단을 확인한다. 대기가 없으면 매번 전체 명단을 쓰지 않는다.
+
+- 같은 사람을 중복 추가하지 않고 REQ-EVENTDAYWORKBOOK-004의 입력 보존·충돌 안내를 적용한다. 잘못된 입력과 같은 칸의 충돌은 확인이 필요하다.
+- 이 행사 시트에만 자동 실행을 하나 설치한다. 기존 등록·교육·메일 자동화의 실행 조건은 바꾸지 않는다.
+
+### REQ-EVENTDAYWORKBOOK-008 군 값의 짧은 표시
+
+- 전체·군별 방문과 등록 명단의 군 칸은 `신`·`조`·`명`·`총`·`영`·`석`·`전`·`임`·`슬`로 표시한다. `기타`는 그대로 표시한다.
+- `명`과 `명군`처럼 어느 형태로 입력해도 같은 군으로 처리하고 화면에는 짧게 표시한다. 기존 명단도 같은 기준으로 정리한다.
+- 탭 이름·내부 연결에 쓰는 군 값·집계 기준은 유지한다. 군 표시만 짧게 바꿔서 군 이동이나 집계가 달라지지 않게 한다.
+
 ## 11. 테스트 사양
 
 ### TEST-EVENTDAYWORKBOOK-001 양방향 입력과 안전 경계
@@ -80,3 +102,5 @@
 | REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-008 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |

@@ -149,6 +149,8 @@ Range.prototype.getNote=function(){return this.sheet.notes?.[`${this.row},${this
 Range.prototype.setNote=function(v){this.sheet.notes??={};this.sheet.notes[`${this.row},${this.col}`]=v;return this;};
 Range.prototype.clearNote=function(){this.sheet.notes??={};for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)delete this.sheet.notes[`${this.row+i},${this.col+j}`];return this;};
 Range.prototype.getNotes=function(){return Array.from({length:this.nr},(_,i)=>Array.from({length:this.nc},(_,j)=>this.sheet.notes?.[`${this.row+i},${this.col+j}`]||''));};
+const syncProperties={};
+ctx.PropertiesService={getScriptProperties:()=>({getProperty:k=>syncProperties[k]??null,setProperty(k,v){syncProperties[k]=String(v);return this;}})};
 const plain={sheets:{},getSheetByName(n){return this.sheets[n];},getSheets(){return Object.values(this.sheets);},toast(){}};
 ctx.EVENT.groups.concat([ctx.EVENT.visitors,ctx.EVENT.registrations,ctx.EVENT.raw,ctx.EVENT.log,ctx.EVENT.conflicts]).forEach(n=>plain.sheets[n]=new Sheet(plain,n));
 plain.namedRanges={};plain.getRangeByName=n=>plain.namedRanges[n];plain.setNamedRange=(n,r)=>{plain.namedRanges[n]=r;};
@@ -246,3 +248,53 @@ ctx.LockService=originalLocks;
 pendingSheet.getRange(2,3).setNote('다른 입력 처리 대기: 시트를 다시 열면 확인합니다.');
 ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});
 assert.doesNotMatch(pendingSheet.getRange(2,3).getNote(),/처리 대기/);
+
+// Validates: REQ-EVENTDAYWORKBOOK-007. 마지막 편집이 잠금 대기로 끝나도 시간 실행이 처리한다.
+assert.equal(typeof ctx.eventAutoSync,'function','새로고침과 별개인 예약 실행 진입점이 있어야 한다');
+locked=true;
+pendingSheet.getRange(2,12).setValue('추가입력없이반영');ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});
+assert.notEqual(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===pendingId)[17],'추가입력없이반영');
+ctx.eventAutoSync(); // 다른 실행 중이면 완료로 표시하면 안 된다.
+locked=false;ctx.eventAutoSync(); // 추가 편집·onOpen 호출 없이 실행한다.
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===pendingId)[17],'추가입력없이반영');
+assert.doesNotMatch(pendingSheet.getRange(2,3).getNote(),/처리 대기/);
+const auditCount=plain.sheets[ctx.EVENT.log].getLastRow();ctx.eventAutoSync();
+assert.equal(plain.sheets[ctx.EVENT.log].getLastRow(),auditCount,'같은 입력을 반복 기록하지 않는다');
+// 실패를 완료 처리하지 않는다. 원본 쓰기 실패 후 다음 예약 실행에서 복구한다.
+pendingSheet.getRange(2,12).setValue('쓰기실패후자동복구');locked=true;ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});locked=false;
+plain.failWrite={name:ctx.EVENT.raw,count:1};ctx.eventAutoSync();ctx.eventAutoSync();
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===pendingId)[17],'쓰기실패후자동복구');
+console.log('예약 실행: 마지막 잠금 대기·일시 실패 자동 복구·중복 방지 통과');
+// 복구 처리 도중 들어온 편집 표시를 완료 표시로 덮지 않는다.
+locked=true;pendingSheet.getRange(2,12).setValue('처리중새편집');ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});locked=false;
+const normalWrite=Range.prototype.setValues;let inject=true;
+Range.prototype.setValues=function(values){const result=normalWrite.call(this,values);if(inject&&this.sheet.name===ctx.EVENT.raw){inject=false;locked=true;pendingSheet.getRange(3,12).setValue('복구도중추가입력');ctx.onEdit({source:plain,range:pendingSheet.getRange(3,12)});locked=false;}return result;};
+ctx.eventAutoSync();Range.prototype.setValues=normalWrite;
+assert.notEqual(syncProperties.EVENT_SYNC_DIRTY,syncProperties.EVENT_SYNC_DONE,'처리 중 새 편집은 다음 확인 대상으로 남긴다');
+ctx.eventAutoSync();
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===pendingOtherId)[17],'복구도중추가입력');
+// 편집 이벤트가 전달되지 않은 값도 정기 전체 확인으로 복구한다.
+pendingSheet.getRange(2,12).setValue('이벤트누락자동복구');syncProperties.EVENT_SYNC_LAST='0';ctx.eventAutoSync();
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===pendingId)[17],'이벤트누락자동복구');
+console.log('복구 중 새 편집 표시 보존·편집 이벤트 누락 정기 확인 통과');
+
+// Validates: REQ-EVENTDAYWORKBOOK-008. 화면만 군 접미사를 빼고 연결·등록 값은 보존한다.
+const shortSheet=plain.sheets['조군'];
+shortSheet.getRange(4,3).setValue('짧은군방문');ctx.onEdit({source:plain,range:shortSheet.getRange(4,3)});
+assert.equal(shortSheet.getRange(4,9).getValues()[0][0],'조');
+const shortId=shortSheet.getRange(4,29).getValues()[0][0];
+shortSheet.getRange(4,9).setValue('명군');ctx.onEdit({source:plain,range:shortSheet.getRange(4,9)});
+const shortRaw=()=>ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===shortId);
+assert.equal(shortRaw()[2],'명군','내부 연결의 군 값은 보존한다');
+const shortTotalRow=pendingSheet.data.findIndex(r=>r?.[28]===shortId)+1;
+assert.equal(pendingSheet.getRange(shortTotalRow,9).getValues()[0][0],'명');
+pendingSheet.getRange(shortTotalRow,9).setValue('총');ctx.onEdit({source:plain,range:pendingSheet.getRange(shortTotalRow,9)});
+assert.equal(shortRaw()[2],'총군');
+assert.equal(pendingSheet.getRange(shortTotalRow,9).getValues()[0][0],'총');
+ctx.eventRepair(true);
+for(const name of ctx.eventViews_()){
+ const sh=ctx.eventPlainWrap_(plain).getSheetByName(name),map=sh.plainMap;
+ const visible=sh.physical.getRange(map.offset+2,1,map.limit-1,11).getValues();
+ assert.ok(visible.filter(r=>r[2]).every(r=>['신','조','명','총','영','석','전','임','슬','기타'].includes(r[8])),name+' 군 표시');
+}
+console.log('모든 전체·군별 명단의 짧은 군 표시·양쪽 입력·군 이동 보존 통과');

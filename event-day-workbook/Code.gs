@@ -13,6 +13,9 @@ function eventViews_() { var a=[EVENT.visitors,EVENT.registrations];EVENT.groups
 function eventIsView_(name) { return eventViews_().indexOf(name)>=0; }
 function eventText_(v) { return v===null||v===undefined?'':String(v).trim(); }
 function eventEqual_(a,b) { return eventText_(a)===eventText_(b); }
+function eventStoredGroup_(v){var s=eventText_(v);return EVENT.groups.indexOf(s+'군')>=0?s+'군':s;}
+function eventDisplayGroup_(v){var s=eventText_(v);return EVENT.groups.indexOf(s)>=0?s.replace(/군$/,''):s;}
+
 function eventBool_(v) {
   if(v===true||v===1||/^(TRUE|O|○|예|Y|1)$/i.test(eventText_(v)))return true;
   if(v===false||v===0||/^(FALSE|X|아니오|N|0|)$/i.test(eventText_(v)))return false;
@@ -64,7 +67,7 @@ function eventProjection_(current, baseline, desired) {
     if(c>=1&&c<=17&&!eventEqual_(current[c],baseline[c])&&!eventEqual_(current[c],desired[c])){pending=true;continue;}
     values[c]=desired[c];base[c]=desired[c];
   }
-  if(pending)values[18]='다른 입력 처리 대기: 시트를 다시 열면 확인합니다.';
+  if(pending)values[18]='다른 입력 처리 대기: 자동으로 다시 반영합니다.';
   values[21]=JSON.stringify(base.slice(0,21));
   return {values:values,baseline:base,pending:pending};
 }
@@ -122,7 +125,7 @@ function eventProject_(ss,record,oldGroup,sourceName,cache) {
     // 쓰기 직전 다시 읽어 중간에 입력된 값을 항목별로 보존한다.
     var fresh=sheet.getRange(item.row,1,1,EVENT.width).getValues()[0];
     for(var c=1;c<=17;c++)if(!eventEqual_(fresh[c],item.values[c])){p.values[c]=fresh[c];p.baseline[c]=baseline[c];p.pending=true;}
-    if(p.pending)p.values[18]='다른 입력 처리 대기: 시트를 다시 열면 확인합니다.';
+    if(p.pending)p.values[18]='다른 입력 처리 대기: 자동으로 다시 반영합니다.';
     p.values[21]=JSON.stringify(p.baseline.slice(0,21));
     // 입력 열은 실제로 갱신이 필요한 칸만 쓴다. 대기 중인 다른 칸은 쓰지 않는다.
     for(var j=0;j<EVENT.width;j++)if(!eventEqual_(fresh[j],p.values[j]))eventWrite_(sheet.getRange(item.row,j+1,1,1),[[p.values[j]]]);
@@ -206,10 +209,10 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   eventProject_(ss,after,candidate[2],sheet.getName());
 
 }
-function eventWithLock_(ss,fn,waitMs) {
+function eventWithLock_(ss,fn,waitMs,quiet) {
   var lock=LockService.getDocumentLock();
-  if(!lock.tryLock(waitMs||5000)){ss.toast('다른 입력을 처리 중입니다. 입력값은 남아 있습니다. 시트를 다시 열어 주세요.','입력 대기',8);return false;}
-  try{fn();SpreadsheetApp.flush();return true;}finally{lock.releaseLock();}
+  if(!lock.tryLock(waitMs||5000)){if(!quiet)ss.toast('다른 입력을 처리 중입니다. 입력값을 남겨 두고 자동으로 다시 반영합니다. 잠시 기다려 주세요.','입력 대기',8);return false;}
+  try{var result=fn();SpreadsheetApp.flush();return result!==false;}finally{lock.releaseLock();}
 }
 function eventEditInternal_(e) {
   if(!e||!e.range||!e.source)return;
@@ -224,8 +227,9 @@ function eventEditInternal_(e) {
     }
   });}catch(err){sheet.getRange(from,19).setValue('반영 중단: '+err.message+' / 시트를 다시 열기');e.source.toast('입력값을 보존했습니다. 시트를 다시 열어 주세요.','자동 연결 확인',10);}
 }
-function eventRepair(silent) {
-  var ss=eventPlainWrap_(SpreadsheetApp.getActive());eventWithLock_(ss,function(){
+function eventRepair(silent,background) {
+  var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
+    var complete=true;
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
     eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
       var base=eventBaseline_(row),cols=[];
@@ -233,13 +237,14 @@ function eventRepair(silent) {
       if(!row[0]){if(!eventText_(row[5]))return;for(var c=1;c<=17;c++)cols.push(c);}
       else if(base){for(var j=1;j<=17;j++)if(!eventEqual_(row[j],base[j]))cols.push(j);}
       if(!cols.length)return;
-      try{if(sheet.plainMap&&row[0]&&!eventText_(row[5]))eventPlainClear_(ss,sheet,i+2,sheet.plainMap);else eventProcessRow_(ss,sheet,i+2,cols,undefined,false);}catch(err){sheet.getRange(i+2,19).setValue('입력 확인: '+err.message);}
+      try{if(sheet.plainMap&&row[0]&&!eventText_(row[5]))eventPlainClear_(ss,sheet,i+2,sheet.plainMap);else eventProcessRow_(ss,sheet,i+2,cols,undefined,false);}catch(err){complete=false;sheet.getRange(i+2,19).setValue('입력 확인: '+err.message);}
     });});
     var cache={};eventViews_().forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});cache[name]={byId:byId,nextRow:data.length+2};});
     eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(row){var needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20]);});if(needs)eventProject_(ss,row,'','*',cache);});
     eventPlainLabels_(ss);
     if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
-  });
+    return complete;
+  },background?1:5000,!!background);
 }
 function eventSelected_(ss){var sheet=ss.getActiveSheet(),row=sheet.getActiveRange().getRow();if(!eventIsView_(sheet.getName())||row<2)throw new Error('명단에서 대상 행을 선택해 주세요.');var values=sheet.getRange(row,1,1,EVENT.width).getValues()[0];if(!values[0])throw new Error('자동 연결된 행을 선택해 주세요.');return {sheet:sheet,row:row,values:values};}
 function eventAcceptConflict(){var ss=SpreadsheetApp.getActive();eventWithLock_(ss,function(){var s=eventSelected_(ss),base=eventBaseline_(s.values),cols=[];if(!base)throw new Error('화면 비교값이 없습니다. 저장값 복원을 사용해 주세요.');for(var c=1;c<=17;c++)if(!eventEqual_(s.values[c],base[c]))cols.push(c);eventProcessRow_(ss,s.sheet,s.row,cols,undefined,true);eventResolveLog_(ss,s.values[0],'입력 적용');});}
@@ -295,7 +300,7 @@ function eventPlainSheet_(physical,map,onResize) {
     return values.map(function(visible,index){var meta=metas[index],base;
       try{base=JSON.parse(meta[1]);}catch(_){}
       var out=Array(22).fill('');if(Array.isArray(base)&&base.length===21)out=base.slice().concat(['']);
-      out[0]=meta[0]||'';out[21]=meta[1]||'';map.cols.forEach(function(c,i){if(c>=0&&(map.registered||c!==4))out[c]=visible[i];});
+      out[0]=meta[0]||'';out[21]=meta[1]||'';map.cols.forEach(function(c,i){if(c>=0&&(map.registered||c!==4))out[c]=c===2?eventStoredGroup_(visible[i]):visible[i];});
       if(notes[index][0])out[18]=notes[index][0];return out;
     });
   }
@@ -305,13 +310,13 @@ function eventPlainSheet_(physical,map,onResize) {
     if(col===0)physical.getRange(row+map.offset,map.meta).setValue(value);
     else if(col===21)physical.getRange(row+map.offset,map.meta+1).setValue(value);
     else if(col===18)note(row,value);
-    else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(!map.registered&&col===4?'-':value);
+    else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(col===2?eventDisplayGroup_(value):!map.registered&&col===4?'-':value);
   }
   var sheet={plainMap:map,physical:physical,refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;physical.insertRowsBefore(at,5);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+4);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+5,map.cols.length));onResize();},
     getActiveRange:function(){return {getRow:function(){return physical.getActiveRange().getRow()-map.offset;}};},
     getRange:function(row,col,nr,nc){nr=nr||1;nc=nc||1;return {
       getValues:function(){return readRows(row,nr).map(function(r){return r.slice(col-1,col-1+nc);});},
-      setValues:function(values){values.forEach(function(values,r){if(col===1&&values.length===22){var view=map.cols.map(function(c){return c<0?row+r-1:!map.registered&&c===4?'-':values[c];});eventWrite_(physical.getRange(row+r+map.offset,map.start,1,map.cols.length),[view]);eventWrite_(physical.getRange(row+r+map.offset,map.meta,1,2),[[values[0],values[21]]]);note(row+r,values[18]);}else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
+      setValues:function(values){values.forEach(function(values,r){if(col===1&&values.length===22){var view=map.cols.map(function(c){return c<0?row+r-1:c===2?eventDisplayGroup_(values[c]):!map.registered&&c===4?'-':values[c];});eventWrite_(physical.getRange(row+r+map.offset,map.start,1,map.cols.length),[view]);eventWrite_(physical.getRange(row+r+map.offset,map.meta,1,2),[[values[0],values[21]]]);note(row+r,values[18]);}else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
       setValue:function(v){return this.setValues([[v]]);},
       clearContent:function(){physical.getRange(row+map.offset,map.start,nr,map.cols.length).clearContent();physical.getRange(row+map.offset,map.meta,nr,2).clearContent();physical.getRange(row+map.offset,map.start+2,nr,1).clearNote();return this;}
     };}};
@@ -338,6 +343,7 @@ function onEdit(e) {
   var physical=e.range.getSheet(),name=physical.getName(),maps=[];
   if(name===EVENT.visitors||name===EVENT.registrations)maps=[eventPlainMap_(name)];
   else if(EVENT.groups.indexOf(name)>=0)maps=[eventPlainMap_(name+'::방문'),eventPlainMap_(name+'::등록')];else return;
+  PropertiesService.getScriptProperties().setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
   var ss=eventPlainWrap_(e.source),eventRow=e.range.getRow(),eventLast=e.range.getLastRow(),eventCol=e.range.getColumn(),eventColLast=e.range.getLastColumn();
   eventWithLock_(ss,function(){maps.forEach(function(map){
     eventPlainConfigure_(physical,map);
@@ -377,7 +383,23 @@ function eventPlainLabels_(ss,onlyTouched) {
       var hasName=!!eventText_(row[2]),wanted=hasName?++number:'';
       // 쓰기 직전에 이름을 확인해 새 입력을 이전 상태로 표시하지 않는다.
       if(!eventEqual_(row[0],wanted)&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2]))physical.getRange(start+i,1).setValue(wanted);
+      if(hasName&&row[8]!==eventDisplayGroup_(row[8])&&eventEqual_(physical.getRange(start+i,9).getValues()[0][0],row[8]))physical.getRange(start+i,9).setValue(eventDisplayGroup_(row[8]));
       if(!map.registered&&hasName&&row[10]!=='-'&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2]))physical.getRange(start+i,11).setValue('-');
     });
   });
+}
+
+/** 시간 기반 실행. 잠금 대기·실패 뒤에도 새 편집 없이 재시도한다. */
+function eventAutoSync() {
+  var props=PropertiesService.getScriptProperties();
+  var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
+  var done=props.getProperty('EVENT_SYNC_DONE');
+  var last=Number(props.getProperty('EVENT_SYNC_LAST')||0);
+  if(done===generation&&Date.now()-last<15*60*1000)return;
+  // 완료 표시는 처리한 세대만 남긴다. 처리 중 들어온 새 편집 표시를 지우지 않는다.
+  if(eventRepair(true,true)){
+    props.setProperty('EVENT_SYNC_DONE',generation);
+    props.setProperty('EVENT_SYNC_LAST',String(Date.now()));
+    console.log('행축 대기 입력 자동 확인 완료');
+  }
 }
