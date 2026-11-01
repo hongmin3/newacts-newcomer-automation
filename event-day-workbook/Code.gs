@@ -256,20 +256,22 @@ function eventRepair(silent,background) {
       else if(base){for(var j=1;j<=17;j++)if(!eventEqual_(row[j],base[j]))cols.push(j);}
       if(!cols.length&&row[0]&&base&&Number(base[20])===0)cols.push(5);
       if(!cols.length)return;
-      jobs.push({name:name,row:i+2,cols:cols});
+      jobs.push({name:name,row:i+2,cols:cols,fresh:!row[0],key:name+'|'+(row[0]||('row:'+(i+2)))});
     });});
-    var cursor=Number(props.getProperty('EVENT_REPAIR_CURSOR')||0),started=Date.now(),processed=0;
+    jobs.forEach(function(job){job.last=Number(props.getProperty('EVENT_REPAIR_AT_'+job.key)||0);});
+    jobs.sort(function(a,b){return Number(!a.fresh)-Number(!b.fresh)||a.last-b.last;});
+    var started=Date.now(),processed=0;
     for(var step=0;step<jobs.length;step++){
       if(background&&processed&&Date.now()-started>=20000){complete=false;break;}
-      var index=(cursor+step)%jobs.length,job=jobs[index],sheet=ss.getSheetByName(job.name);
-      props.setProperty('EVENT_REPAIR_CURSOR',String(index+1));processed++;
+      var job=jobs[step],sheet=ss.getSheetByName(job.name);
+      props.setProperty('EVENT_REPAIR_AT_'+job.key,String(Date.now()));processed++;
       try{var fresh=sheet.getRange(job.row,1,1,22).getValues()[0];if(sheet.plainMap&&fresh[0]&&!eventText_(fresh[5]))eventPlainClear_(ss,sheet,job.row,sheet.plainMap);else eventProcessRow_(ss,sheet,job.row,job.cols,undefined,false);}catch(err){complete=false;sheet.getRange(job.row,19).setValue('입력 확인: '+err.message);}
     }
     eventRefreshHealth_(ss);
     eventRefreshProjections_(ss);
     eventPlainLabels_(ss,false,true);
     if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
-    journal.forEach(function(k){PropertiesService.getScriptProperties().deleteProperty(k);});
+    if(complete)journal.forEach(function(k){PropertiesService.getScriptProperties().deleteProperty(k);});
     return complete;
   },background?15000:60000,!!background);
 }
