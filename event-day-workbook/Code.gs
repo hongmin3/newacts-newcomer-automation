@@ -253,8 +253,7 @@ function eventRepair(silent,background) {
       var urgentResult=eventDrainUnsaved_(ss,20000);
       urgentProps.deleteProperty('EVENT_UNSAVED_PHASE');
       if(urgentResult.complete&&urgentProps.getProperty('EVENT_UNSAVED_MISSING')!=='1'&&urgentProps.getProperty('EVENT_UNSAVED_REQUEST')===urgent)urgentProps.deleteProperty('EVENT_UNSAVED_REQUEST');
-      urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
-      return false;
+      if(urgentResult.processed||!urgentResult.complete||urgentProps.getProperty('EVENT_UNSAVED_MISSING')==='1'){urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());return false;}
     }
     eventSeparateCards_(ss);
     // 군 수정은 전체 화면 복구보다 먼저 저장한다. 느린 전체 확인에 밀리지 않는다.
@@ -297,13 +296,19 @@ function eventRepair(silent,background) {
 }
 /** 군 칸만 먼저 처리하고, 다른 대기 입력과 카드 종류는 유지한다. */
 function eventPendingGroupMoves_(ss,background){
-  var names=eventGroupViews_('기타').concat(eventViews_().filter(function(n){return eventGroup_(n)!=='기타';})),started=Date.now(),processed=0;
-  for(var v=0;v<names.length;v++){
-    var sheet=ss.getSheetByName(names[v]),rows=eventData_(sheet);
+  var names=eventGroupViews_('기타').concat(eventViews_().filter(function(n){return eventGroup_(n)!=='기타';})),props=PropertiesService.getScriptProperties(),pending=false;
+  var views=names.map(function(name){var sheet=ss.getSheetByName(name),rows=eventData_(sheet);
+    rows.forEach(function(row,i){if(!row[0]&&eventText_(row[5])){pending=true;var key='EVENT_REPAIR_SEEN_'+name+'|row:'+(i+2);if(!props.getProperty(key))props.setProperty(key,String(Date.now()));}});
+    return {name:name,sheet:sheet,rows:rows};
+  });
+  if(pending&&!props.getProperty('EVENT_UNSAVED_REQUEST'))props.setProperty('EVENT_UNSAVED_REQUEST',Utilities.getUuid());
+  var started=Date.now(),processed=0;
+  for(var v=0;v<views.length;v++){
+    var sheet=views[v].sheet,rows=views[v].rows;
     for(var i=0;i<rows.length;i++){
       var row=rows[i],base=eventBaseline_(row);
       if(!row[0]||!base||!eventText_(row[5])||/^충돌:/.test(eventText_(row[18]))||eventEqual_(row[2],base[2]))continue;
-      var target=eventStoredGroup_(eventText_(row[2])||eventGroup_(names[v])||'기타');
+      var target=eventStoredGroup_(eventText_(row[2])||eventGroup_(views[v].name)||'기타');
       if(EVENT.groups.indexOf(target)<0)continue;
       if(background&&processed&&Date.now()-started>=20000)return true;
       var found=eventFind_(sheet,row[0]);if(found.length!==1)continue;
@@ -695,7 +700,7 @@ function eventDrainUnsaved_(ss,budget){
  var props=PropertiesService.getScriptProperties(),jobs=[],seen={},tick=Date.now();
  eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
   if(row[0]||!eventText_(row[5]))return;
-  var key='EVENT_UNSAVED_AT_'+name+'|'+(i+2),saved=props.getProperty(key),state=saved?JSON.parse(saved):{first:tick,last:0};
+  var key='EVENT_UNSAVED_AT_'+name+'|'+(i+2),saved=props.getProperty(key),state=saved?JSON.parse(saved):{first:Number(props.getProperty('EVENT_REPAIR_SEEN_'+name+'|row:'+(i+2))||0)||tick,last:0};
   if(!saved)props.setProperty(key,JSON.stringify(state));seen[key]=true;jobs.push({name:name,row:i+2,key:key,state:state});
  });});
  Object.keys(props.getProperties()).forEach(function(key){if(key.indexOf('EVENT_UNSAVED_AT_')===0&&!seen[key])props.deleteProperty(key);});
