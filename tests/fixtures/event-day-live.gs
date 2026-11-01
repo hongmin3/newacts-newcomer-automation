@@ -14,12 +14,12 @@ function runIsolatedIntegration() {
   EVENT.groups.forEach(function(g,i){ss.getSheetByName(g).getRange(3,3,1,4).setValues([['가상검증'+i,'여',30,'0102222'+('0000'+i).slice(-4)]]);});
   pending();ok(active().length===10,'10군 방문 입력 복구');verify();ok(ss.getSheetByName(EVENT.visitors).getRange(2,20).getFormula()==='=1+1','명단 밖 수식 보존');console.log('실제 Sheets 10군 입력·전체 연결 통과');
   EVENT.groups.slice(0,5).forEach(function(g,i){ss.getSheetByName(g).getRange(27,3,1,4).setValues([['가상검증'+i,'여',30,'0102222'+('0000'+i).slice(-4)]]);});
-  pending();ok(active().length===10,'방문과 등록 동일인 연결');ok(active().filter(function(r){return r[14];}).length===5,'등록 인원');verify();
-  edit(EVENT.groups[5],3,3,[['']]);ok(active().length===9,'방문 이름 삭제');verify();
-  edit(EVENT.groups[0],27,3,[['']]);ok(active().filter(function(r){return r[14];}).length===4,'등록 해제');ok(active().length===8,'등록 삭제가 방문에도 전파');verify();
-  edit(EVENT.groups[1],3,3,[['']]);ok(active().length===7,'방문 삭제가 등록에도 전파');verify();
+  pending();ok(active().length===15,'방문과 등록 별도 카드 기록');ok(active().filter(function(r){return r[14];}).length===5,'등록 인원');verify();
+  edit(EVENT.groups[5],3,3,[['']]);ok(active().length===14,'방문 이름 삭제');verify();
+  edit(EVENT.groups[0],27,3,[['']]);ok(active().filter(function(r){return r[14];}).length===4,'등록 해제');ok(active().length===13,'등록 삭제가 방문에 전파되지 않음');verify();
+  edit(EVENT.groups[1],3,3,[['']]);ok(active().length===12,'방문 삭제가 등록에 전파되지 않음');verify();
   edit(EVENT.groups[0],27,3,[['가상등록전용','여',30,'']]);
-  ok(active().filter(function(r){return r[13];}).length===7,'등록 단독 입력은 방문을 만들지 않음');verify();
+  ok(active().filter(function(r){return r[13];}).length===8,'등록 단독 입력은 방문을 만들지 않음');verify();
   EVENT.registrationRoutes.forEach(function(route,i){
     if(i%2){var list=eventData_(eventPlainWrap_(ss).getSheetByName(EVENT.registrations)),at=list.findIndex(function(r){return r[5]==='가상등록전용';})+2;edit(EVENT.registrations,at,13,[[route]]);}else edit(EVENT.groups[0],27,13,[[route]]);
     ok(ss.getSheetByName(EVENT.groups[0]).getRange(27,13).getValues()[0][0]===route,'등록경로 양방향 연결');
@@ -39,6 +39,13 @@ function runIsolatedIntegration() {
   ok(duplicates.length===2&&duplicates[0][0]!==duplicates[1][0],'소속별 두 기록 보존');
   ['명군','석군'].forEach(function(g){ok(/동일인 중복/.test(ss.getSheetByName(g).getRange(4,3).getNote()),g+' 중복 메모');});
   eventViews_().forEach(function(name){var sh=eventPlainWrap_(ss).getSheetByName(name),map=sh.plainMap,tag='EVENT_DUPLICATE_'+(map.registered?'REG':'VISIT');ok(sh.physical.getConditionalFormatRules().some(function(rule){var condition=rule.getBooleanCondition();return condition&&condition.getCriteriaValues().some(function(v){return String(v).indexOf(tag)>=0;});}),name+' 중복 강조 규칙');});verify();
+  // 이전 버전의 한 번호에 묶인 두 카드와 대기 입력도 실제 Sheets에서 분리한다.
+  edit('기타',4,3,[['가상기존카드분리','남',30,'01033330001']]);
+  var legacy=active().filter(function(r){return r[5]==='가상기존카드분리';})[0],rawRows=eventData_(ss.getSheetByName(EVENT.raw)),legacyRow=rawRows.findIndex(function(r){return r[0]===legacy[0];})+2;
+  legacy[14]=true;ss.getSheetByName(EVENT.raw).getRange(legacyRow,1,1,22).setValues([legacy]);eventProject_(eventPlainWrap_(ss),legacy,'','*');
+  ss.getSheetByName('기타').getRange(27,7).setValue('분리중 대기 주소');pending();
+  var split=active().filter(function(r){return r[5]==='가상기존카드분리';});ok(split.length===2,'기존 카드 분리');ok(split.every(function(r){return !(r[13]&&r[14]);}),'카드 종류 분리');ok(split.filter(function(r){return r[14];})[0][10]==='분리중 대기 주소','기존 카드 대기 입력 보존');
+  edit('기타',4,3,[['']]);ok(active().filter(function(r){return r[5]==='가상기존카드분리'&&r[14];}).length===1,'방문 제외 후 등록 카드 유지');verify();
   var result={checks:checks,groups:10,visitors:active().filter(function(r){return r[13];}).length,registrations:active().filter(function(r){return r[14];}).length,status:'PASS'};
   ss.insertSheet('검증 결과').getRange(1,1,1,2).setValues([['결과',JSON.stringify(result)]]);
   console.log(JSON.stringify(result));
@@ -53,4 +60,19 @@ function resetIsolatedIntegration(){
   ss.getSheetByName(EVENT.registrations).getRange(1,16).setFormula("=COUNTIFS('_원본'!O2:O,TRUE,'_원본'!V2:V,FALSE)");
   EVENT.groups.forEach(function(g){var sh=ss.getSheetByName(g);['VISIT','REG'].forEach(function(kind){var r=ss.getRangeByName('_EVENT_'+sh.getSheetId()+'_'+kind),flag=kind==='REG'?'O':'N';sh.getRange(r.getLastRow()+1,kind==='REG'?13:12).setFormula("=COUNTIFS('_원본'!C2:C,\""+g+"\",'_원본'!"+flag+"2:"+flag+",TRUE,'_원본'!V2:V,FALSE)");});});
   PropertiesService.getScriptProperties().deleteAllProperties();
+}
+
+/** 전체 통합 검증 뒤 최종 코드의 실제 편집·안내 경로를 한 번 더 실행한다. */
+function runIndependentCardSmoke(){
+  var ss=SpreadsheetApp.getActive();if(ss.getName().indexOf('행축 자동화 검증 전용')!==0)throw new Error('검증 전용 파일에서만 실행합니다.');
+  var checks=0;function ok(v,label){if(!v)throw new Error('검증 실패: '+label);checks++;}
+  function edit(r,c,v){var range=ss.getSheetByName('신군').getRange(r,c,v.length,v[0].length);range.setValues(v);onEdit({source:ss,range:range});}
+  ok(!ss.getSheetByName('신군').getRange(5,3).getValue()&&!ss.getSheetByName('신군').getRange(28,3).getValue(),'시험 입력 칸 비어 있음');
+  edit(5,3,[['가상최종별개카드','여',30,'01033330002']]);edit(28,3,[['가상최종별개카드','여',30,'01033330002']]);eventRepair(true);
+  var records=eventData_(ss.getSheetByName(EVENT.raw)).filter(function(r){return r[5]==='가상최종별개카드'&&!r[21];});
+  ok(records.length===2&&records[0][0]!==records[1][0],'별도 관리번호');ok(records.filter(function(r){return r[13]&&!r[14];}).length===1,'방문 카드 한 건');ok(records.filter(function(r){return r[14]&&!r[13];}).length===1,'등록 카드 한 건');
+  ok(/방문·등록 각각 입력됨/.test(ss.getSheetByName('신군').getRange(5,3).getNote()),'방문 중복 입력 안내');ok(/방문·등록 각각 입력됨/.test(ss.getSheetByName('신군').getRange(28,3).getNote()),'등록 중복 입력 안내');
+  edit(28,7,[['등록 카드 전용 주소']]);ok(ss.getSheetByName('신군').getRange(5,7).getValue()==='','등록 수정이 방문에 전파되지 않음');
+  edit(5,3,[['']]);ok(ss.getSheetByName('신군').getRange(28,3).getValue()==='가상최종별개카드','방문 삭제 후 등록 유지');
+  console.log(JSON.stringify({status:'PASS',checks:checks,path:'최종 코드 카드별 실제 입력·수정·삭제'}));
 }

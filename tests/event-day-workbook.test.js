@@ -77,10 +77,10 @@ edit(ctx.EVENT.registrations,2,15,false);assert.equal(rows(ctx.EVENT.registratio
 edit(ctx.EVENT.visitors,2,3,'조군');assert.equal(rows('신군').length,0);assert.equal(rows('조군').length,1);
 paste('명군',2,6,[['가상둘','여',25,'20010101','01000000002'],['가상셋','남',27,'19990101','01000000003']]);
 assertHealthy('명군');assert.equal(rows('명군').length,2);assert.equal(rows(ctx.EVENT.visitors).length,3);
-// 총 등록에서 기존 사람 입력. 방문·등록 한 관리번호로 연결한다.
+// 총 등록에서 같은 사람 입력. 방문·등록 카드의 관리번호를 분리한다.
 paste(ctx.EVENT.registrations,2,3,[['조군','시작팀','시작순','가상하나','남',30,'19960101','010-0000-0001']]);
-assertHealthy(ctx.EVENT.registrations);assert.equal(rows(ctx.EVENT.raw).length,3);assert.equal(rows(ctx.EVENT.registrations).length,1);
-assert.equal(rows(ctx.EVENT.visitors)[0][0],rows(ctx.EVENT.registrations)[0][0]);
+assertHealthy(ctx.EVENT.registrations);assert.equal(rows(ctx.EVENT.raw).length,4);assert.equal(rows(ctx.EVENT.registrations).length,1);
+assert.notEqual(rows(ctx.EVENT.visitors)[0][0],rows(ctx.EVENT.registrations)[0][0]);
 // 이름만 같은 무전화 기록은 합치지 않는다. 같은 전화번호 다른 이름도 구분.
 edit('기타',2,6,'가상동명');edit('기타',3,6,'가상동명');assert.equal(rows('기타').length,2);
 paste('기타',4,6,[['가상가족','','','','01000000001']]);assert.equal(rows('기타').length,3);assert.match(rows('기타')[2][18],/다른 이름/);
@@ -132,7 +132,7 @@ assert.equal(ss.sheets[ctx.EVENT.visitors].data.findIndex(r=>r?.[5]==='가상체
 // 이름 후 전화번호를 순서대로 적어도 기존 인물과 연결된다.
 const visitorCount=rows(ctx.EVENT.raw).filter(r=>!r[21]).length;
 ss.sheets[ctx.EVENT.registrations].getRange(5,3).setValue('명군');edit(ctx.EVENT.registrations,5,6,'가상둘');edit(ctx.EVENT.registrations,5,10,'01000000002');
-assert.equal(rows(ctx.EVENT.raw).filter(r=>!r[21]).length,visitorCount,'순차 입력도 같은 이름+전화번호이면 한 사람이어야 한다');
+assert.equal(rows(ctx.EVENT.raw).filter(r=>!r[21]).length,visitorCount+1,'방문과 별도 등록 카드를 한 건 만든다');
 assert.equal(rows(ctx.EVENT.registrations).filter(r=>r[5]==='가상둘').length,1);
 const afterMergeCount=rows(ctx.EVENT.raw).filter(r=>!r[21]).length;ctx.eventUndoCancel();assert.equal(rows(ctx.EVENT.raw).filter(r=>!r[21]).length,afterMergeCount,'동일인 연결로 폐기한 ID는 취소 복구 대상이 아니다');
 // 군 이동 반영이 중단되면 원본의 현재 군을 기준으로 옛 군 화면도 제거해야 한다.

@@ -94,6 +94,7 @@ function eventHealth_(row,records){
   var notes=[];if(!row[9])notes.push('연락처 확인');
   var key=eventKey_(row),phone=eventText_(row[9]).replace(/\D/g,''),name=eventText_(row[5]).replace(/\s/g,'');
   records.forEach(function(other){if(other[0]===row[0]||other[21])return;
+    if(!((row[13]&&other[13])||(row[14]&&other[14]))){if(key&&key===eventKey_(other))notes.push('방문·등록 각각 입력됨');return;}
     if(phone&&phone===eventText_(other[9]).replace(/\D/g,''))notes.push(key===eventKey_(other)?'동일인 중복 확인':'같은 전화번호의 다른 이름 확인');
     else if(name===eventText_(other[5]).replace(/\s/g,''))notes.push('동명이인 확인');
   });
@@ -151,9 +152,10 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
     patch[13]=!eventRegisteredView_(sheet.getName());
     if(eventRegisteredView_(sheet.getName())&&input[14]!==true)patch[14]=true;
   }else{candidate=records[existingIndex];columns.forEach(function(c){if(c>=1&&c<=17)patch[c]=input[c];});}
+  if(sheet.plainMap){patch[13]=!eventRegisteredView_(sheet.getName());patch[14]=eventRegisteredView_(sheet.getName());}
   var planned=eventApplyPatch_(candidate,isNew?null:base,patch,sheet.getName(),force);
   // 이름을 먼저 쓴 뒤 전화번호를 채우는 입력도 같은 사람으로 연결한다.
-  var key=eventKey_(planned.row),matches=key?records.map(function(r,i){return {r:r,i:i};}).filter(function(x){return !x.r[21]&&x.r[0]!==candidate[0]&&eventKey_(x.r)===key&&eventStoredGroup_(x.r[2])===eventStoredGroup_(planned.row[2])&&eventText_(x.r[3])===eventText_(planned.row[3]);}):[];
+  var key=eventKey_(planned.row),matches=key?records.map(function(r,i){return {r:r,i:i};}).filter(function(x){return !x.r[21]&&!!x.r[eventRegisteredView_(sheet.getName())?14:13]&&x.r[0]!==candidate[0]&&eventKey_(x.r)===key&&eventStoredGroup_(x.r[2])===eventStoredGroup_(planned.row[2])&&eventText_(x.r[3])===eventText_(planned.row[3]);}):[];
   if(matches.length>1)throw new Error('동일인 후보가 여러 명입니다. 기존 관리번호를 확인해 주세요.');
   if(matches.length===1){
     mergedFrom=existingIndex<0?null:{row:candidate.slice(),index:existingIndex};
@@ -215,6 +217,7 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   }
   if(mergedFrom)eventProject_(ss,retired,mergedFrom.row[2],'*');
   eventProject_(ss,after,candidate[2],sheet.getName());
+  if(changed&&after[18].indexOf('방문·등록 각각 입력됨')>=0&&eventText_(candidate[18]).indexOf('방문·등록 각각 입력됨')<0)ss.toast('방문과 등록에 각각 입력되었습니다. 방문 1건·등록 1건으로 따로 집계합니다.','카드별 입력 안내',8);
 
 }
 function eventWithLock_(ss,fn,waitMs,quiet) {
@@ -237,6 +240,7 @@ function eventEditInternal_(e) {
 }
 function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
+    eventSeparateCards_(ss);
     var complete=true;
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
     eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
@@ -344,10 +348,10 @@ function eventPlainClear_(ss,sheet,rowNumber,map) {
   var input=sheet.getRange(rowNumber,1,1,22).getValues()[0];if(!input[0])return;
   var raw=ss.getSheetByName(EVENT.raw),records=eventData_(raw),i=records.findIndex(function(r){return r[0]===input[0];});if(i<0)return;
   var before=records[i],after=before.slice();
-  // 어느 명단에서든 이름을 지우면 그 사람을 전체 방문·등록 화면에서 제외한다.
-  // 원래 방문·등록 여부는 취소 기록에 남겨 복구할 수 있게 한다.
+  // 이름을 지운 카드만 같은 종류의 전체·군별 화면에서 제외한다.
+  // 해당 카드의 내용은 취소 기록에 남겨 복구할 수 있게 한다.
   after[21]=true;after[19]=eventNow_();after[20]=Number(before[20])+1;
-  eventAudit_(ss,'취소',map.name,before,after,'이름 비우기: 전체 방문·등록 명단에서 삭제');
+  eventAudit_(ss,'취소',map.name,before,after,'이름 비우기: 같은 종류의 전체·군별 카드만 삭제');
   eventWrite_(raw.getRange(i+2,1,1,22),[after]);sheet.getRange(rowNumber,1,1,22).clearContent();eventProject_(ss,after,before[2],'*');
 }
 function eventPlainFooter_(physical,map){
@@ -362,7 +366,7 @@ function onEdit(e) {
   else if(EVENT.groups.indexOf(name)>=0)maps=[eventPlainMap_(name+'::방문'),eventPlainMap_(name+'::등록')];else return;
   PropertiesService.getScriptProperties().setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
   var ss=eventPlainWrap_(e.source),eventRow=e.range.getRow(),eventLast=e.range.getLastRow(),eventCol=e.range.getColumn(),eventColLast=e.range.getLastColumn();
-  eventWithLock_(ss,function(){maps.forEach(function(map){
+  eventWithLock_(ss,function(){eventSeparateCards_(ss);maps.forEach(function(map){
     eventPlainConfigure_(physical,map);
     var sheet=ss.getSheetByName(map.name);
     if(map.group&&eventLast===map.offset+map.limit+1&&eventRow<=eventLast&&physical.getRange(eventLast,3).getValues()[0][0]){
@@ -449,10 +453,29 @@ function eventSplitAssignmentPending_(ss,sheet,n,row) {
 }
 function eventDuplicateRule_(sheet) {
   var map=sheet.plainMap,physical=sheet.physical,start=map.offset+2,count=map.limit-1;
-  var tag='EVENT_DUPLICATE_'+(map.registered?'REG':'VISIT'),key=tag+'_'+physical.getSheetId(),signature=JSON.stringify([start,count]);
+  var tag='EVENT_DUPLICATE_'+(map.registered?'REG':'VISIT'),key=tag+'_'+physical.getSheetId(),signature=JSON.stringify([start,count,'card-v2']);
   var props=PropertiesService.getScriptProperties();if(props.getProperty(key)===signature)return;
-  var formula=`=AND(N("${tag}")=0,$C${start}<>"",$F${start}<>"",COUNTIFS(INDIRECT("'_원본'!F2:F"),$C${start},INDIRECT("'_원본'!J2:J"),$F${start},INDIRECT("'_원본'!V2:V"),FALSE)>1)`;
+  var formula=`=AND(N("${tag}")=0,$C${start}<>"",$F${start}<>"",COUNTIFS(INDIRECT("'_원본'!F2:F"),$C${start},INDIRECT("'_원본'!J2:J"),$F${start},INDIRECT("'_원본'!V2:V"),FALSE,INDIRECT("'_원본'!${map.registered?'O':'N'}2:${map.registered?'O':'N'}"),TRUE)>1)`;
   var rules=physical.getConditionalFormatRules().filter(function(rule){var condition=rule.getBooleanCondition();return !condition||!condition.getCriteriaValues().some(function(v){return String(v).indexOf(tag)>=0;});});
   rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(formula).setBackground('#fff2cc').setRanges([physical.getRange(start,3,count,1)]).build());
   physical.setConditionalFormatRules(rules);props.setProperty(key,signature);
+}
+
+/** 기존 한 번호의 두 카드를 분리한다. 등록 화면의 대기 입력은 그대로 둔다. */
+function eventSeparateCards_(ss) {
+  if(!ss.getSheetByName(EVENT.visitors).plainMap)return;
+  var raw=ss.getSheetByName(EVENT.raw),records=eventData_(raw);
+  records.forEach(function(before,i){
+    if(before[21]||!before[13]||!before[14])return;
+    var id=before[0]+'-registration',registered=records.filter(function(r){return r[0]===id;})[0];
+    if(!registered){registered=before.slice();registered[0]=id;registered[13]=false;registered[14]=true;registered[19]=eventNow_();registered[20]=Number(before[20])+1;
+      eventAudit_(ss,'방문·등록 카드 분리','기존 명단',before,registered,'등록 카드에 별도 관리번호 부여');raw.appendRow(eventSafeValues_(registered));records.push(registered);}
+    if(registered[13]||!registered[14]||eventKey_(registered)!==eventKey_(before))throw new Error('기존 카드 분리 번호를 확인해 주세요.');
+    eventViews_().filter(eventRegisteredView_).forEach(function(name){var sheet=ss.getSheetByName(name);eventFind_(sheet,before[0]).forEach(function(item){
+      var base=eventBaseline_(item.values);if(!base)throw new Error('기존 등록 카드 비교값 확인 필요');
+      base[0]=id;base[13]=false;base[14]=true;sheet.stageCreate(item.row,base);
+    });});
+    var visitor=before.slice();visitor[14]=false;visitor[19]=eventNow_();visitor[20]=Number(before[20])+1;
+    eventAudit_(ss,'방문·등록 카드 분리','기존 명단',before,visitor,'방문 카드는 기존 번호 유지');eventWrite_(raw.getRange(i+2,1,1,EVENT.width),[visitor]);
+  });
 }
