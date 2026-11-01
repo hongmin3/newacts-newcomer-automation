@@ -493,13 +493,22 @@ function eventPlainLabels_(ss,onlyTouched,verifyRules) {
     var physical=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
     if(!count)return;
     var visible=physical.getRange(start,1,count,11).getValues(),number=0;
-    visible.forEach(function(row,i){
+    var needsNumbers=visible.some(function(row){var wanted=eventText_(row[2])?++number:'';return !eventEqual_(row[0],wanted);});
+    if(needsNumbers){
+      // A열만 한 번에 갱신한다. 이름과 입력값은 쓰지 않으며 최신 이름으로 계산한다.
+      var names=physical.getRange(start,3,count,1).getValues();number=0;
+      var numbers=names.map(function(row){return [eventText_(row[0])?++number:''];});
       eventStructureGuard_(physical);
-      var hasName=!!eventText_(row[2]),wanted=hasName?++number:'';
-      // 쓰기 직전에 이름을 확인해 새 입력을 이전 상태로 표시하지 않는다.
-      if(!eventEqual_(row[0],wanted)&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2]))physical.getRange(start+i,1).setValue(wanted);
-      if(hasName&&row[8]!==eventDisplayGroup_(row[8])&&eventEqual_(physical.getRange(start+i,9).getValues()[0][0],row[8]))physical.getRange(start+i,9).setValue(eventDisplayGroup_(row[8]));
-      if(!map.registered&&hasName&&row[10]!=='-'&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2]))physical.getRange(start+i,11).setValue('-');
+      physical.getRange(start,1,count,1).setValues(numbers);
+    }
+    visible.forEach(function(row,i){
+      var hasName=!!eventText_(row[2]);
+      if(hasName&&row[8]!==eventDisplayGroup_(row[8])&&eventEqual_(physical.getRange(start+i,9).getValues()[0][0],row[8])){
+        eventStructureGuard_(physical);physical.getRange(start+i,9).setValue(eventDisplayGroup_(row[8]));
+      }
+      if(!map.registered&&hasName&&row[10]!=='-'&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2])){
+        eventStructureGuard_(physical);physical.getRange(start+i,11).setValue('-');
+      }
     });
   });
 }

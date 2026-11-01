@@ -1,0 +1,19 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {createFixture}=require('./helpers/event-day-memory.cjs');
+// Validates: REQ-EVENTDAYWORKBOOK-006, REQ-EVENTDAYWORKBOOK-004.
+// 중간 번호를 하나씩 쓰는 구현으로 되돌리면 첫 쓰기 직후 완성 번호 검사가 실패한다.
+const f=createFixture(),sh=f.sheets['총 방문 새가족'];
+for(let i=0;i<140;i++)sh.getRange(i+2,1,1,11).setValues([[i+2,'',i===20?'':'번호시험'+i,'여',30,'','보존주소','','명','','-']]);
+const before=JSON.stringify(sh.data.map(r=>r.slice(1)));let writes=0;
+f.setHook(e=>{if(e.kind==='write'&&e.phase==='after'&&e.sheet===sh.name&&e.col===1){writes++;let n=0;for(const r of sh.data.slice(1))assert.equal(r[0],r[2]?++n:'','A열 쓰기 직후 전체 번호가 완성되어야 함');}});
+let wrapped=f.ctx.eventPlainWrap_(f.book);wrapped.labelNames={[sh.name]:true};f.ctx.eventPlainLabels_(wrapped,true);
+assert.equal(writes,1);assert.equal(JSON.stringify(sh.data.map(r=>r.slice(1))),before);
+console.log('통과: 140행 순번 한 번 갱신·빈 이름 제외·입력 값 보존');
+// 넓은 읽기 직후 이름이 바뀌면 최신 이름을 다시 읽어 번호를 계산한다.
+const g=createFixture(),gs=g.sheets['총 방문 새가족'];
+gs.getRange(2,1,3,11).setValues([[9,'','첫째','','','','','','명','','-'],[9,'','둘째','','','','','','명','','-'],[9,'','셋째','','','','','','명','','-']]);
+let changed=false;g.setHook(e=>{if(!changed&&e.kind==='read'&&e.phase==='after'&&e.sheet===gs.name&&e.nc===11){changed=true;gs.data[2][2]='';gs.data[3][6]='최신주소';}});
+wrapped=g.ctx.eventPlainWrap_(g.book);wrapped.labelNames={[gs.name]:true};g.ctx.eventPlainLabels_(wrapped,true);
+assert.deepEqual(gs.data.slice(1).map(r=>r[0]),[1,'',2]);assert.equal(gs.data[3][6],'최신주소');
+console.log('통과: 갱신 직전 이름 삭제 반영·동시 주소 입력 보존');
