@@ -56,9 +56,7 @@ function resetIsolatedIntegration(){
   [EVENT.visitors,EVENT.registrations,EVENT.raw,EVENT.log,EVENT.conflicts].forEach(function(name){var sh=ss.getSheetByName(name);sh.getRange(2,1,sh.getMaxRows()-1,32).clearContent().clearNote();});
   EVENT.groups.forEach(function(g){var sh=ss.getSheetByName(g);['VISIT','REG'].forEach(function(kind){var r=ss.getRangeByName('_EVENT_'+sh.getSheetId()+'_'+kind);sh.getRange(r.getRow(),1,r.getNumRows(),32).clearContent().clearNote();});});
   var result=ss.getSheetByName('검증 결과');if(result)ss.deleteSheet(result);
-  ss.getSheetByName(EVENT.visitors).getRange(1,16).setFormula("=COUNTIFS('_원본'!N2:N,TRUE,'_원본'!V2:V,FALSE)");
-  ss.getSheetByName(EVENT.registrations).getRange(1,16).setFormula("=COUNTIFS('_원본'!O2:O,TRUE,'_원본'!V2:V,FALSE)");
-  EVENT.groups.forEach(function(g){var sh=ss.getSheetByName(g);['VISIT','REG'].forEach(function(kind){var r=ss.getRangeByName('_EVENT_'+sh.getSheetId()+'_'+kind),flag=kind==='REG'?'O':'N';sh.getRange(r.getLastRow()+1,kind==='REG'?13:12).setFormula("=COUNTIFS('_원본'!C2:C,\""+g+"\",'_원본'!"+flag+"2:"+flag+",TRUE,'_원본'!V2:V,FALSE)");});});
+  eventRefreshCounts();
   PropertiesService.getScriptProperties().deleteAllProperties();
 }
 

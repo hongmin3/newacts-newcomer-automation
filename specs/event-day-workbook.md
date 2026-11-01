@@ -43,7 +43,8 @@
 
 - 방문과 등록은 독립해서 입력한다. 등록 명단에 이름을 적어도 방문 명단에는 자동 추가하지 않는다. 같은 분이 방문과 등록에 각각 입력되면 서로 다른 관리번호로 보관하고 각각 한 건씩 센다. 양쪽 명단에 입력됐다는 안내와 확인 메모를 표시한다. 체크박스는 쓰지 않는다.
 - 방문 명단과 등록 명단은 별도 입력 영역이다. 군별 탭의 위쪽은 방문, 아래쪽은 등록 명단이다.
-- 각 명단의 1행 옆에서 방문자 수와 등록자 수만 보여 준다. 관리번호로 같은 카드를 구분한다. 비율과 별도 현황판은 만들지 않는다.
+- 전체 명단 상단과 군별 구역의 계는 해당 화면에 이름이 입력된 행 수를 센다. 저장 대기나 입력 확인 중인 이름도 포함하며, 이름이 빈 행과 공백뿐인 행은 제외한다. 군별 계산 범위는 행 추가·삭제 때 함께 움직이는 이름 지정 범위를 사용한다. 방문·등록은 따로 센다.
+- 관리번호로 같은 카드를 구분한다. 비율과 별도 현황판은 만들지 않는다.
 - 전체·군별 방문 또는 등록 명단에서 이름을 포함한 보이는 입력 내용 전체를 비우면 그 카드의 관리번호만 취소하고 같은 종류의 전체·군별 화면에서 제외한다. 다른 종류의 카드와 집계는 유지한다. 변경 전 값과 대기 중이던 입력은 숨김 변경 기록에 남긴다.
 - 자동화가 쓰는 숨김 연결 열은 지우지 않는다. 행 자체를 삭제해 연결 열까지 없애면 삭제한 사람을 구분할 수 없으므로 원본에서 화면이 복구될 수 있다. 사람을 삭제할 때는 보이는 명단 내용 전체를 비운다.
 
@@ -146,7 +147,7 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 |---|---|---|---|
 | REQ-EVENTDAYWORKBOOK-001 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-002 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-counts.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |

@@ -31,11 +31,11 @@ function build(oldSheets=[]){
     req.push({mergeCells:{range:{sheetId:s.id,startRowIndex:a.title,endRowIndex:a.title+1,startColumnIndex:0,endColumnIndex:10},mergeType:'MERGE_ALL'}});
     req.push({repeatCell:{range:{sheetId:s.id,startRowIndex:a.title,endRowIndex:a.title+1,startColumnIndex:0,endColumnIndex:10},cell:{userEnteredFormat:style.title},fields:'userEnteredFormat'}});
     const footerCol=a.registered?11:10;
-    req.push(block(s.id,a.footer,footerCol,[['계',`=COUNTIFS('_원본'!C2:C,"${s.name}",'_원본'!${a.registered?'O':'N'}2:${a.registered?'O':'N'},TRUE,'_원본'!V2:V,FALSE)`]]));
+    req.push(block(s.id,a.footer,footerCol,[['계',`=SUMPRODUCT(N(LEN(TRIM(INDEX(_EVENT_${s.id}_${a.registered?'REG':'VISIT'},0,3)))>0))`]]));
     req.push({repeatCell:{range:{sheetId:s.id,startRowIndex:a.footer,endRowIndex:a.footer+1,startColumnIndex:footerCol,endColumnIndex:footerCol+2},cell:{userEnteredFormat:style.header[0]},fields:'userEnteredFormat'}});
     req.push({addNamedRange:{namedRange:{name:`_EVENT_${s.id}_${a.registered?'REG':'VISIT'}`,range:{sheetId:s.id,startRowIndex:a.start,endRowIndex:a.end,startColumnIndex:0,endColumnIndex:hs.length}}}});
     req.push({updateDimensionProperties:{range:{sheetId:s.id,dimension:'ROWS',startIndex:a.title,endIndex:a.title+1},properties:{pixelSize:28},fields:'pixelSize'}});
-   }else req.push(block(s.id,0,14,[[s.registered?'총 등록자':'총 방문자',`=COUNTIFS('_원본'!${s.registered?'O':'N'}2:${s.registered?'O':'N'},TRUE,'_원본'!V2:V,FALSE)`]]));
+   }else req.push(block(s.id,0,14,[[s.registered?'총 등록자':'총 방문자','=SUMPRODUCT(N(LEN(TRIM(C2:C))>0))']]));
   });
   if(s.group)req.push({updateDimensionProperties:{range:{sheetId:s.id,dimension:'ROWS',startIndex:23,endIndex:24},properties:{pixelSize:10},fields:'pixelSize'}});
   [45,100,85,47,100,125,180,85,80,75,65,130,110].forEach((w,i)=>req.push({updateDimensionProperties:{range:{sheetId:s.id,dimension:'COLUMNS',startIndex:i,endIndex:i+1},properties:{pixelSize:w},fields:'pixelSize'}}));

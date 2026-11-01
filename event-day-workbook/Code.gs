@@ -370,8 +370,17 @@ function eventPlainClear_(ss,sheet,rowNumber,map) {
   eventWrite_(raw.getRange(i+2,1,1,22),[after]);sheet.getRange(rowNumber,1,1,22).clearContent();eventProject_(ss,after,before[2],'*');
 }
 function eventPlainFooter_(physical,map){
-  if(!map.group)return;var col=map.registered?12:11,row=map.offset+map.limit+1,flag=map.registered?'O':'N';
-  physical.getRange(row,col,1,2).setValues([['계','=COUNTIFS(\'_원본\'!C2:C,"'+map.group+'",\'_원본\'!'+flag+'2:'+flag+',TRUE,\'_원본\'!V2:V,FALSE)']]);
+  if(!map.group)return;var col=map.registered?12:11,row=map.offset+map.limit+1;
+  var formula='=SUMPRODUCT(N(LEN(TRIM(INDEX('+map.rangeName+',0,3)))>0))';
+  physical.getRange(row,col,1,2).setValues([['계',formula]]);
+}
+/** 화면에 입력된 이름 수만 계산한다. 명단과 연결 정보는 수정하지 않는다. */
+function eventRefreshCounts(){
+  var real=SpreadsheetApp.getActive();if(!real.getSheets)return false;
+  return eventWithLock_(eventPlainWrap_(real),function(){var complete=true;eventViews_().forEach(function(name){var map=eventPlainMap_(name),p=real.getSheetByName(map.physical);eventPlainConfigure_(p,map);
+    if(map.group){var row=map.offset+map.limit+1,col=map.registered?12:11;if(p.getRange(row,col).getValues()[0][0]!=='계'){complete=false;return;}p.getRange(row,col+1).setValue('=SUMPRODUCT(N(LEN(TRIM(INDEX('+map.rangeName+',0,3)))>0))');}
+    else p.getRange(1,16).setValue('=SUMPRODUCT(N(LEN(TRIM(C2:C))>0))');
+  });if(complete)PropertiesService.getScriptProperties().setProperty('EVENT_COUNTS_REV','visible-v1');},1,true);
 }
 function onEdit(e) {
   if(!e||!e.range||!e.source)return;
@@ -445,6 +454,7 @@ function eventPlainLabels_(ss,onlyTouched,verifyRules) {
 /** 시간 기반 실행. 잠금 대기·실패 뒤에도 새 편집 없이 재시도한다. */
 function eventAutoSync() {
   var props=PropertiesService.getScriptProperties();
+  if(props.getProperty('EVENT_COUNTS_REV')!=='visible-v1')eventRefreshCounts();
   // 최초 자동 확인에서 기존 메모에도 색을 적용한다.
   if(props.getProperty('EVENT_STATUS_REV')!=='font-v1')eventRefreshStatusDisplay();
   var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
