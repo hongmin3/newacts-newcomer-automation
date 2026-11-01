@@ -229,9 +229,10 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
 
 }
 function eventWithLock_(ss,fn,waitMs,quiet) {
+  if(PropertiesService.getScriptProperties().getProperty('EVENT_ARMY_BASIS_REQUEST')&&!EVENT_ARMY_BASIS_EXEC)return false;
   var lock=LockService.getDocumentLock();
   if(!lock.tryLock(waitMs||5000)){if(!quiet)ss.toast('다른 입력을 처리 중입니다. 입력값을 남겨 두고 자동으로 다시 반영합니다. 잠시 기다려 주세요.','입력 대기',8);return false;}
-  try{eventStructureBegin_(ss);var result=fn();SpreadsheetApp.flush();return result!==false;}finally{try{eventStructureFinish_();}finally{lock.releaseLock();}}
+  try{if(PropertiesService.getScriptProperties().getProperty('EVENT_ARMY_BASIS_REQUEST')){var real=ss.real||ss;EVENT_STRUCTURE_CONTEXT={expected:{},touched:{},real:real};eventStructureSheets_(real).forEach(function(p){EVENT_STRUCTURE_CONTEXT.expected[p.getSheetId()]=p.getMaxRows();EVENT_STRUCTURE_CONTEXT.touched[p.getSheetId()]=p;});return eventReconcileArmyBasis_(ss);}eventStructureBegin_(ss);var result=fn();SpreadsheetApp.flush();return result!==false;}finally{try{eventStructureFinish_();}finally{lock.releaseLock();}}
 }
 function eventEditInternal_(e) {
   if(!e||!e.range||!e.source)return;
@@ -541,7 +542,9 @@ function eventWriteNumbers_(physical,start,visible){
 }
 
 /** 시간 기반 실행. 잠금 대기·실패 뒤에도 새 편집 없이 재시도한다. */
-function eventAutoSync() {
+var EVENT_ARMY_BASIS_EXEC=false;
+function eventAutoSync(){EVENT_ARMY_BASIS_EXEC=true;try{return eventAutoSyncInternal_();}finally{EVENT_ARMY_BASIS_EXEC=false;}}
+function eventAutoSyncInternal_() {
   var props=PropertiesService.getScriptProperties();
   if(props.getProperty('EVENT_COUNTS_REV')!=='visible-v1')eventRefreshCounts();
   // 최초 자동 확인에서 기존 메모에도 색을 적용한다.
@@ -815,4 +818,51 @@ function eventStructureValidate_(p){
  if(EVENT.groups.indexOf(p.getName())<0){if(eventText_(data[0][2]).replace(/\s/g,'')!=='이름')throw new Error(p.getName()+': 머리글 삭제를 확인해 주세요.');return;}
  if(headers.length!==2)throw new Error(p.getName()+': 머리글 삭제를 확인해 주세요.');
  headers.forEach(function(h,i){var end=i===0?headers[1]-1:data.length,found=false;for(var r=h+1;r<=end;r++)if(data[r-1][i===0?10:11]==='계')found=true;if(!found)throw new Error(p.getName()+': 계 행 삭제를 확인해 주세요.');});
+}
+
+/** 운영자가 요청한 군별 기준 정리. 군별 본문은 읽기만 한다. */
+function eventUseArmyAsBasis(){
+ var props=PropertiesService.getScriptProperties();props.setProperty('EVENT_ARMY_BASIS_REQUEST',Utilities.getUuid());props.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
+ EVENT_ARMY_BASIS_EXEC=true;try{return eventWithLock_(eventPlainWrap_(SpreadsheetApp.getActive()),function(){},1000,true);}finally{EVENT_ARMY_BASIS_EXEC=false;}
+}
+function eventReconcileArmyBasis_(ss){
+ var props=PropertiesService.getScriptProperties(),request=props.getProperty('EVENT_ARMY_BASIS_REQUEST'),raw=ss.getSheetByName(EVENT.raw),old=eventData_(raw),records=old.map(function(r){return r.slice();}),used={},sources=[],cards=[],logs=[],journalKeys=Object.keys(props.getProperties()).filter(function(k){return k.indexOf('EVENT_EDIT_')===0;});
+ function same(a,b){return JSON.stringify(a)===JSON.stringify(b);}
+ function identity(r){return JSON.stringify([eventText_(r[5]),String(r[9]||'').replace(/\D/g,''),eventStoredGroup_(r[2]),eventText_(r[3]),eventText_(r[12])]);}
+ EVENT.groups.forEach(function(g){eventGroupViews_(g).forEach(function(name){var sh=ss.getSheetByName(name),rows=eventData_(sh),m=sh.plainMap;if(!m)return;
+  var physical=sh.physical,start=m.offset+2,count=rows.length,body=count?physical.getRange(start,2,count,12).getValues():[],meta=count?physical.getRange(start,m.meta,count,2).getValues():[];
+  sources.push({sh:sh,p:physical,map:m,start:start,rows:rows,body:body,meta:meta});
+  rows.forEach(function(input,i){if(!eventText_(input[5]))return;var reg=eventRegisteredView_(name),r=input.slice(0,22);r[1]=EVENT.date;r[2]=g;r[13]=!reg;r[14]=reg;r[15]=false;r[21]=false;
+   var key=identity(r),matches=records.map(function(v,j){return {r:v,index:j};}).filter(function(x){return !x.r[21]&&!used[x.r[0]]&&!!x.r[reg?14:13]&&identity(x.r)===key;}),found=matches.find(function(x){return x.r[0]===input[0];})||matches[0],index=found?found.index:records.length;
+   r[0]=found?found.r[0]:(input[0]&&!used[input[0]]&&!records.some(function(v){return v[0]===input[0];})?input[0]:Utilities.getUuid());r[18]='정상';r[19]=eventNow_();r[20]=found?(Number(found.r[20])||0)+1:1;used[r[0]]=true;records[index]=r;cards.push({source:sources[sources.length-1],offset:i,record:r,registered:reg});
+  });
+ });});
+ // 원본을 바꾸기 전에 군별 본문과 메타가 처음 읽은 상태인지 확인한다.
+ sources.forEach(function(s){eventStructureGuard_(s.p);if(s.rows.length&&(!same(s.body,s.p.getRange(s.start,2,s.rows.length,12).getValues())||!same(s.meta,s.p.getRange(s.start,s.map.meta,s.rows.length,2).getValues())))throw new Error('군별 입력이 변경되어 다음 확인에서 다시 정리합니다.');});
+ var now=eventNow_();old.forEach(function(r,i){if(!r[21]&&!used[r[0]]){var cancelled=r.slice();cancelled[21]=true;cancelled[19]=now;cancelled[20]=(Number(r[20])||0)+1;records[i]=cancelled;logs.push([now,'군 기준 제외','군별 기준',r[0],JSON.stringify(r),JSON.stringify(cancelled),'군별 명단에 없어 전체에서 제외']);}});
+ // 새 번호를 먼저 군별 메타에 남긴다. 중단돼도 다음 회차가 같은 번호를 재사용한다.
+ sources.forEach(function(s){s.rows.forEach(function(r,i){if(!eventText_(r[5]))s.meta[i]=['',''];});});
+ cards.forEach(function(c){var s=c.source;s.meta[c.offset]=[c.record[0],JSON.stringify(c.record.slice(0,21))];});
+ sources.forEach(function(s){if(!s.rows.length)return;eventStructureGuard_(s.p);s.p.getRange(s.start,s.map.meta,s.rows.length,2).setValues(s.meta);eventStructureTouch_(s.p,true);});
+ old.forEach(function(r,i){if(used[r[0]]&&!same(r,records[i]))logs.push([now,'군 기준 정보 적용','군별 기준',r[0],JSON.stringify(r),JSON.stringify(records[i]),'군별 현재 입력 우선']);});
+ if(records.length)eventWrite_(raw.getRange(2,1,records.length,22),records);
+ if(logs.length){var log=ss.getSheetByName(EVENT.log);log.getRange(log.getLastRow()+1,1,logs.length,7).setValues(logs);}
+ // 전체 화면은 군별 현재 기록으로 다시 표시한다. 다른 입력이 바뀌면 다음 회차에 재시도한다.
+ [false,true].forEach(function(reg){var name=reg?EVENT.registrations:EVENT.visitors,p=ss.getSheetByName(name).physical,list=cards.filter(function(c){return c.registered===reg;}),count=Math.max(p.getLastRow()-1,list.length),before=count?p.getRange(2,1,count,32).getValues():[],after=before.map(function(r){return r.slice();});
+  if(!count)return;
+  for(var i=0;i<count;i++){var row=after[i];for(var j=0;j<(reg?13:12);j++)row[j]='';row[28]='';row[29]='';if(i<list.length){var rec=list[i].record,map=eventPlainMap_(name);map.cols.forEach(function(c,k){row[k]=c<0?i+1:c===2?eventDisplayGroup_(rec[c]):!reg&&c===4?'-':rec[c];});row[28]=rec[0];row[29]=JSON.stringify(rec.slice(0,21));}}
+  var formulas=p.getRange(2,1,count,32).getFormulas();after=after.map(function(r,i){var safe=eventSafeValues_(r);formulas[i].forEach(function(f,j){if(f&&j>=(reg?13:12)&&j!==28&&j!==29)safe[j]=f;});return safe;});
+  eventStructureGuard_(p);if(!same(before,p.getRange(2,1,count,32).getValues()))throw new Error('전체 입력이 변경되어 다음 확인에서 다시 정리합니다.');var history=before.map(function(r,i){return [now,'군 기준 전체 교체',name,r[28]||'',JSON.stringify(r),'','기존 전체 '+(i+2)+'행 보관'];});var audit=ss.getSheetByName(EVENT.log);audit.getRange(audit.getLastRow()+1,1,history.length,7).setValues(history);
+  p.getRange(2,1,count,32).setValues(after);eventStructureTouch_(p,true);
+  var check=p.getRange(2,1,count,32).getValues();if(check.some(function(r,i){return r.some(function(v,j){return !(typeof after[i][j]==='string'&&after[i][j].charAt(0)==='=')&&!eventEqual_(v,after[i][j]);});}))throw new Error('전체 반영 뒤 새 입력이 있어 다시 확인합니다.');
+ });
+ // 정리 전 전체 명단의 미처리 편집은 군별 기준으로 대체됐음을 남긴다.
+ journalKeys.forEach(function(k){props.deleteProperty(k);});
+ if(props.getProperty('EVENT_ARMY_BASIS_REQUEST')===request)props.deleteProperty('EVENT_ARMY_BASIS_REQUEST');props.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
+ console.log('군별 기준 정리 완료: 방문 '+cards.filter(function(c){return !c.registered;}).length+'건, 등록 '+cards.filter(function(c){return c.registered;}).length+'건, 제외 '+logs.filter(function(r){return r[1]==='군 기준 제외';}).length+'건');return true;
+}
+/** 확인 완료된 연결의 오래된 안내만 현재 원본 기준으로 다시 계산한다. */
+function eventRefreshBasisNotes(){
+ var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){var records=eventData_(ss.getSheetByName(EVENT.raw)),byId={};records.forEach(function(r){if(!r[21])byId[r[0]]=r;});var count=0;
+ eventViews_().forEach(function(name){var sh=ss.getSheetByName(name);if(!sh.plainMap)return;eventData_(sh).forEach(function(row,i){var r=byId[row[0]],old=eventText_(row[18]).split('\n\n[입력 안내]')[0];if(!r||eventHasDirty_(row)||eventKey_(row)!==eventKey_(r))return;if(old&&!/^(정상|입력 확인:|충돌:|다른 입력 처리 대기:|연락처 확인:|동일인 중복 확인|같은 전화번호|동명이인 확인|방문·등록 각각 입력됨|군 변경 전|이름 수정 대기|관리번호|화면 비교값)/.test(old))return;var health=eventHealth_(r,records);if(old===health||(!old&&health==='정상'))return;sh.getRange(i+2,19).setValue(health);count++;});});console.log('현재 군별 기준의 오류·중복 안내 재확인 '+count+'행');return true;},180000,true);
 }

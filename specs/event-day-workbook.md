@@ -136,6 +136,14 @@
 - 처리 중 행 위치가 바뀌면 이전 좌표로 쓰기를 계속하지 않고 다시 확인한다. 동시에 다른 군에 적는 입력과 다른 종류의 카드는 유지한다. 잠금을 기다리거나 중단되면 다음 확인에서 이어 처리한다.
 - 명단의 데이터 행에 적용한다. 머리글·열·시트 탭 삭제처럼 입력 구역을 판별할 수 없는 변경은 사람 삭제로 추측하지 않고 확인이 필요하다고 알린다.
 
+### REQ-EVENTDAYWORKBOOK-015 군별 명단 기준의 일회 정리
+
+- 운영자가 요청하면 현재 군별 방문·등록 입력을 우선해 전체 명단과 숨김 원본을 맞춘다. 방문·등록은 각각 처리하고 군별 입력 행을 합치거나 옮기지 않는다.
+- 군별 이름이 있는 각 행의 정보를 보존한다. 잘못 연결된 번호는 이름·전화·군·팀·예배가 맞는 기존 기록부터 연결하며, 대응하지 않으면 새 번호를 부여한다. 같은 사람처럼 보여도 서로 다른 군별 입력 행은 각각 남긴다.
+- 군별 명단에 없는 기존 원본은 취소 이력을 남기고 전체 명단에서 제외한다. 전체 명단의 정보 차이는 군별 값으로 맞춘다. 군별 본문은 쓰지 않는다.
+- 잠금 안에서 전체 범위를 읽고 입력이 그대로인지 다시 확인한다. 중간에 입력이 바뀌면 다시 읽어 이어 처리한다. 요청과 미완료 상태는 완료 때까지 남긴다.
+- 군별 연결번호를 먼저 저장해 중단 후에도 같은 번호로 이어 간다. 전체 명단 입력이 바뀌면 덮어쓰지 않고 다음 확인으로 넘긴다. 완료 후 기존 양방향 입력을 유지한다.
+
 ## 11. 테스트 사양
 
 ### TEST-EVENTDAYWORKBOOK-001 양방향 입력과 안전 경계
@@ -176,3 +184,4 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 | REQ-EVENTDAYWORKBOOK-013 | `event-day-workbook/Code.gs` | `tests/event-day-status.test.js` | verified |
 
 | REQ-EVENTDAYWORKBOOK-014 | `event-day-workbook/Code.gs` | `tests/event-day-numbering.test.js`, `tests/event-day-structure.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-015 | `event-day-workbook/Code.gs` | `tests/event-day-army-basis.test.js` | verified |

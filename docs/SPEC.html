@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="fad6ec307bcd5de37715c535b4667bfd311f826adfbe8442beec80fc32d5b413">
+<meta name="spec-source-sha256" content="87d7e4fa65a5a8f456f7cfa5f29130098772c68b3a81c006cfd16e72def75e77">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-29</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>51</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>38</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>27</b><span>verified</span></div></div>
+<div class="stats"><div class="stat"><b>52</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>38</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>27</b><span>verified</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -210,6 +210,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-012">REQ-EVENTDAYWORKBOOK-012 <span>입력 실수와 동시 편집 보호</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-013">REQ-EVENTDAYWORKBOOK-013 <span>오류·충돌의 눈에 보이는 안내</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014 <span>명단 행 추가·삭제의 자동 반영</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-EVENTDAYWORKBOOK-015">REQ-EVENTDAYWORKBOOK-015 <span>군별 명단 기준의 일회 정리</span></a></li>
 <li class="toc-2"><a href="#doc-event-day-workbook-sec-11">11. 테스트 사양</a></li>
 <li class="toc-id kind-test"><a href="#TEST-EVENTDAYWORKBOOK-001">TEST-EVENTDAYWORKBOOK-001 <span>양방향 입력과 안전 경계</span></a></li>
 <li class="toc-id kind-test"><a href="#TEST-EVENTDAYWORKBOOK-002">TEST-EVENTDAYWORKBOOK-002 <span>동시 입력과 중단 경계</span></a></li>
@@ -304,6 +305,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-012">REQ-EVENTDAYWORKBOOK-012</a></td><td data-label="이름">입력 실수와 동시 편집 보호</td><td data-label="상태"></td><td data-label="구현"></td><td data-label="테스트"></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-013">REQ-EVENTDAYWORKBOOK-013</a></td><td data-label="이름">오류·충돌의 눈에 보이는 안내</td><td data-label="상태"></td><td data-label="구현"></td><td data-label="테스트"></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a></td><td data-label="이름">명단 행 추가·삭제의 자동 반영</td><td data-label="상태"></td><td data-label="구현"></td><td data-label="테스트"></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-015">REQ-EVENTDAYWORKBOOK-015</a></td><td data-label="이름">군별 명단 기준의 일회 정리</td><td data-label="상태"></td><td data-label="구현"></td><td data-label="테스트"></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">DIMODELOOKUP</span> 디모데 자동 로그인 조회</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-DIMODELOOKUP-001">REQ-DIMODELOOKUP-001</a></td><td data-label="이름">키체인 자동 로그인</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/dimode_lookup.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_dimode_lookup.py</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-DIMODELOOKUP-002">REQ-DIMODELOOKUP-002</a></td><td data-label="이름">읽기 전용 교인 검색</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/dimode_lookup.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_dimode_lookup.py</code></td></tr>
@@ -3133,6 +3135,21 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <li>명단의 데이터 행에 적용한다. 머리글·열·시트 탭 삭제처럼 입력 구역을 판별할 수 없는 변경은 사람 삭제로 추측하지 않고 확인이 필요하다고 알린다.</li>
 </ul>
 </section>
+<section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-015">
+<h3><span class="idtag">REQ-EVENTDAYWORKBOOK-015</span> 군별 명단 기준의 일회 정리</h3>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-11-01 군별 명단을 기준으로 전체 정리</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-015">REQ-EVENTDAYWORKBOOK-015</a>: 운영자가 요청한 시점의 군별 방문·등록 입력을 우선해 숨김 원본과 전체 명단을 맞춘다. 군별 본문은 보존하고 군에 없는 기록은 변경 이력을 남긴 뒤 전체에서 제외한다. 중단 후 같은 번호로 이어 처리하며, 동시 입력이 감지되면 다음 자동 확인에서 재시도한다.</li>
+</ul>
+</details>
+<ul>
+<li>운영자가 요청하면 현재 군별 방문·등록 입력을 우선해 전체 명단과 숨김 원본을 맞춘다. 방문·등록은 각각 처리하고 군별 입력 행을 합치거나 옮기지 않는다.</li>
+<li>군별 이름이 있는 각 행의 정보를 보존한다. 잘못 연결된 번호는 이름·전화·군·팀·예배가 맞는 기존 기록부터 연결하며, 대응하지 않으면 새 번호를 부여한다. 같은 사람처럼 보여도 서로 다른 군별 입력 행은 각각 남긴다.</li>
+<li>군별 명단에 없는 기존 원본은 취소 이력을 남기고 전체 명단에서 제외한다. 전체 명단의 정보 차이는 군별 값으로 맞춘다. 군별 본문은 쓰지 않는다.</li>
+<li>잠금 안에서 전체 범위를 읽고 입력이 그대로인지 다시 확인한다. 중간에 입력이 바뀌면 다시 읽어 이어 처리한다. 요청과 미완료 상태는 완료 때까지 남긴다.</li>
+<li>군별 연결번호를 먼저 저장해 중단 후에도 같은 번호로 이어 간다. 전체 명단 입력이 바뀌면 덮어쓰지 않고 다음 확인으로 넘긴다. 완료 후 기존 양방향 입력을 유지한다.</li>
+</ul>
+</section>
 </section>
 <section class="chapter" id="doc-event-day-workbook-sec-11">
 <h2>11. 테스트 사양</h2>
@@ -3171,7 +3188,8 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-011">REQ-EVENTDAYWORKBOOK-011</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-concurrency.test.js</code>, <code>tests/event-day-workbook.test.js</code> | verified |</p>
 <p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-012">REQ-EVENTDAYWORKBOOK-012</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-concurrency.test.js</code> | implemented |</p>
 <p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-013">REQ-EVENTDAYWORKBOOK-013</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-status.test.js</code> | verified |</p>
-<p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-numbering.test.js</code>, <code>tests/event-day-structure.test.js</code> | verified |</p>
+<p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-numbering.test.js</code>, <code>tests/event-day-structure.test.js</code> | verified |
+| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-015">REQ-EVENTDAYWORKBOOK-015</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-army-basis.test.js</code> | verified |</p>
 </section>
 <section class="chapter" id="doc-dimode-lookup">
 <h2>뉴액츠 새가족·교육 통합 자동화 — 디모데 자동 로그인 조회 기능 사양</h2>

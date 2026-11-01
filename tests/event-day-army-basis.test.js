@@ -1,0 +1,22 @@
+'use strict';
+// Validates: REQ-EVENTDAYWORKBOOK-015
+const assert=require('node:assert/strict');const {createFixture}=require('./helpers/event-day-memory.cjs');
+const f=createFixture();f.input('명군',3,3,[['군기준방문','여',30,'01077771001']]);f.input('신군',27,3,[['군기준등록','남',31,'01077771002']]);
+f.hold('busy');f.input('명군',3,7,'군주소우선');f.input('영군',3,3,[['신규대기','남',22,'01077771003']]);f.release();
+const bodies=JSON.stringify(f.groups.map(g=>f.sheets[g].getRange(1,2,100,12).getValues()));
+f.sheets['총 방문 새가족'].getRange(2,3).setValue('틀린총명단');
+assert.equal(typeof f.ctx.eventUseArmyAsBasis,'function');f.ctx.eventUseArmyAsBasis();
+assert.equal(JSON.stringify(f.groups.map(g=>f.sheets[g].getRange(1,2,100,12).getValues())),bodies,'군별 본문 보존');
+assert.equal(f.visible('총 방문 새가족').length,2);assert.equal(f.visible('총 등록 새가족',true).length,1);
+assert.equal(f.raw().find(r=>r[5]==='군기준방문')[10],'군주소우선');
+f.sheets['명군'].getRange(3,2,1,12).clearContent();f.ctx.eventUseArmyAsBasis();assert.equal(f.visible('총 방문 새가족').length,1,'군에서 없어진 카드 전체에서 제외');assert.ok(f.raw().find(r=>r[5]==='군기준방문')[21]);
+const size=f.raw().length;f.ctx.eventUseArmyAsBasis();assert.equal(f.raw().length,size,'재실행 중복 없음');
+console.log('군 기준 전체·원본 정리, 신규·방문등록 분리·본문 보존·제외 이력·반복 안전');
+const stop=createFixture();stop.hold('busy');stop.input('명군',3,3,[['중단신규','여',30,'01077771004']]);stop.release();let once=false;stop.setHook(e=>{if(!once&&e.kind==='write'&&e.phase==='after'&&e.sheet==='명군'&&e.col===29){once=true;throw Error('메타 뒤 중단');}});assert.throws(()=>stop.ctx.eventUseArmyAsBasis(),/메타 뒤 중단/);const staged=stop.sheets['명군'].data[2][28];stop.setHook(null);stop.repair();assert.equal(stop.raw().filter(r=>!r[21]).length,1);assert.equal(stop.raw()[0][0],staged,'메타 뒤 중단해도 같은 번호로 재개');
+const race=createFixture();race.input('명군',3,3,[['동시보존','여',30,'01077771005']]);let injected=false;race.setHook(e=>{if(!injected&&e.kind==='read'&&e.phase==='after'&&e.sheet==='명군'&&e.col===2){injected=true;race.sheets['명군'].data[2][6]='동시최신주소';}});assert.throws(()=>race.ctx.eventUseArmyAsBasis(),/군별 입력이 변경/);assert.equal(race.sheets['명군'].data[2][6],'동시최신주소');race.setHook(null);race.repair();assert.equal(race.raw()[0][10],'동시최신주소');
+console.log('군별 기준 정리 중단 후 번호 재사용·동시 입력 감지와 다음 실행 재개');
+const waiting=createFixture();waiting.props.EVENT_ARMY_BASIS_REQUEST='대기요청';let writes=0;waiting.setHook(e=>{if(e.kind==='write')writes++;});waiting.input('명군',3,3,'계속입력');assert.equal(writes,0,'짧은 편집 실행에서 전체 정리를 시작하지 않음');assert.equal(waiting.sheets['명군'].data[2][2],'계속입력');waiting.repair();assert.equal(waiting.visible('총 방문 새가족').length,1);assert.equal(waiting.ctx.EVENT_ARMY_BASIS_EXEC,false);
+console.log('정리 대기 중 편집은 보존하고 자동 실행이 전체 정리 수행');
+const structural=createFixture();structural.input('명군',3,3,[['군기준살림','여',30,'01077771006']]);structural.ctx.eventEnableStructureTracking();structural.sheets['총 방문 새가족'].deleteRows(2,1);structural.ctx.eventUseArmyAsBasis();assert.equal(structural.sheets['명군'].data[2][2],'군기준살림','총에서 삭제된 과거 구조를 군 기준 정리 전에 군에 전파하지 않음');assert.equal(structural.visible('총 방문 새가족').length,1);
+console.log('군별 기준 정리는 이전 전체 행 삭제보다 먼저 적용');
+const notes=createFixture();notes.input('명군',3,3,[['표시복구','여',30,'01077771007']]);notes.sheets['총 방문 새가족'].getRange(2,3).setNote('다른 입력 처리 대기: 자동으로 다시 반영합니다.');const nr=JSON.stringify(notes.raw());assert.equal(typeof notes.ctx.eventRefreshBasisNotes,'function');notes.ctx.eventRefreshBasisNotes();assert.equal(notes.sheets['총 방문 새가족'].getRange(2,3).getNotes()[0][0],'');assert.equal(JSON.stringify(notes.raw()),nr);
