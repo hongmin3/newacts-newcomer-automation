@@ -73,10 +73,11 @@
 ### REQ-EVENTDAYWORKBOOK-007 새로고침 없는 대기 입력 자동 반영
 
 1. 어느 명단에서든 편집이 시작되면 재처리가 필요하다는 표시를 저장한다. 다른 입력을 기다리다가 중단돼도 이 표시를 유지한다.
-2. 저장이 끝난 명단의 누락을 먼저 복구한다. 느린 입력은 한 번의 자동 확인에서 약 20초씩 처리한다. 저장번호가 없는 새 입력을 먼저 처리하고, 같은 종류는 마지막 시도 시각이 오래된 순서로 이어 간다. 처리하지 못한 편집 보관값은 완료 전까지 남긴다.
-3. 1분 간격의 자동 실행이 전체·군별 명단의 대기 입력을 처리하고 순번을 확인한다. 추가 입력이나 새로고침은 필요하지 않다.
-3. 다른 처리가 진행 중이거나 일시적으로 실패하면 완료로 표시하지 않고 다음 실행에서 다시 시도한다. 처리 도중 들어온 편집도 다음 확인 대상으로 남긴다.
-4. 편집 이벤트 자체가 누락된 경우를 위해 마지막 전체 확인 후 15분이 지나면 다시 명단을 확인한다. 대기가 없으면 매번 전체 명단을 쓰지 않는다.
+2. 일반 전체 확인은 저장이 끝난 명단의 누락을 먼저 복구한다. 느린 입력은 한 번의 자동 확인에서 약 20초씩 처리한다. 저장번호가 없는 새 입력을 먼저 처리하고, 같은 종류는 마지막 시도 시각이 오래된 순서로 이어 간다. 시도 시각이 같으면 처음 발견한 순서를 유지한다. 처리하지 못한 편집 보관값은 완료 전까지 남긴다.
+3. 운영자가 신규 입력 복구를 요청하면 잠금을 얻기 전에 요청을 저장한다. 잠금을 얻지 못해도 다음 자동 실행이 같은 잠금 안에서 신규 입력부터 처리한다. 남은 입력은 다음 회차로 이어 가며, 처리 중 새로 들어온 복구 요청은 지우지 않는다.
+4. 1분 간격의 자동 실행이 전체·군별 명단의 대기 입력을 처리하고 순번을 확인한다. 추가 입력이나 새로고침은 필요하지 않다.
+5. 다른 처리가 진행 중이거나 일시적으로 실패하면 완료로 표시하지 않고 다음 실행에서 다시 시도한다. 처리 도중 들어온 편집도 다음 확인 대상으로 남긴다.
+6. 편집 이벤트 자체가 누락된 경우를 위해 마지막 전체 확인 후 15분이 지나면 다시 명단을 확인한다. 대기가 없으면 매번 전체 명단을 쓰지 않는다.
 
 - 같은 카드를 중복 추가하지 않고 REQ-EVENTDAYWORKBOOK-004의 입력 보존·충돌 안내를 적용한다. 잘못된 입력과 같은 칸의 충돌은 확인이 필요하다.
 - 이 행사 시트에만 자동 실행을 하나 설치한다. 기존 등록·교육·메일 자동화의 실행 조건은 바꾸지 않는다.
@@ -159,7 +160,7 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 | REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-counts.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-sync.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-sync.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js`, `tests/event-day-group-move.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-008 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-009 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-concurrency.test.js`, `tests/event-day-workbook.test.js` | verified |

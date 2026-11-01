@@ -243,6 +243,13 @@ function eventEditInternal_(e) {
 }
 function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
+    var urgentProps=PropertiesService.getScriptProperties(),urgent=urgentProps.getProperty('EVENT_UNSAVED_REQUEST');
+    if(urgent){
+      var urgentResult=eventDrainUnsaved_(ss,20000);
+      if(urgentResult.complete&&urgentProps.getProperty('EVENT_UNSAVED_REQUEST')===urgent)urgentProps.deleteProperty('EVENT_UNSAVED_REQUEST');
+      urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
+      return false;
+    }
     eventSeparateCards_(ss);
     // 군 수정은 전체 화면 복구보다 먼저 저장한다. 느린 전체 확인에 밀리지 않는다.
     if(eventPendingGroupMoves_(ss,background)){eventPlainLabels_(ss,true);return false;}
@@ -260,8 +267,13 @@ function eventRepair(silent,background) {
       if(!cols.length)return;
       jobs.push({name:name,row:i+2,cols:cols,fresh:!row[0],key:name+'|'+(row[0]||('row:'+(i+2)))});
     });});
-    jobs.forEach(function(job){job.last=Number(props.getProperty('EVENT_REPAIR_AT_'+job.key)||0);});
-    jobs.sort(function(a,b){return Number(!a.fresh)-Number(!b.fresh)||a.last-b.last;});
+    var waitingKeys={};
+    jobs.forEach(function(job){
+      job.last=Number(props.getProperty('EVENT_REPAIR_AT_'+job.key)||0);job.first=0;
+      if(job.fresh){var key='EVENT_REPAIR_SEEN_'+job.key;waitingKeys[key]=true;job.first=Number(props.getProperty(key)||0)||Date.now();props.setProperty(key,String(job.first));}
+    });
+    Object.keys(props.getProperties()).forEach(function(key){if(key.indexOf('EVENT_REPAIR_SEEN_')===0&&!waitingKeys[key])props.deleteProperty(key);});
+    jobs.sort(function(a,b){return Number(!a.fresh)-Number(!b.fresh)||a.last-b.last||a.first-b.first;});
     var started=Date.now(),processed=0;
     for(var step=0;step<jobs.length;step++){
       if(background&&processed&&Date.now()-started>=20000){complete=false;break;}
@@ -491,7 +503,7 @@ function eventAutoSync() {
   var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
   var done=props.getProperty('EVENT_SYNC_DONE');
   var last=Number(props.getProperty('EVENT_SYNC_LAST')||0);
-  if(done===generation&&Date.now()-last<15*60*1000&&props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10'&&props.getProperty('EVENT_REPAIR_REV')==='chunk-v1')return;
+  if(!props.getProperty('EVENT_UNSAVED_REQUEST')&&done===generation&&Date.now()-last<15*60*1000&&props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10'&&props.getProperty('EVENT_REPAIR_REV')==='chunk-v1')return;
   // 완료 표시는 처리한 세대만 남긴다. 처리 중 들어온 새 편집 표시를 지우지 않는다.
   if(eventRepair(true,true)){
     props.setProperty('EVENT_CAPACITY_REV','reserve5-add10');
@@ -663,18 +675,36 @@ function eventRepairOrphans_(ss,cache,records){
 }
 /** 운영 복구: 저장번호가 없는 입력만 먼저 연결한다. 기존 수정/충돌은 보존한다. */
 function eventImportUnsaved(){
- var real=SpreadsheetApp.getActive(),ss=eventPlainWrap_(real);
- return eventWithLock_(ss,function(){var started=Date.now(),complete=true,processed=0;
-  eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
-   if(row[0]||!eventText_(row[5]))return;
-   if(Date.now()-started>90000){complete=false;return;}
-   var fresh=sheet.getRange(i+2,1,1,22).getValues()[0];if(fresh[0]||!eventText_(fresh[5]))return;
-   var cols=[];for(var c=1;c<=17;c++)cols.push(c);
-   try{eventProcessRow_(ss,sheet,i+2,cols,undefined,false);processed++;}catch(err){sheet.getRange(i+2,19).setValue('입력 확인: '+err.message);}
-  });});
-  PropertiesService.getScriptProperties().setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
-  eventPlainLabels_(ss,true);console.log('신규 입력 우선 확인 '+processed+'건');return complete;
- },180000);
+ var props=PropertiesService.getScriptProperties(),request=Utilities.getUuid();
+ props.setProperty('EVENT_UNSAVED_REQUEST',request);props.setProperty('EVENT_SYNC_DIRTY',request);
+ var ss=eventPlainWrap_(SpreadsheetApp.getActive());
+ return eventWithLock_(ss,function(){
+  var result=eventDrainUnsaved_(ss,20000);
+  if(result.complete&&props.getProperty('EVENT_UNSAVED_REQUEST')===request)props.deleteProperty('EVENT_UNSAVED_REQUEST');
+  return result.complete;
+ },1000,true);
+}
+/** 신규 복구는 잠금을 얻은 실행 안에서 이어 간다. 속성에는 행 위치와 시각만 둔다. */
+function eventDrainUnsaved_(ss,budget){
+ var props=PropertiesService.getScriptProperties(),jobs=[],seen={},tick=Date.now();
+ eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
+  if(row[0]||!eventText_(row[5]))return;
+  var key='EVENT_UNSAVED_AT_'+name+'|'+(i+2),saved=props.getProperty(key),state=saved?JSON.parse(saved):{first:tick,last:0};
+  if(!saved)props.setProperty(key,JSON.stringify(state));seen[key]=true;jobs.push({name:name,row:i+2,key:key,state:state});
+ });});
+ Object.keys(props.getProperties()).forEach(function(key){if(key.indexOf('EVENT_UNSAVED_AT_')===0&&!seen[key])props.deleteProperty(key);});
+ jobs.sort(function(a,b){return a.state.last-b.state.last||a.state.first-b.state.first;});
+ var started=Date.now(),processed=0,complete=true,cols=[];for(var c=1;c<=17;c++)cols.push(c);
+ for(var i=0;i<jobs.length;i++){
+  if(processed&&Date.now()-started>=budget){complete=false;break;}
+  var job=jobs[i],sheet=ss.getSheetByName(job.name),fresh=sheet.getRange(job.row,1,1,22).getValues()[0];
+  if(fresh[0]||!eventText_(fresh[5])){props.deleteProperty(job.key);continue;}
+  job.state.last=Date.now();props.setProperty(job.key,JSON.stringify(job.state));processed++;
+  try{eventProcessRow_(ss,sheet,job.row,cols,undefined,false);}catch(err){sheet.getRange(job.row,19).setValue('입력 확인: '+err.message);}
+ }
+ if(processed)eventPlainLabels_(ss,true);
+ console.log('신규 입력 우선 확인 '+processed+'건'+(complete?'':' / 다음 자동 확인에서 계속'));
+ return {complete:complete,processed:processed};
 }
 
 /** 명단 행 구조와 관리번호를 기억한다. 이름·연락처는 속성에 저장하지 않는다. */

@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const file = path.join(__dirname, '../event-day-workbook/Code.gs');
 const earlyProperties={};
-const ctx = {console, Date, JSON, Math, Set, Map,PropertiesService:{getScriptProperties:()=>({getProperty:k=>earlyProperties[k]??null,setProperty:(k,v)=>{earlyProperties[k]=String(v);}})}};
+const ctx = {console, Date, JSON, Math, Set, Map,PropertiesService:{getScriptProperties:()=>({getProperties:()=>({...earlyProperties}),deleteProperty:k=>{delete earlyProperties[k];},getProperty:k=>earlyProperties[k]??null,setProperty:(k,v)=>{earlyProperties[k]=String(v);}})}};
 if (fs.existsSync(file)) vm.runInNewContext(fs.readFileSync(file, 'utf8'), ctx);
 // Validates: REQ-EVENTDAYWORKBOOK-001, REQ-EVENTDAYWORKBOOK-002, REQ-EVENTDAYWORKBOOK-003, REQ-EVENTDAYWORKBOOK-004, REQ-EVENTDAYWORKBOOK-005, TEST-EVENTDAYWORKBOOK-001
 assert.equal(typeof ctx.eventPlainMap_, 'function', '체크박스 없이 방문·등록 입력 영역을 구분해야 한다');
@@ -157,7 +157,7 @@ Range.prototype.setNote=function(v){this.sheet.notes??={};this.sheet.notes[`${th
 Range.prototype.clearNote=function(){this.sheet.notes??={};for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)delete this.sheet.notes[`${this.row+i},${this.col+j}`];return this;};
 Range.prototype.getNotes=function(){return Array.from({length:this.nr},(_,i)=>Array.from({length:this.nc},(_,j)=>this.sheet.notes?.[`${this.row+i},${this.col+j}`]||''));};
 const syncProperties={};
-ctx.PropertiesService={getScriptProperties:()=>({getProperty:k=>syncProperties[k]??null,setProperty(k,v){syncProperties[k]=String(v);return this;}})};
+ctx.PropertiesService={getScriptProperties:()=>({getProperties:()=>({...syncProperties}),deleteProperty:k=>{delete syncProperties[k];},getProperty:k=>syncProperties[k]??null,setProperty(k,v){syncProperties[k]=String(v);return this;}})};
 const plain={sheets:{},getSheetByName(n){return this.sheets[n];},getSheets(){return Object.values(this.sheets);},toast(){}};
 ctx.EVENT.groups.concat([ctx.EVENT.visitors,ctx.EVENT.registrations,ctx.EVENT.raw,ctx.EVENT.log,ctx.EVENT.conflicts]).forEach(n=>plain.sheets[n]=new Sheet(plain,n));
 plain.namedRanges={};plain.getRangeByName=n=>plain.namedRanges[n];plain.setNamedRange=(n,r)=>{plain.namedRanges[n]=r;};
