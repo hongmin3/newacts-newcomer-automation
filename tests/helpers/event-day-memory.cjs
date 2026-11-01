@@ -37,6 +37,7 @@ function createFixture(){
  const groups=['신군','조군','명군','총군','영군','석군','전군','임군','슬군','기타'];
  for(const [i,n]of ['총 방문 새가족','총 등록 새가족',...groups,'_원본','_변경기록','_충돌'].entries())sheets[n]=new Sheet(n,300+i);
  for(const n of ['총 방문 새가족','총 등록 새가족','_원본','_변경기록','_충돌'])sheets[n].data[0]=Array(22).fill('머리글');
+ for(const n of ['총 방문 새가족','총 등록 새가족'])sheets[n].data[0][2]='이름';
  for(const g of groups){const sh=sheets[g];sh.data[0]=['방문 명단'];sh.data[1]=['순번','','이름'];sh.data[22]=Array(10).fill('').concat(['계']);sh.data[24]=['등록 명단'];sh.data[25]=['순번','','이름'];sh.data[36]=Array(11).fill('').concat(['계']);named[`_EVENT_${sh.id}_VISIT`]=sh.getRange(3,1,20,12);named[`_EVENT_${sh.id}_REG`]=sh.getRange(27,1,10,13);}
  function as(who,fn){const prev=actor;actor=who;try{return fn();}finally{actor=prev;}}
  function trigger(n,r,c,nr=1,nc=1,who='editor-1'){return as(who,()=>ctx.onEdit({source:book,range:sheets[n].getRange(r,c,nr,nc)}));}
