@@ -694,15 +694,18 @@ function eventDrainUnsaved_(ss,budget){
  });});
  Object.keys(props.getProperties()).forEach(function(key){if(key.indexOf('EVENT_UNSAVED_AT_')===0&&!seen[key])props.deleteProperty(key);});
  jobs.sort(function(a,b){return a.state.last-b.state.last||a.state.first-b.state.first;});
- var started=Date.now(),processed=0,complete=true,cols=[];for(var c=1;c<=17;c++)cols.push(c);
+ var started=Date.now(),processed=0,complete=true,touched={},cols=[];for(var c=1;c<=17;c++)cols.push(c);
  for(var i=0;i<jobs.length;i++){
   if(processed&&Date.now()-started>=budget){complete=false;break;}
   var job=jobs[i],sheet=ss.getSheetByName(job.name),fresh=sheet.getRange(job.row,1,1,22).getValues()[0];
   if(fresh[0]||!eventText_(fresh[5])){props.deleteProperty(job.key);continue;}
   job.state.last=Date.now();props.setProperty(job.key,JSON.stringify(job.state));processed++;
+  var registered=eventRegisteredView_(job.name),target=eventStoredGroup_(fresh[2]||eventGroup_(job.name)||'기타');
+  touched[job.name]=true;touched[registered?EVENT.registrations:EVENT.visitors]=true;
+  if(EVENT.groups.indexOf(target)>=0)touched[eventGroupViews_(target)[registered?1:0]]=true;
   try{eventProcessRow_(ss,sheet,job.row,cols,undefined,false);}catch(err){sheet.getRange(job.row,19).setValue('입력 확인: '+err.message);}
  }
- if(processed)eventPlainLabels_(ss,true);
+ if(processed)eventPlainLabels_({labelNames:touched,getSheetByName:ss.getSheetByName},true);
  console.log('신규 입력 우선 확인 '+processed+'건'+(complete?'':' / 다음 자동 확인에서 계속'));
  return {complete:complete,processed:processed};
 }
