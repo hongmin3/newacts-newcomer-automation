@@ -166,7 +166,7 @@ assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][
 assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'');
 assert.equal(ps.getRange(3,3).getValues()[0][0],'');
 assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][13],false);assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][14],true);
-ps.getRange(27,3).setValue('');ctx.onEdit({source:plain,range:ps.getRange(27,3)});
+ps.getRange(27,1,1,13).clearContent();ctx.onEdit({source:plain,range:ps.getRange(27,1,1,13)});
 assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][0],'');
 assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'');
 assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][21],true);
@@ -174,11 +174,11 @@ const visitor=plain.sheets[ctx.EVENT.visitors];visitor.getRange(2,3).setValue(''
 assert.equal(ps.getRange(3,3).getValues()[0][0],'');
 assert.ok(!fs.readFileSync(file,'utf8').includes('.createMenu('),'추가 메뉴를 만들지 않는다');
 assert.ok(!layout.build().some(r=>r.addTable),'표 버튼은 만들지 않는다');
-console.log('단순 명단 실제 열 배치: 군 등록 입력→전체 등록만 반영, 이름 비우기→전체 삭제 통과');
+console.log('단순 명단 실제 열 배치: 군 등록 입력→전체 등록만 반영, 명단 내용 비우기→같은 카드 삭제 통과');
 // 편집 이벤트가 빠진 이름 비우기도 다시 열 때 등록 해제로 처리한다.
 ps.getRange(29,3,1,4).setValues([['다시열기시험','여',31,'01000000005']]);ctx.onEdit({source:plain,range:ps.getRange(29,3,1,4)});
-ps.getRange(29,3).setValue('');ctx.eventRepair(true);
-assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='다시열기시험')[21],true,'대기 중인 이름 비우기는 다시 열 때도 처리해야 한다');
+ps.getRange(29,1,1,13).clearContent();ctx.eventRepair(true);
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='다시열기시험')[21],true,'대기 중인 명단 내용 비우기는 다시 열 때도 처리해야 한다');
 
 // 방문 칸이 차면 등록 구역을 유지하며 다섯 줄을 더한다.
 Range.prototype.copyFormatToRange=function(){};

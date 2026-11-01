@@ -14,15 +14,15 @@ const person=(name,phone)=>[[name,'여',30,phone]];
 test('같은 사람의 방문·등록을 각각 세고 수정·삭제는 독립 처리',()=>{
  for(const deleted of [false,true]){const f=createFixture(),notices=[];f.book.toast=m=>notices.push(m);f.input('명군',3,3,person('별개카드','01011110101'));f.input('명군',27,3,person('별개카드','01011110101'));f.repair();
  assert.ok(notices.some(m=>m.includes('각각')),'양쪽 카드 입력 안내');assert.equal(f.raw().filter(r=>!r[21]).length,2,'카드별 기록 번호');assert.notEqual(f.visible('명군')[0].id,f.visible('명군',true)[0].id);assert.match(f.visible('명군')[0].note,/방문·등록 각각 입력됨/);assert.match(f.visible('명군',true)[0].note,/방문·등록 각각 입력됨/);
- f.input('명군',27,7,'등록주소');assert.equal(f.visible('명군')[0].values[6],'');f.input('명군',deleted?27:3,3,'');f.repair();assert.equal(f.visible('총 방문 새가족').length,deleted?1:0);assert.equal(f.visible('총 등록 새가족',true).length,deleted?0:1);verify(f);}
+ f.input('명군',27,7,'등록주소');assert.equal(f.visible('명군')[0].values[6],'');f.input('명군',deleted?27:3,1,[Array(13).fill('')]);f.repair();assert.equal(f.visible('총 방문 새가족').length,deleted?1:0);assert.equal(f.visible('총 등록 새가족',true).length,deleted?0:1);verify(f);}
 });
 test('방문 군 이동과 등록경로는 서로 다른 카드에 전파하지 않는다',()=>{const f=createFixture();f.input('명군',3,3,person('이동별개카드','01011110103'));f.input('명군',27,3,person('이동별개카드','01011110103'));f.input('총 방문 새가족',2,9,'조');f.input('명군',27,13,'관계');assert.equal(f.visible('명군').length,0);assert.equal(f.visible('조군').length,1);assert.equal(f.visible('명군',true).length,1);assert.equal(f.raw().find(r=>r[13])[16],'');assert.equal(f.raw().find(r=>r[14])[16],'관계');verify(f);});
 function legacyCards(){const f=createFixture();f.input('명군',3,3,person('기존합침카드','01011110102'));const legacy=f.raw()[0];legacy[14]=true;f.sheets['_원본'].getRange(2,1,1,22).setValues([legacy]);const wrapped=f.ctx.eventPlainWrap_(f.book);f.ctx.eventProject_(wrapped,legacy,'','*');f.ctx.eventPlainLabels_(wrapped);f.hold('busy');f.input('명군',27,7,'분리중대기주소');f.release();return f;}
 test('기존 방문·등록 카드 분리는 대기 입력과 각 인원수를 보존',()=>{const f=legacyCards();f.repair();assert.equal(f.raw().filter(r=>!r[21]).length,2);assert.notEqual(f.visible('명군')[0].id,f.visible('명군',true)[0].id);assert.equal(f.visible('명군',true)[0].values[6],'분리중대기주소');assert.equal(f.visible('명군')[0].values[6],'');assert.ok(f.raw().every(r=>!(r[13]&&r[14])));verify(f);});
-test('기존에 묶인 카드의 방문 이름을 비워도 등록 카드 보존',()=>{const f=legacyCards();f.hold('busy');f.input('총 방문 새가족',2,3,'');f.release();f.repair();assert.equal(f.visible('총 방문 새가족').length,0);assert.equal(f.visible('총 등록 새가족',true).length,1);assert.equal(f.visible('명군',true)[0].values[6],'분리중대기주소');verify(f);});
+test('기존에 묶인 카드의 방문 내용을 비워도 등록 카드 보존',()=>{const f=legacyCards();f.hold('busy');f.input('총 방문 새가족',2,1,[Array(13).fill('')]);f.release();f.repair();assert.equal(f.visible('총 방문 새가족').length,0);assert.equal(f.visible('총 등록 새가족',true).length,1);assert.equal(f.visible('명군',true)[0].values[6],'분리중대기주소');verify(f);});
 test('기존 카드 분리의 모든 쓰기 전후 중단도 두 카드로 복구',()=>{const probe=legacyCards();let count=0;probe.setHook(e=>{if(e.kind==='write'&&e.phase==='before')count++;});probe.repair();let checked=0;for(const phase of ['before','after'])for(let at=1;at<=count;at++){const f=legacyCards();let seen=0,fired=false;f.setHook(e=>{if(!fired&&e.kind==='write'&&e.phase===phase&&++seen===at){fired=true;throw Error('분리 경계 중단');}});try{f.repair();}catch(_){}f.setHook(null);f.repair();f.advance(16*60000);f.repair();assert.ok(fired,'분리 중단 도달');assert.equal(f.raw().filter(r=>!r[21]).length,2,phase+' '+at);assert.equal(f.visible('명군',true)[0].values[6],'분리중대기주소');assert.ok(f.raw().every(r=>!(r[13]&&r[14])));verify(f);checked++;}assert.ok(checked>0);console.log('  기존 카드 분리 중단 경계 '+checked+'개 검사');});
 test('등록 단독 입력은 방문 명단을 만들지 않는다',()=>{for(const name of ['총 등록 새가족','명군']){const f=createFixture();f.input(name,name==='명군'?27:2,3,person('등록전용','01011110000'));assert.equal(f.visible('총 방문 새가족').length,0);assert.equal(f.visible('명군').length,0);assert.equal(f.raw().filter(r=>!r[21]&&r[14]).length,1);verify(f);}});
-test('이름 비우기가 같은 종류의 전체·군별 카드 삭제로 전파',()=>{for(const name of ['총 방문 새가족','명군']){const f=createFixture(),r=name==='명군'?3:2;f.input(name,r,3,person('방문삭제','01011110001'));f.input(name,r,3,'');assert.equal(f.raw().filter(r=>!r[21]).length,0);verify(f);}for(const name of ['총 등록 새가족','명군']){const f=createFixture(),r=name==='명군'?27:2;f.input(name,r,3,person('등록해제','01011110002'));f.input(name,r,3,'');assert.equal(f.raw().filter(r=>!r[21]).length,0);verify(f);}});
+test('명단 내용 비우기가 같은 종류의 전체·군별 카드 삭제로 전파',()=>{for(const name of ['총 방문 새가족','명군']){const f=createFixture(),r=name==='명군'?3:2;f.input(name,r,3,person('방문삭제','01011110001'));f.input(name,r,1,[Array(13).fill('')]);assert.equal(f.raw().filter(r=>!r[21]).length,0);verify(f);}for(const name of ['총 등록 새가족','명군']){const f=createFixture(),r=name==='명군'?27:2;f.input(name,r,3,person('등록해제','01011110002'));f.input(name,r,1,[Array(13).fill('')]);assert.equal(f.raw().filter(r=>!r[21]).length,0);verify(f);}});
 test('10개 군의 편집 이벤트가 모두 대기해도 추가 편집 없이 40명 연결',()=>{const f=createFixture();f.hold('long-running');for(const [i,g]of f.groups.entries()){f.input(g,3,3,[['방문'+i+'가','남',20,'010'+String(10000000+i*4)],['방문'+i+'나','여',21,'010'+String(10000001+i*4)]],'visitor-'+i);f.input(g,27,3,[['등록'+i+'가','남',22,'010'+String(10000002+i*4)],['등록'+i+'나','여',23,'010'+String(10000003+i*4)]],'registration-'+i);}assert.equal(f.raw().length,0);assert.equal(f.stats.lockDenied,20);f.release();f.repair();assert.equal(f.raw().filter(r=>!r[21]).length,40);assert.equal(f.visible('총 등록 새가족',true).length,20);verify(f);});
 test('같은 사람의 서로 다른 칸 동시 수정은 함께 반영',()=>{const f=createFixture();f.input('명군',27,3,person('동시수정','01011110003'));f.hold('busy');f.input('명군',27,10,'새팀','editor-2');f.input('총 등록 새가족',2,7,'새주소','editor-3');f.release();f.repair();const r=f.raw().find(r=>!r[21]);assert.equal(r[3],'새팀');assert.equal(r[10],'새주소');verify(f);});
 test('같은 칸 동시 수정은 충돌 표시와 양쪽 값 보존',()=>{const f=createFixture();f.input('명군',27,3,person('동시충돌','01011110004'));f.hold('busy');f.input('명군',27,10,'둘째팀','editor-2');f.input('총 등록 새가족',2,10,'첫째팀','editor-3');f.release();f.repair();const r=f.raw().find(r=>!r[21]);assert.equal(r[3],'첫째팀');assert.equal(f.visible('명군',true)[0].values[9],'둘째팀');assert.match(f.visible('명군',true)[0].note,/충돌:/);});
@@ -42,11 +42,11 @@ test('신규 입력의 모든 쓰기 전후 중단 후 무전화 인물 한 명�
 });
 test('방문 삭제의 모든 쓰기 전후 중단 후 전체·군에서 제거',()=>{
  function setup(){const f=createFixture();f.input('명군',3,3,person('삭제중단','01011110009'));return f;}
- const probe=setup();let writes=0;probe.setHook(e=>{if(e.kind==='write'&&e.phase==='before')writes++;});probe.input('명군',3,3,'');
+ const probe=setup();let writes=0;probe.setHook(e=>{if(e.kind==='write'&&e.phase==='before')writes++;});probe.input('명군',3,1,[Array(13).fill('')]);
  let examined=0;
  for(const phase of ['before','after'])for(let at=1;at<=writes;at++){
   const f=setup();let seen=0,fired=false;f.setHook(e=>{if(e.kind==='write'&&e.phase===phase&&++seen===at){fired=true;throw Error('삭제 경계 중단');}});
-  try{f.input('명군',3,3,'');}catch(_){}f.setHook(null);f.repair();f.repair();
+  try{f.input('명군',3,1,[Array(13).fill('')]);}catch(_){}f.setHook(null);f.repair();f.repair();
   assert.ok(fired);assert.equal(f.raw().filter(r=>!r[21]).length,0,phase+' '+at+' 삭제 복구');verify(f);examined++;
  }
  assert.ok(examined>0);console.log('  삭제 경계 '+examined+'개 검사');
@@ -92,7 +92,7 @@ test('서로 다른 50개 입력 순서에서 10군 병행 입력·삭제·군 �
   f.groups.forEach((g,i)=>{for(let j=0;j<4;j++){const registered=j>=2,name='시험'+i+'_'+j;expected.push(name);jobs.push({g,row:(registered?27:3)+(j%2),name,phone:'010'+String(40000000+i*4+j)});}});
   for(let i=jobs.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[jobs[i],jobs[j]]=[jobs[j],jobs[i]];}f.hold('busy');jobs.forEach((job,i)=>{f.input(job.g,job.row,3,person(job.name,job.phone),'user-'+i);if(i%9===8){f.release();f.repair();f.hold('busy');}});f.release();f.repair();verify(f);
   assert.deepEqual(f.raw().filter(r=>!r[21]).map(r=>r[5]).sort(),expected.sort(),'seed '+seed+' 인물');
-  f.hold('busy');for(const job of jobs.slice(0,10)){const registered=job.row>=27,entry=f.visible(job.g,registered).find(r=>r.values[2]===job.name);f.input(job.g,entry.row,3,'','delete-'+job.name);expected.splice(expected.indexOf(job.name),1);}f.release();f.repair();verify(f);
+  f.hold('busy');for(const job of jobs.slice(0,10)){const registered=job.row>=27,entry=f.visible(job.g,registered).find(r=>r.values[2]===job.name);f.input(job.g,entry.row,1,[Array(13).fill('')],'delete-'+job.name);expected.splice(expected.indexOf(job.name),1);}f.release();f.repair();verify(f);
   assert.deepEqual(f.raw().filter(r=>!r[21]).map(r=>r[5]).sort(),expected.sort(),'seed '+seed+' 삭제');
   const move=f.visible('총 방문 새가족')[0];if(move){f.input('총 방문 새가족',move.row,9,'임');verify(f);}cases+=40;
  }
@@ -111,7 +111,7 @@ test('전화번호 없는 동명이인은 임의로 합치지 않는다',()=>{
 });
 test('방문 삭제와 등록 수정이 겹쳐도 등록 카드와 수정값 유지',()=>{
  const f=createFixture();f.input('명군',3,3,person('삭제동시','01011110013'));f.input('명군',27,3,person('삭제동시','01011110013'));
- f.hold('busy');f.input('총 방문 새가족',2,3,'','first');f.input('명군',27,7,'삭제중대기주소','second');f.release();f.repair();assert.equal(f.raw().filter(r=>!r[21]).length,1);assert.equal(f.visible('총 방문 새가족').length,0);assert.equal(f.visible('총 등록 새가족',true)[0].values[6],'삭제중대기주소');verify(f);
+ f.hold('busy');f.input('총 방문 새가족',2,1,[Array(13).fill('')],'first');f.input('명군',27,7,'삭제중대기주소','second');f.release();f.repair();assert.equal(f.raw().filter(r=>!r[21]).length,1);assert.equal(f.visible('총 방문 새가족').length,0);assert.equal(f.visible('총 등록 새가족',true)[0].values[6],'삭제중대기주소');verify(f);
 });
 
 
@@ -122,4 +122,10 @@ test('이전 군 이동 확인 대기 행을 새 번호로 분리해 양쪽 소�
  assert.match(f.visible('명군')[0].note,/군 변경 전 입력 확인/);
  f.repair();const records=f.raw().filter(r=>!r[21]);assert.equal(records.length,2);assert.deepEqual(records.map(r=>r[2]).sort(),['명군','석군']);assert.notEqual(f.visible('명군')[0].id,f.visible('석군')[0].id);assert.ok(records.some(r=>r[3]==='주전'));assert.match(f.visible('명군')[0].note,/동일인 중복/);assert.match(f.visible('석군')[0].note,/동일인 중복/);verify(f);
 });
+
+
+test('등록 범위를 넘는 12행 붙여넣기도 모두 저장',()=>{const f=createFixture();f.input('명군',27,3,Array.from({length:12},(_,i)=>['일괄'+i,'여',30,'0105555'+String(1000+i)]));f.repair();assert.equal(f.raw().filter(r=>!r[21]).length,12);verify(f);});
+test('이름만 비우고 다시 입력하면 연락처 유지',()=>{const f=createFixture();f.input('명군',3,3,person('수정전','01055551000'));f.input('명군',3,3,'');assert.equal(f.raw().filter(r=>!r[21]).length,1);f.input('명군',3,3,'수정후');assert.equal(f.raw().find(r=>!r[21])[9],'010-5555-1000');});
+test('화면 쓰기 직전 다른 담당자의 같은 칸 편집은 복구 또는 충돌로 보존',()=>{const f=createFixture();f.input('명군',3,3,person('동시경계','01055551001'));f.repair();let injected=false;f.setHook(e=>{if(!injected&&e.kind==='write'&&e.phase==='before'&&e.sheet==='명군'&&e.row===3&&e.col===7){injected=true;f.setHook(null);f.input('명군',3,7,'나중입력','second');}});f.input('총 방문 새가족',2,7,'먼저입력');f.setHook(null);f.repair();assert.ok(injected);assert.equal(f.visible('명군')[0].values[6],'나중입력');assert.ok(f.raw()[0][10]==='나중입력'||/충돌/.test(f.visible('명군')[0].note));});
+
 console.log('동시 입력·삭제 '+passed+'개 시나리오 통과');
