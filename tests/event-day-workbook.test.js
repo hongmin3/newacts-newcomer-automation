@@ -185,17 +185,17 @@ Range.prototype.copyFormatToRange=function(){};
 Sheet.prototype.insertRowsBefore=function(at,count){this.data.splice(at-1,0,...Array.from({length:count},()=>[]));for(const r of Object.values(this.ss.namedRanges||{})){if(r.sheet!==this)continue;if(r.row>=at)r.row+=count;else if(r.getLastRow()>=at)r.nr+=count;}this.max+=count;};
 const wrapped=ctx.eventPlainWrap_(plain),fullMap=wrapped.getSheetByName('신군::방문');const oldRegRow=plain.getRangeByName('_EVENT_310_REG').getRow();
 fullMap.insertRowsAfter(fullMap.getMaxRows(),100);
-assert.equal(plain.getRangeByName('_EVENT_310_VISIT').getNumRows(),25);assert.equal(plain.getRangeByName('_EVENT_310_REG').getRow(),oldRegRow+5);
+assert.equal(plain.getRangeByName('_EVENT_310_VISIT').getNumRows(),30);assert.equal(plain.getRangeByName('_EVENT_310_REG').getRow(),oldRegRow+10);
 // 군별 마지막 방문 칸 다음 행에 직접 적어도 구역을 먼저 확장한다.
 const beforeDirect=plain.getRangeByName('_EVENT_310_VISIT'),nextRow=beforeDirect.getLastRow()+1,regBeforeDirect=plain.getRangeByName('_EVENT_310_REG').getRow();
 ps.getRange(nextRow,3,1,4).setValues([['직접초과시험','남',32,'01000000002']]);ctx.onEdit({source:plain,range:ps.getRange(nextRow,3,1,4)});
-assert.equal(plain.getRangeByName('_EVENT_310_VISIT').getNumRows(),30,'마지막 칸 다음 직접 입력도 다섯 줄 늘려야 한다');
-assert.equal(plain.getRangeByName('_EVENT_310_REG').getRow(),regBeforeDirect+5);
+assert.equal(plain.getRangeByName('_EVENT_310_VISIT').getNumRows(),40,'마지막 칸 다음 직접 입력도 다섯 줄 늘려야 한다');
+assert.equal(plain.getRangeByName('_EVENT_310_REG').getRow(),regBeforeDirect+10);
 assert.ok(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).some(r=>r[5]==='직접초과시험'));
 // 등록 구역 마지막 다음 행에 직접 적어도 방문 자동 추가와 등록 구역 확장이 함께 된다.
 const regRange=plain.getRangeByName('_EVENT_310_REG'),regNext=regRange.getLastRow()+1,oldRegSize=regRange.getNumRows();
 ps.getRange(regNext,3,1,4).setValues([['등록초과시험','여',33,'01000000001']]);ctx.onEdit({source:plain,range:ps.getRange(regNext,3,1,4)});
-assert.equal(plain.getRangeByName('_EVENT_310_REG').getNumRows(),oldRegSize+5);
+assert.equal(plain.getRangeByName('_EVENT_310_REG').getNumRows(),oldRegSize+10);
 const regOverflowRecord=ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='등록초과시험');assert.equal(regOverflowRecord[13],false);assert.equal(regOverflowRecord[14],true);
 
 // Validates: REQ-EVENTDAYWORKBOOK-006. 순번만 수정, 중간 빈칸, 등록의 순 보존.

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="402d1964ef0d715d34d1e8776e36893beea3292a5c1f404b091bb695e7ab7f50">
+<meta name="spec-source-sha256" content="ff13ab4a0b85f9d4dc3a1a750ec501c00ed6124ba355460beb7c4535a35bb094">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -2948,8 +2948,9 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-005">
 <h3><span class="idtag">REQ-EVENTDAYWORKBOOK-005</span> 기존 양식처럼 단순한 명단</h3>
 <div class="card-meta"><span class="badge st-verified">verified</span><span class="meta"><b>구현</b> <code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></span><span class="meta"><b>테스트</b> <code>tests/event-day-workbook.test.js</code></span></div>
-<details class="history"><summary>변경 이력 1</summary>
+<details class="history"><summary>변경 이력 2</summary>
 <ul>
+<li><span class="hist">2026-11-01 군별 입력 칸 미리 확보</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-005">REQ-EVENTDAYWORKBOOK-005</a>: 각 군의 방문·등록 구역 끝에 빈칸이 5개 이하로 남으면 10칸을 미리 추가한다. 방문 확장 때 등록 구역과 입력 연결을 함께 이동한다. 배포 후 첫 자동 확인에서 이미 찬 구역도 확인한다.</li>
 <li><span class="hist">2026-10-25 행축 당일 방문·등록 명단</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-005">REQ-EVENTDAYWORKBOOK-005</a>: 원본의 파란 제목·빨간 열 제목·테두리를 가져와 방문 위·등록 아래로 배치했다. 처음 방문 20명·등록 10명분을 두고 필요할 때 5행을 더한다. 비율·체크박스·결신·표 버튼·추가 메뉴와 별도 현황판은 제거했다.</li>
 </ul>
 </details>
@@ -2957,7 +2958,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <li>입력 열은 순번·예배(부)·이름·성별·나이(생년월일)·휴대폰·주소·전도자·군·팀·순·비고다. <span class="term" title="등록 스프레드시트에 있는 새가족 등록 명단 시트다" tabindex="0">등록 명단</span>만 등록경로를 더한다.</li>
 <li>전체 명단은 1행 머리글, 2행부터 입력한다. 군별 탭은 원본의 파란 제목·빨간 열 제목·검은 테두리를 쓴다.</li>
 <li>군별 방문은 1행 제목·2행 열 제목·3~22행 입력·23행 계다. 등록은 25행 제목·26행 열 제목·27~36행 입력·37행 계다.</li>
-<li>방문은 처음 20명, 등록은 10명분을 가까이 배치한다. 자동 반영할 빈칸이 부족하거나 마지막 입력 칸의 다음 행에 직접 입력하면 5행을 더하고 아래쪽 등록 구역을 함께 옮긴다. 사람이 행을 더해도 이름이 지정된 입력 범위로 구역을 구분한다.</li>
+<li>방문은 처음 20명, 등록은 10명분을 가까이 배치한다. 끝의 빈칸이 5개 이하로 남거나 입력 범위를 넘으면 10행씩 더하고 아래쪽 등록 구역을 함께 옮긴다. 사람이 행을 더해도 이름이 지정된 입력 범위로 구역을 구분한다.</li>
 <li>체크박스·결신 열·등록 비율·테이블 버튼·사용자 메뉴·별도 현황판은 표시하지 않는다. 등록경로는 <a class="idref" href="#REQ-EVENTDAYWORKBOOK-009">REQ-EVENTDAYWORKBOOK-009</a>의 한 칸 선택형을 사용한다.</li>
 <li>내부 연결 정보와 오류 기록은 숨긴다. 화면에는 명단과 인원수만 남긴다.</li>
 </ul>

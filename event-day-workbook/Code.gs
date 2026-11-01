@@ -240,6 +240,7 @@ function eventEditInternal_(e) {
 }
 function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
+    eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});
     eventSeparateCards_(ss);
     var journal=eventReplayEdits_(ss),complete=true;
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
@@ -328,7 +329,7 @@ function eventPlainSheet_(physical,map,onResize) {
     else if(col===18)note(row,value);
     else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(col===2?eventDisplayGroup_(value):!map.registered&&col===4?'-':value);
   }
-  var sheet={plainMap:map,physical:physical,stageCreate:function(row,draft){eventWrite_(physical.getRange(row+map.offset,map.meta,1,2),[[draft[0],JSON.stringify(draft)]]);},refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;physical.insertRowsBefore(at,5);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+4);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+5,map.cols.length));onResize();},
+  var sheet={plainMap:map,physical:physical,stageCreate:function(row,draft){eventWrite_(physical.getRange(row+map.offset,map.meta,1,2),[[draft[0],JSON.stringify(draft)]]);},refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;var added=10;physical.insertRowsBefore(at,added);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+added-1);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+added,map.cols.length));onResize();},
     getActiveRange:function(){return {getRow:function(){return physical.getActiveRange().getRow()-map.offset;}};},
     getRange:function(row,col,nr,nc){nr=nr||1;nc=nc||1;return {
       getValues:function(){return readRows(row,nr).map(function(r){return r.slice(col-1,col-1+nc);});},
@@ -387,6 +388,7 @@ function onEdit(e) {
         physical.getRange(map.offset+map.limit+1,1,1,map.cols.length).clearContent().clearNote();eventPlainFooter_(physical,map);
       }
     }
+    if(eventRow>=map.offset+2&&eventRow<=map.offset+map.limit){eventEnsureCapacity_(sheet);eventPlainConfigure_(physical,map);}
     var columns=[];map.cols.forEach(function(c,i){var physicalCol=map.start+i;if(c>=0&&(map.registered||c!==4)&&physicalCol>=eventCol&&physicalCol<=eventColLast)columns.push(c);});
     if(!columns.length)return;
     // 마지막 이벤트의 칸뿐 아니라 같은 명단에서 먼저 대기한 입력도 반영한다.
@@ -409,6 +411,7 @@ function eventPlainLabels_(ss,onlyTouched,verifyRules) {
   (onlyTouched?Object.keys(ss.labelNames||{}):eventViews_()).forEach(function(name){
     var sheet=ss.getSheetByName(name),map=sheet.plainMap;
     if(!map)return;
+    eventEnsureCapacity_(sheet);
     eventDuplicateRule_(sheet,verifyRules);
     if(map.registered)eventRouteDropdown_(sheet,verifyRules);
     var physical=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
@@ -430,9 +433,10 @@ function eventAutoSync() {
   var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
   var done=props.getProperty('EVENT_SYNC_DONE');
   var last=Number(props.getProperty('EVENT_SYNC_LAST')||0);
-  if(done===generation&&Date.now()-last<15*60*1000)return;
+  if(done===generation&&Date.now()-last<15*60*1000&&props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10')return;
   // 완료 표시는 처리한 세대만 남긴다. 처리 중 들어온 새 편집 표시를 지우지 않는다.
   if(eventRepair(true,true)){
+    props.setProperty('EVENT_CAPACITY_REV','reserve5-add10');
     props.setProperty('EVENT_SYNC_DONE',generation);
     props.setProperty('EVENT_SYNC_LAST',String(Date.now()));
     console.log('행축 대기 입력 자동 확인 완료');
@@ -518,3 +522,14 @@ function eventReplayEdits_(ss){
     var base=eventBaseline_(item.values);if(base){base[x.col]=x.previous;sh.getRange(item.row,22).setValue(JSON.stringify(base));}
   });return keys;
 }
+
+function physicalLastName_(sheet){var m=sheet.plainMap;var end=m.offset+m.limit,n=Math.min(6,m.limit-1);return sheet.physical.getRange(end-n+1,3,n,1).getValues().some(function(r){return !!eventText_(r[0]);});}
+
+function eventEnsureCapacity_(sheet){
+  var m=sheet.plainMap;if(!m||!m.group||!physicalLastName_(sheet))return;
+  // 계 행에 아직 처리하지 않은 입력이 있으면 먼저 기존 초과 입력 경로에서 보존한다.
+  if(eventText_(sheet.physical.getRange(m.offset+m.limit+1,3).getValues()[0][0]))return;
+  sheet.insertRowsAfter(sheet.getMaxRows(),10);eventPlainFooter_(sheet.physical,m);
+}
+/** 입력이 몰릴 때 명단 전체 처리 전에 빈칸만 확보한다. */
+function eventExpandCapacity(){var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});},60000);}

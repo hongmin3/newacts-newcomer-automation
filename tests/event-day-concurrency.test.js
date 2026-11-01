@@ -79,7 +79,7 @@ test('전체 행 삭제로 숨김 연결 번호가 사라지면 삭제로 추측
 });
 test('등록 구역 확장 뒤 새 입력 칸까지 네 가지 선택 목록 유지',()=>{
  const f=createFixture();for(let i=0;i<12;i++){const row=f.book.getRangeByName('_EVENT_'+f.sheets['명군'].id+'_REG').getRow()+i;f.input('명군',row,3,person('확장'+i,'0103333'+String(1000+i)));}
- const region=f.book.getRangeByName('_EVENT_'+f.sheets['명군'].id+'_REG');assert.equal(region.nr,15);assert.deepEqual(f.sheets['명군'].validations[`${region.getLastRow()},13`].options,['직접방문','설문지','관계','교인인도']);assert.equal(f.visible('총 방문 새가족').length,0);verify(f);
+ const region=f.book.getRangeByName('_EVENT_'+f.sheets['명군'].id+'_REG');assert.ok(region.nr>=17);assert.deepEqual(f.sheets['명군'].validations[`${region.getLastRow()},13`].options,['직접방문','설문지','관계','교인인도']);assert.equal(f.visible('총 방문 새가족').length,0);verify(f);
 });
 test('화면·번호를 함께 저장해도 명단 밖 수식과 값 보존',()=>{
  const f=createFixture();f.sheets['총 방문 새가족'].getRange(2,20).setValue('=1+1');f.sheets['총 방문 새가족'].getRange(2,21).setValue('오른쪽 메모');f.input('명군',3,3,person('수식보존','01011110011'));assert.equal(f.sheets['총 방문 새가족'].getRange(2,20).getFormulas()[0][0],'=1+1');assert.equal(f.sheets['총 방문 새가족'].getRange(2,21).getValues()[0][0],'오른쪽 메모');verify(f);
@@ -127,5 +127,9 @@ test('이전 군 이동 확인 대기 행을 새 번호로 분리해 양쪽 소�
 test('등록 범위를 넘는 12행 붙여넣기도 모두 저장',()=>{const f=createFixture();f.input('명군',27,3,Array.from({length:12},(_,i)=>['일괄'+i,'여',30,'0105555'+String(1000+i)]));f.repair();assert.equal(f.raw().filter(r=>!r[21]).length,12);verify(f);});
 test('이름만 비우고 다시 입력하면 연락처 유지',()=>{const f=createFixture();f.input('명군',3,3,person('수정전','01055551000'));f.input('명군',3,3,'');assert.equal(f.raw().filter(r=>!r[21]).length,1);f.input('명군',3,3,'수정후');assert.equal(f.raw().find(r=>!r[21])[9],'010-5555-1000');});
 test('화면 쓰기 직전 다른 담당자의 같은 칸 편집은 복구 또는 충돌로 보존',()=>{const f=createFixture();f.input('명군',3,3,person('동시경계','01055551001'));f.repair();let injected=false;f.setHook(e=>{if(!injected&&e.kind==='write'&&e.phase==='before'&&e.sheet==='명군'&&e.row===3&&e.col===7){injected=true;f.setHook(null);f.input('명군',3,7,'나중입력','second');}});f.input('총 방문 새가족',2,7,'먼저입력');f.setHook(null);f.repair();assert.ok(injected);assert.equal(f.visible('명군')[0].values[6],'나중입력');assert.ok(f.raw()[0][10]==='나중입력'||/충돌/.test(f.visible('명군')[0].note));});
+
+
+test('군의 끝에 빈칸 5개가 남으면 계 행을 보존하며 10개 자동 확보',()=>{for(const registered of [false,true]){const f=createFixture(),sh=f.sheets['명군'],key='_EVENT_'+sh.id+'_'+(registered?'REG':'VISIT'),before=f.book.getRangeByName(key),n=before.nr;const row=before.getLastRow()-5;f.input('명군',row,3,[['마지막칸','여',30,'01055551234']]);assert.equal(f.book.getRangeByName(key).nr,n+10);assert.equal(f.raw().filter(r=>!r[21]).length,1);verify(f);}});
+test('명단 처리를 기다리는 동안에도 빈칸 확보만 먼저 실행 가능',()=>{const f=createFixture(),sh=f.sheets['명군'],key='_EVENT_'+sh.id+'_VISIT',r=f.book.getRangeByName(key);sh.getRange(r.getLastRow()-5,3).setValue('입력중');assert.equal(f.ctx.eventExpandCapacity(),true);assert.equal(f.book.getRangeByName(key).nr,30);assert.equal(sh.getRange(17,3).getValues()[0][0],'입력중');});
 
 console.log('동시 입력·삭제 '+passed+'개 시나리오 통과');
