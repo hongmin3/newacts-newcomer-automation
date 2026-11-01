@@ -121,3 +121,5 @@ function runStatusConflictSmoke(){
  edit(g,gr,10,'확인전팀');ok(g.getRange(gr,3).getFontColor()==='#000000','확인 후 기본색');
  console.log(JSON.stringify({status:'PASS',checks:checks,path:'충돌 두 값 보존·다른 칸 수정·확인 후 해제'}));
 }
+
+function runSyncRecoverySmoke(){var ss=SpreadsheetApp.getActive();if(ss.getName().indexOf('행축 자동화 검증 전용')!==0)throw Error('검증 전용');resetIsolatedIntegration();var r=ss.getSheetByName('명군').getRange(3,3,1,4);r.setValues([['연결복구가상','여',30,'01077771000']]);onEdit({source:ss,range:r});ss.getSheetByName(EVENT.visitors).getRange(2,1,1,32).clearContent();eventRepair(true,true);var rows=eventData_(eventPlainWrap_(ss).getSheetByName(EVENT.visitors)).filter(function(r){return r[0];});if(rows.length!==1||rows[0][5]!=='연결복구가상')throw Error('확정된 명단 복구 실패');console.log('SYNC_RECOVERY_PASS');}

@@ -4,7 +4,8 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const file = path.join(__dirname, '../event-day-workbook/Code.gs');
-const ctx = {console, Date, JSON, Math, Set, Map};
+const earlyProperties={};
+const ctx = {console, Date, JSON, Math, Set, Map,PropertiesService:{getScriptProperties:()=>({getProperty:k=>earlyProperties[k]??null,setProperty:(k,v)=>{earlyProperties[k]=String(v);}})}};
 if (fs.existsSync(file)) vm.runInNewContext(fs.readFileSync(file, 'utf8'), ctx);
 // Validates: REQ-EVENTDAYWORKBOOK-001, REQ-EVENTDAYWORKBOOK-002, REQ-EVENTDAYWORKBOOK-003, REQ-EVENTDAYWORKBOOK-004, REQ-EVENTDAYWORKBOOK-005, TEST-EVENTDAYWORKBOOK-001
 assert.equal(typeof ctx.eventPlainMap_, 'function', '체크박스 없이 방문·등록 입력 영역을 구분해야 한다');

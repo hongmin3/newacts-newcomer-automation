@@ -110,10 +110,11 @@ function eventProject_(ss,record,oldGroup,sourceName,cache) {
   names.forEach(function(name){
     var sheet=ss.getSheetByName(name);if(!sheet)throw new Error('필수 탭이 없습니다: '+name);
     var matches=cache?(cache[name].byId[record[0]]||[]):eventFind_(sheet,record[0]);
-    if(cache)matches=matches.map(function(item){return {row:item.row,values:sheet.getRange(item.row,1,1,EVENT.width).getValues()[0]};});
+    if(cache){matches=matches.map(function(item){return {row:item.row,values:sheet.getRange(item.row,1,1,EVENT.width).getValues()[0]};});if(matches.some(function(item){return item.values[0]!==record[0];}))matches=eventFind_(sheet,record[0]);}
     if(matches.length>1)throw new Error(name+': 관리번호가 복사되었습니다. 입력 내용을 확인해 주세요.');
     if(!eventMember_(record,name)){
       matches.forEach(function(item){
+        if(sheet.getRange(item.row,1).getValues()[0][0]!==record[0])return;
         if(eventHasDirty_(item.values)){if(record[21])eventAudit_(ss,'취소 전 대기 입력 보관',name,item.values,record,'화면에서 제외하기 전 입력값을 보관함');else {sheet.getRange(item.row,19).setValue('군 변경 전 입력 확인');return;}}
         sheet.getRange(item.row,1,1,EVENT.width).clearContent();
       });return;
@@ -127,12 +128,13 @@ function eventProject_(ss,record,oldGroup,sourceName,cache) {
     var p=eventProjection_(item.values,baseline,record);
     // 쓰기 직전 다시 읽어 중간에 입력된 값을 항목별로 보존한다.
     var fresh=sheet.getRange(item.row,1,1,EVENT.width).getValues()[0];
+    if(fresh[0]!==record[0])return;
     for(var c=1;c<=17;c++)if(!eventEqual_(fresh[c],item.values[c])){p.values[c]=fresh[c];p.baseline[c]=baseline[c];p.pending=true;}
     if(p.pending)p.values[18]='다른 입력 처리 대기: 자동으로 다시 반영합니다.';
     if(/^충돌:/.test(eventText_(fresh[18])))p.values[18]=fresh[18];
     p.values[21]=JSON.stringify(p.baseline.slice(0,21));
     // 입력 열은 실제로 갱신이 필요한 칸만 쓴다. 대기 중인 다른 칸은 쓰지 않는다.
-    for(var j=0;j<EVENT.width;j++)if(!eventEqual_(fresh[j],p.values[j]))eventWrite_(sheet.getRange(item.row,j+1,1,1),[[p.values[j]]]);
+    for(var j=0;j<EVENT.width;j++)if(!eventEqual_(fresh[j],p.values[j])){if(sheet.getRange(item.row,1).getValues()[0][0]!==record[0])return;eventWrite_(sheet.getRange(item.row,j+1,1,1),[[p.values[j]]]);}
   });
 }
 function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
@@ -243,7 +245,8 @@ function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
     eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});
     eventSeparateCards_(ss);
-    var journal=eventReplayEdits_(ss),complete=true;
+    var journal=eventReplayEdits_(ss),complete=true,jobs=[],props=PropertiesService.getScriptProperties();
+    eventRefreshProjections_(ss);
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
     eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
       row=eventSplitAssignmentPending_(ss,sheet,i+2,row);
@@ -253,16 +256,22 @@ function eventRepair(silent,background) {
       else if(base){for(var j=1;j<=17;j++)if(!eventEqual_(row[j],base[j]))cols.push(j);}
       if(!cols.length&&row[0]&&base&&Number(base[20])===0)cols.push(5);
       if(!cols.length)return;
-      try{if(sheet.plainMap&&row[0]&&!eventText_(row[5]))eventPlainClear_(ss,sheet,i+2,sheet.plainMap);else eventProcessRow_(ss,sheet,i+2,cols,undefined,false);}catch(err){complete=false;sheet.getRange(i+2,19).setValue('입력 확인: '+err.message);}
+      jobs.push({name:name,row:i+2,cols:cols});
     });});
+    var cursor=Number(props.getProperty('EVENT_REPAIR_CURSOR')||0),started=Date.now(),processed=0;
+    for(var step=0;step<jobs.length;step++){
+      if(background&&processed&&Date.now()-started>=20000){complete=false;break;}
+      var index=(cursor+step)%jobs.length,job=jobs[index],sheet=ss.getSheetByName(job.name);
+      props.setProperty('EVENT_REPAIR_CURSOR',String(index+1));processed++;
+      try{var fresh=sheet.getRange(job.row,1,1,22).getValues()[0];if(sheet.plainMap&&fresh[0]&&!eventText_(fresh[5]))eventPlainClear_(ss,sheet,job.row,sheet.plainMap);else eventProcessRow_(ss,sheet,job.row,job.cols,undefined,false);}catch(err){complete=false;sheet.getRange(job.row,19).setValue('입력 확인: '+err.message);}
+    }
     eventRefreshHealth_(ss);
-    var cache={};eventViews_().forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});cache[name]={byId:byId,nextRow:data.length+2};});
-    eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(row){var needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20])||base[18]!==row[18];});if(needs)eventProject_(ss,row,'','*',cache);});
+    eventRefreshProjections_(ss);
     eventPlainLabels_(ss,false,true);
     if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
     journal.forEach(function(k){PropertiesService.getScriptProperties().deleteProperty(k);});
     return complete;
-  },background?1:5000,!!background);
+  },background?15000:60000,!!background);
 }
 function eventSelected_(ss){var sheet=ss.getActiveSheet(),row=sheet.getActiveRange().getRow();if(!eventIsView_(sheet.getName())||row<2)throw new Error('명단에서 대상 행을 선택해 주세요.');var values=sheet.getRange(row,1,1,EVENT.width).getValues()[0];if(!values[0])throw new Error('자동 연결된 행을 선택해 주세요.');return {sheet:sheet,row:row,values:values};}
 function eventAcceptConflict(){var ss=SpreadsheetApp.getActive();eventWithLock_(ss,function(){var s=eventSelected_(ss),base=eventBaseline_(s.values),cols=[];if(!base)throw new Error('화면 비교값이 없습니다. 저장값 복원을 사용해 주세요.');for(var c=1;c<=17;c++)if(!eventEqual_(s.values[c],base[c]))cols.push(c);eventProcessRow_(ss,s.sheet,s.row,cols,undefined,true);eventResolveLog_(ss,s.values[0],'입력 적용');});}
@@ -313,6 +322,7 @@ function eventPlainMapForColumn_(name,col,row,physical){
 function eventPlainSheet_(physical,map,onResize) {
   eventPlainConfigure_(physical,map);
   function readRows(row,count){
+    if(map.group)eventPlainConfigure_(physical,map);
     var physicalRows=physical.getRange(row+map.offset,1,count,32).getValues(),notes=physical.getRange(row+map.offset,map.start+2,count,1).getNotes();
     var values=physicalRows.map(function(r){return r.slice(map.start-1,map.start-1+map.cols.length);}),metas=physicalRows.map(function(r){return r.slice(map.meta-1,map.meta+1);});
     return values.map(function(visible,index){var meta=metas[index],base;
@@ -324,13 +334,14 @@ function eventPlainSheet_(physical,map,onResize) {
   }
   function note(row,value){eventStatusNote_(physical.getRange(row+map.offset,map.start+2),value);}
   function write(row,col,value){
+    if(map.group)eventPlainConfigure_(physical,map);
     var i=map.cols.indexOf(col);
     if(col===0)physical.getRange(row+map.offset,map.meta).setValue(value);
     else if(col===21)physical.getRange(row+map.offset,map.meta+1).setValue(value);
     else if(col===18)note(row,value);
     else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(col===2?eventDisplayGroup_(value):!map.registered&&col===4?'-':value);
   }
-  var sheet={plainMap:map,physical:physical,stageCreate:function(row,draft){eventWrite_(physical.getRange(row+map.offset,map.meta,1,2),[[draft[0],JSON.stringify(draft)]]);},refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;var added=10;physical.insertRowsBefore(at,added);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+added-1);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+added,map.cols.length));onResize();},
+  var sheet={plainMap:map,physical:physical,stageCreate:function(row,draft){eventWrite_(physical.getRange(row+map.offset,map.meta,1,2),[[draft[0],JSON.stringify(draft)]]);},refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){if(map.group)eventPlainConfigure_(physical,map);return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;var added=10;physical.insertRowsBefore(at,added);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+added-1);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+added,map.cols.length));onResize();},
     getActiveRange:function(){return {getRow:function(){return physical.getActiveRange().getRow()-map.offset;}};},
     getRange:function(row,col,nr,nc){nr=nr||1;nc=nc||1;return {
       getValues:function(){return readRows(row,nr).map(function(r){return r.slice(col-1,col-1+nc);});},
@@ -439,10 +450,11 @@ function eventAutoSync() {
   var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
   var done=props.getProperty('EVENT_SYNC_DONE');
   var last=Number(props.getProperty('EVENT_SYNC_LAST')||0);
-  if(done===generation&&Date.now()-last<15*60*1000&&props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10')return;
+  if(done===generation&&Date.now()-last<15*60*1000&&props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10'&&props.getProperty('EVENT_REPAIR_REV')==='chunk-v1')return;
   // 완료 표시는 처리한 세대만 남긴다. 처리 중 들어온 새 편집 표시를 지우지 않는다.
   if(eventRepair(true,true)){
     props.setProperty('EVENT_CAPACITY_REV','reserve5-add10');
+    props.setProperty('EVENT_REPAIR_REV','chunk-v1');
     props.setProperty('EVENT_SYNC_DONE',generation);
     props.setProperty('EVENT_SYNC_LAST',String(Date.now()));
     console.log('행축 대기 입력 자동 확인 완료');
@@ -580,4 +592,31 @@ function eventRefreshStatusDisplay(){
     });
     PropertiesService.getScriptProperties().setProperty('EVENT_STATUS_REV','font-v1');
   },1,true);
+}
+
+function eventRefreshProjections_(ss){
+    var cache={};eventViews_().forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});cache[name]={byId:byId,nextRow:data.length+2};});
+    var rawRows=eventData_(ss.getSheetByName(EVENT.raw));rawRows.forEach(function(row){var needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20])||base[18]!==row[18];});if(needs)eventProject_(ss,row,'','*',cache);});
+    eventRepairOrphans_(ss,cache,rawRows);
+}
+
+/** 이전 구역 밖에 남은, 수정되지 않은 중복 화면만 이력과 함께 정리한다. */
+function eventRepairOrphans_(ss,cache,records){
+  var byId={};records.forEach(function(r){byId[r[0]]=r;});
+  EVENT.groups.forEach(function(g){var views=eventGroupViews_(g).map(function(n){return ss.getSheetByName(n);}),p=views[0].physical;if(!p)return;
+    var count=p.getLastRow()-1;if(count<1)return;
+    var data=p.getRange(2,1,count,32).getValues();
+    views.forEach(function(sh){var m=sh.plainMap;data.forEach(function(row,i){var physicalRow=i+2,id=row[m.meta-1],canonical=byId[id];
+      if(!canonical||canonical[21]||canonical[2]!==g||!canonical[m.registered?14:13])return;
+      if(physicalRow>=m.offset+2&&physicalRow<=m.offset+m.limit)return;
+      if(row[(m.registered?29:31)-1])return;
+      if(!(cache[m.name].byId[id]||[]).length)return;
+      var n=physicalRow-m.offset,before=sh.getRange(n,1,1,22).getValues()[0],base=eventBaseline_(before);if(!base||base[0]!==id)return;
+      var dirty=m.cols.some(function(c){return c>=0&&(m.registered||c!==4)&&!eventEqual_(before[c],base[c]);});
+      if(dirty){sh.getRange(n,19).setValue('입력 확인: 입력 범위 밖 중복 행에 수정이 남아 있습니다. 확인 전까지 보존합니다.');return;}
+      eventAudit_(ss,'범위 밖 중복 화면 정리',m.name,before,canonical,'원본과 입력 범위 안의 기록을 유지함');
+      var fresh=sh.getRange(n,1,1,22).getValues()[0];if(JSON.stringify(fresh)!==JSON.stringify(before))return;
+      sh.getRange(n,1,1,22).clearContent();
+    });});
+  });
 }
