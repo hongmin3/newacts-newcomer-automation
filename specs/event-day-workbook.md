@@ -26,7 +26,7 @@
 - 전체 방문·전체 등록·신군·조군·명군·총군·영군·석군·전군·임군·슬군·기타 탭을 제공한다.
 - 전체 명단은 1행 머리글 아래 2행부터 입력한다. 군별 명단은 원본처럼 제목 줄과 열 제목 줄을 따로 둔다.
 - 화면에는 전체 방문·전체 등록과 군별 명단만 둔다. 군별 명단은 방문을 위쪽, 등록을 아래쪽에 둔다. 과거 명단은 남기지 않는다.
-- 군이 비어 있으면 기타로 기록한다. 군별 탭의 새 입력은 그 군을 기본값으로 쓴다.
+- 총 방문·총 등록 명단에서 군이 빈칸이면 기타로 기록한다. 군별 탭에서는 새 입력과 기존 명단 수정 모두 군이 빈칸이면 그 탭의 군으로 배정한다. 관리번호와 다른 입력 정보는 유지한다.
 
 ### REQ-EVENTDAYWORKBOOK-002 전체와 군별 명단의 양방향 입력
 
@@ -114,6 +114,13 @@
 - 선택 목록과 경고 서식이 지워졌는지 주기적으로 확인한다. 이름의 공백 차이는 중복 표시에서 같은 기준으로 처리한다.
 - 연락처가 없어 카드 간 동일인 확인이 어려우면 확인 안내 메모를 표시한다. 충돌과 입력 오류는 자동 대기와 구분해 안내한다.
 
+### REQ-EVENTDAYWORKBOOK-013 오류·충돌의 눈에 보이는 안내
+- 명단 배치·열·값·수식·기존 중복 배경색을 유지한다.
+- 이름 칸 글자색으로 충돌(빨강), 입력 확인(주황), 자동 대기(파랑)를 구분한다. 각 칸 메모에 필요한 조치를 안내한다.
+- 해결되면 이름 글자색을 기본색으로 되돌린다. 상태 표시 갱신은 명단 값·연결 번호·비교값·원본·기록·행 위치를 쓰지 않는다.
+- 충돌난 행의 다른 칸을 수정해도 확인 전 충돌값은 채택하지 않는다. 충돌난 칸을 직접 수정한 뒤 남은 차이가 없을 때 표시를 해제한다.
+- 이름 머리글 메모에 색의 뜻을 안내한다. 별도 현황판이나 입력 열을 추가하지 않는다.
+
 ## 11. 테스트 사양
 
 ### TEST-EVENTDAYWORKBOOK-001 양방향 입력과 안전 경계
@@ -150,3 +157,5 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 | REQ-EVENTDAYWORKBOOK-011 | `event-day-workbook/Code.gs` | `tests/event-day-concurrency.test.js`, `tests/event-day-workbook.test.js` | verified |
 
 | REQ-EVENTDAYWORKBOOK-012 | `event-day-workbook/Code.gs` | `tests/event-day-concurrency.test.js` | implemented |
+
+| REQ-EVENTDAYWORKBOOK-013 | `event-day-workbook/Code.gs` | `tests/event-day-status.test.js` | verified |

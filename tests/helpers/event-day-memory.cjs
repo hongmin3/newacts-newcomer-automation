@@ -18,6 +18,8 @@ function createFixture(){
   getNotes(){return Array.from({length:this.nr},(_,r)=>Array.from({length:this.nc},(_,c)=>this.sheet.notes[`${this.row+r},${this.col+c}`]??''));}
   setNote(v){signal('note','before',this);this.sheet.notes[`${this.row},${this.col}`]=v;signal('note','after',this);return this;}
   clearNote(){for(let r=0;r<this.nr;r++)for(let c=0;c<this.nc;c++)delete this.sheet.notes[`${this.row+r},${this.col+c}`];return this;}
+  getFontColors(){return Array.from({length:this.nr},(_,r)=>Array.from({length:this.nc},(_,c)=>this.sheet.fontColors?.[`${this.row+r},${this.col+c}`]??"#000000"));}
+  setFontColor(v){signal("format","before",this);this.sheet.fontColors??={};for(let r=0;r<this.nr;r++)for(let c=0;c<this.nc;c++)this.sheet.fontColors[`${this.row+r},${this.col+c}`]=v;signal("format","after",this);return this;}
   copyFormatToRange(){}
  }
  class Sheet{

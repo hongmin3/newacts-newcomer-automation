@@ -150,6 +150,8 @@ Sheet.prototype.getConditionalFormatRules=function(){return [];};Sheet.prototype
 ctx.SpreadsheetApp.newDataValidation=()=>({requireValueInList(){return this;},setAllowInvalid(){return this;},build(){return {};}});
 Range.prototype.getFormulas=function(){return Array.from({length:this.nr},()=>Array(this.nc).fill(''));};
 Range.prototype.getNote=function(){return this.sheet.notes?.[`${this.row},${this.col}`]||'';};
+Range.prototype.getFontColors=function(){return Array.from({length:this.nr},(_,i)=>Array.from({length:this.nc},(_,j)=>this.sheet.fontColors?.[`${this.row+i},${this.col+j}`]||'#000000'));};
+Range.prototype.setFontColor=function(v){this.sheet.fontColors??={};for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)this.sheet.fontColors[`${this.row+i},${this.col+j}`]=v;return this;};
 Range.prototype.setNote=function(v){this.sheet.notes??={};this.sheet.notes[`${this.row},${this.col}`]=v;return this;};
 Range.prototype.clearNote=function(){this.sheet.notes??={};for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)delete this.sheet.notes[`${this.row+i},${this.col+j}`];return this;};
 Range.prototype.getNotes=function(){return Array.from({length:this.nr},(_,i)=>Array.from({length:this.nc},(_,j)=>this.sheet.notes?.[`${this.row+i},${this.col+j}`]||''));};

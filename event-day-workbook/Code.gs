@@ -216,6 +216,7 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
     sheet.getRange(rowNumber,22).setValue(JSON.stringify(sourceBase));
   }
   if(mergedFrom)eventProject_(ss,retired,mergedFrom.row[2],'*');
+  if(/^(입력 확인:|충돌:)/.test(eventText_(input[18]))&&!eventHasDirty_(sheet.getRange(rowNumber,1,1,EVENT.width).getValues()[0]))sheet.getRange(rowNumber,19).setValue(after[18]);
   eventProject_(ss,after,candidate[2],sheet.getName());
   if(changed&&after[18].indexOf('방문·등록 각각 입력됨')>=0&&eventText_(candidate[18]).indexOf('방문·등록 각각 입력됨')<0)ss.toast('방문과 등록에 각각 입력되었습니다. 방문 1건·등록 1건으로 따로 집계합니다.','카드별 입력 안내',8);
 
@@ -321,7 +322,7 @@ function eventPlainSheet_(physical,map,onResize) {
       if(notes[index][0])out[18]=notes[index][0];return out;
     });
   }
-  function note(row,value){var cell=physical.getRange(row+map.offset,map.start+2);if(!value||value==='정상')cell.clearNote();else cell.setNote(String(value));}
+  function note(row,value){eventStatusNote_(physical.getRange(row+map.offset,map.start+2),value);}
   function write(row,col,value){
     var i=map.cols.indexOf(col);
     if(col===0)physical.getRange(row+map.offset,map.meta).setValue(value);
@@ -342,7 +343,7 @@ function eventPlainSheet_(physical,map,onResize) {
         target.setValues([whole]);note(row+r,values[18]);
       }else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
       setValue:function(v){return this.setValues([[v]]);},
-      clearContent:function(){physical.getRange(row+map.offset,map.start,nr,map.cols.length).clearContent();physical.getRange(row+map.offset,map.meta,nr,2).clearContent();physical.getRange(row+map.offset,map.start+2,nr,1).clearNote();return this;}
+      clearContent:function(){physical.getRange(row+map.offset,map.start,nr,map.cols.length).clearContent();physical.getRange(row+map.offset,map.meta,nr,2).clearContent();physical.getRange(row+map.offset,map.start+2,nr,1).clearNote().setFontColor('#000000');return this;}
     };}};
   return sheet;
 }
@@ -398,7 +399,10 @@ function onEdit(e) {
       if(/^충돌:/.test(eventText_(values[18]))&&!inEvent)return;
       if(!values[0]){if(!eventText_(values[5]))return;changed=columns.slice();}
       else if(base){for(var c=1;c<=17;c++)if(!eventEqual_(values[c],base[c]))changed.push(c);}
+      // 충돌난 칸은 사람이 그 칸을 직접 수정할 때만 확정한다.
+      if(/^충돌:/.test(eventText_(values[18])))changed=changed.filter(function(c){return columns.indexOf(c)>=0;});
       if(!changed.length&&values[0]&&base&&Number(base[20])===0)changed.push(5);
+      if(!changed.length&&base&&inEvent&&/^(입력 확인:|충돌:)/.test(eventText_(values[18])))changed=columns.slice();
       if(!changed.length){if(base&&/^다른 입력 처리 대기:/.test(eventText_(values[18])))sheet.getRange(row,19).setValue(base[18]||'');return;}
       try{if(changed.indexOf(5)>=0&&!eventText_(values[5])&&values[0])eventPlainClear_(ss,sheet,row,map);else eventProcessRow_(ss,sheet,row,changed,undefined,false);}
       catch(err){sheet.getRange(row,19).setValue('입력 확인: '+err.message);e.source.toast(err.message,'입력 확인',6);}
@@ -430,6 +434,8 @@ function eventPlainLabels_(ss,onlyTouched,verifyRules) {
 /** 시간 기반 실행. 잠금 대기·실패 뒤에도 새 편집 없이 재시도한다. */
 function eventAutoSync() {
   var props=PropertiesService.getScriptProperties();
+  // 최초 자동 확인에서 기존 메모에도 색을 적용한다.
+  if(props.getProperty('EVENT_STATUS_REV')!=='font-v1')eventRefreshStatusDisplay();
   var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
   var done=props.getProperty('EVENT_SYNC_DONE');
   var last=Number(props.getProperty('EVENT_SYNC_LAST')||0);
@@ -505,6 +511,7 @@ function eventRememberEdit_(e,maps){
     var row=eventPlainSheet_(p,m,function(){}).getRange(r-m.offset,1,1,22).getValues()[0];
     if(!row[0])return;
     var v=Object.prototype.hasOwnProperty.call(e,'value')?e.value:p.getRange(r,c).getValues()[0][0];
+    if(col===2&&!eventText_(v))v=eventGroup_(m.name)||'기타';
     PropertiesService.getScriptProperties().setProperty('EVENT_EDIT_'+Utilities.getUuid(),JSON.stringify({time:Date.now(),view:m.name,id:row[0],col:col,value:v,previous:(eventBaseline_(row)||[])[col]}));
   });
 }
@@ -533,3 +540,44 @@ function eventEnsureCapacity_(sheet){
 }
 /** 입력이 몰릴 때 명단 전체 처리 전에 빈칸만 확보한다. */
 function eventExpandCapacity(){var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});},60000);}
+
+/** 이름 칸의 표시만 갱신한다. 입력값과 기존 중복 배경색에는 쓰지 않는다. */
+function eventStatusStyle_(value){
+  var text=eventText_(value).split('\n\n[입력 안내]')[0],color='#000000',help='';
+  if(/^충돌:/.test(text)){color='#c5221f';help='빨간 글씨: 서로 다른 입력이 있습니다. 저장값과 입력값을 확인한 뒤 필요한 칸만 다시 입력하세요. 기다리기만 해서는 해결되지 않습니다.';}
+  else if(/^(입력 확인:|이름 수정 대기:|군 변경 전 입력 확인|관리번호|화면 비교값|반영 중단:)/.test(text)){color='#b45309';help='주황 글씨: 확인이 필요합니다. 위 안내에 나온 칸을 수정하세요. 다른 칸이나 행 전체를 지우지 마세요.';}
+  else if(/^다른 입력 처리 대기:/.test(text)){color='#1967d2';help='파란 글씨: 자동 반영을 기다리는 중입니다. 같은 내용을 다시 붙여넣지 마세요. 계속 남으면 담당자에게 알려 주세요.';}
+  return {color:color,note:!text||text==='정상'?'':text+(help?'\n\n[입력 안내] '+help:'')};
+}
+function eventStatusNote_(cell,value){
+  var style=eventStatusStyle_(value);
+  if(style.note)cell.setNote(style.note);else cell.clearNote();
+  cell.setFontColor(style.color);
+}
+/** 운영 중 수동/최초 실행도 표시만 변경한다. 동기화·정렬·행 확장을 호출하지 않는다. */
+function eventRefreshStatusDisplay(){
+  var real=SpreadsheetApp.getActive();if(!real.getSheets)return false;
+  return eventWithLock_(eventPlainWrap_(real),function(){
+    var visited={};
+    eventViews_().forEach(function(name){
+      var map=eventPlainMap_(name),physical=real.getSheetByName(map.physical);eventPlainConfigure_(physical,map);
+      var start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
+      if(count){var range=physical.getRange(start,3,count,1),notes=range.getNotes(),colors=range.getFontColors();
+        notes.forEach(function(row,i){var wanted=eventStatusStyle_(row[0]);
+          if(wanted.color==='#000000'&&row[0].indexOf('[입력 안내]')<0)return;
+          if(wanted.note===row[0]&&wanted.color===String(colors[i][0]).toLowerCase())return;
+          var cell=physical.getRange(start+i,3),fresh=cell.getNotes()[0][0];
+          // 메모가 바뀌면 오래된 판단으로 덮지 않는다. 데이터 셀 값은 읽고 되쓰지 않는다.
+          if(fresh===row[0])eventStatusNote_(cell,fresh);
+        });
+      }
+      var headerRow=start-1,key=physical.getSheetId()+':'+headerRow;
+      if(!visited[key]){var header=physical.getRange(headerRow,3),old=header.getNotes()[0][0]||'',tag='[입력 상태 색상]';
+        var legend=tag+' 빨강: 충돌 확인 / 주황: 입력 확인 / 파랑: 자동 반영 대기. 이름 칸 메모에서 이유와 조치를 확인하세요. 노란 배경은 기존 중복 확인 표시입니다.';
+        var next=old.indexOf(tag)>=0?old.split(tag)[0]+legend:(old?old+'\n\n':'')+legend;
+        if(next!==old)header.setNote(next);visited[key]=true;
+      }
+    });
+    PropertiesService.getScriptProperties().setProperty('EVENT_STATUS_REV','font-v1');
+  },1,true);
+}

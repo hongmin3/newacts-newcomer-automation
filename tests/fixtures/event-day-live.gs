@@ -86,3 +86,38 @@ function runHardeningSmoke(){
  sh.getRange(start+1,13).clearDataValidations();eventRepair(true);ok(!!sh.getRange(start+1,13).getDataValidation());
  SpreadsheetApp.flush();var result={status:'PASS',checks:checks,bulk:n};ss.insertSheet('검증 결과').getRange(1,1,1,2).setValues([['보강 검증',JSON.stringify(result)]]);console.log(JSON.stringify(result));
 }
+
+/** 운영 자료 없는 전용 파일에서 표시·기타 이동을 확인한다. 기존 시험 행은 보존한다. */
+function runStatusDisplaySmoke(){
+ var ss=SpreadsheetApp.getActive();if(ss.getName().indexOf('행축 자동화 검증 전용')!==0)throw Error('검증 전용 파일에서만 실행합니다.');
+ var checks=0,sh=ss.getSheetByName(EVENT.visitors),wrapped=eventPlainWrap_(ss),r=Math.max(2,eventData_(wrapped.getSheetByName(EVENT.visitors)).length+2);
+ function ok(v,label){if(!v)throw Error('표시 검증 실패: '+label);checks++;}
+ function edit(c,v){var range=sh.getRange(r,c);range.setValue(v);onEdit({source:ss,range:range,value:v});}
+ edit(3,'표시검증가상'+r);edit(9,'명');var id=sh.getRange(r,29).getValue();
+ edit(9,'없는군');ok(sh.getRange(r,3).getFontColor()==='#b45309','오류 글자색');ok(sh.getRange(r,9).getValue()==='없는군','오류 입력 보존');
+ edit(9,'명');ok(sh.getRange(r,3).getFontColor()==='#000000','오류 해결');
+ var noteCell=sh.getRange(r,3);eventStatusNote_(noteCell,'충돌: 팀 (저장값: 가 / 입력: 나)');ok(noteCell.getFontColor()==='#c5221f','충돌 글자색');
+ var before=JSON.stringify(sh.getRange(r,1,1,32).getValues());eventRefreshStatusDisplay();ok(JSON.stringify(sh.getRange(r,1,1,32).getValues())===before,'표시 실행 입력값 보존');
+ eventStatusNote_(noteCell,'다른 입력 처리 대기: 자동으로 다시 반영합니다.');ok(noteCell.getFontColor()==='#1967d2','대기 글자색');eventStatusNote_(noteCell,'정상');
+ var groupView=eventPlainWrap_(ss).getSheetByName('명군::방문'),groupRow=eventFind_(groupView,id)[0].row+groupView.plainMap.offset,groupRange=ss.getSheetByName('명군').getRange(groupRow,9);
+ groupRange.setValue('');onEdit({source:ss,range:groupRange,value:''});
+ ok(eventData_(ss.getSheetByName(EVENT.raw)).filter(function(x){return x[0]===id;})[0][2]==='명군','군별 기존 입력 빈칸은 해당 군');
+ edit(9,'');var record=eventData_(ss.getSheetByName(EVENT.raw)).filter(function(x){return x[0]===id;})[0];ok(record[2]==='기타','빈 군 기타 이동');ok(eventFind_(eventPlainWrap_(ss).getSheetByName('기타::방문'),id).length===1,'기타 화면 연결');
+ ok(sh.getRange(1,3).getNote().indexOf('[입력 상태 색상]')>=0,'머리글 안내');
+ console.log(JSON.stringify({status:'PASS',checks:checks,path:'상태 표시·입력 보존·기타 이동'}));
+}
+
+function runStatusConflictSmoke(){
+ var ss=SpreadsheetApp.getActive();if(ss.getName().indexOf('행축 자동화 검증 전용')!==0)throw Error('검증 전용 파일에서만 실행합니다.');
+ var checks=0,sh=ss.getSheetByName(EVENT.visitors),r=Math.max(2,eventData_(eventPlainWrap_(ss).getSheetByName(EVENT.visitors)).length+2);
+ function ok(v,label){if(!v)throw Error('충돌 검증 실패: '+label);checks++;}
+ function edit(sheet,row,col,value){var range=sheet.getRange(row,col);range.setValue(value);onEdit({source:ss,range:range,value:value});}
+ edit(sh,r,3,'충돌표시가상'+r);edit(sh,r,9,'신');var id=sh.getRange(r,29).getValue(),view=eventPlainWrap_(ss).getSheetByName('신군::방문'),g=ss.getSheetByName('신군'),gr=eventFind_(view,id)[0].row+view.plainMap.offset;
+ g.getRange(gr,10).setValue('확인전팀');edit(sh,r,10,'저장팀');edit(g,gr,10,'확인전팀');
+ ok(/^충돌:/.test(g.getRange(gr,3).getNote()),'충돌 생성');ok(g.getRange(gr,3).getFontColor()==='#c5221f','빨간 충돌 글씨');
+ edit(g,gr,7,'별도로 입력한 주소');
+ var record=eventData_(ss.getSheetByName(EVENT.raw)).filter(function(x){return x[0]===id;})[0];
+ ok(record[3]==='저장팀','다른 칸 수정으로 충돌 미확정');ok(record[10]==='별도로 입력한 주소','주소 수정 반영');ok(g.getRange(gr,10).getValue()==='확인전팀','대기 입력 보존');ok(/^충돌:/.test(g.getRange(gr,3).getNote()),'충돌 표시 유지');
+ edit(g,gr,10,'확인전팀');ok(g.getRange(gr,3).getFontColor()==='#000000','확인 후 기본색');
+ console.log(JSON.stringify({status:'PASS',checks:checks,path:'충돌 두 값 보존·다른 칸 수정·확인 후 해제'}));
+}
