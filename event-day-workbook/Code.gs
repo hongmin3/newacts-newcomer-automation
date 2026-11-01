@@ -632,3 +632,18 @@ function eventRepairOrphans_(ss,cache,records){
     });});
   });
 }
+/** 운영 복구: 저장번호가 없는 입력만 먼저 연결한다. 기존 수정/충돌은 보존한다. */
+function eventImportUnsaved(){
+ var real=SpreadsheetApp.getActive(),ss=eventPlainWrap_(real);
+ return eventWithLock_(ss,function(){var started=Date.now(),complete=true,processed=0;
+  eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
+   if(row[0]||!eventText_(row[5]))return;
+   if(Date.now()-started>90000){complete=false;return;}
+   var fresh=sheet.getRange(i+2,1,1,22).getValues()[0];if(fresh[0]||!eventText_(fresh[5]))return;
+   var cols=[];for(var c=1;c<=17;c++)cols.push(c);
+   try{eventProcessRow_(ss,sheet,i+2,cols,undefined,false);processed++;}catch(err){sheet.getRange(i+2,19).setValue('입력 확인: '+err.message);}
+  });});
+  PropertiesService.getScriptProperties().setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
+  eventPlainLabels_(ss,true);console.log('신규 입력 우선 확인 '+processed+'건');return complete;
+ },60000);
+}
