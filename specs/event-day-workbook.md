@@ -155,12 +155,12 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
 | REQ-EVENTDAYWORKBOOK-001 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-002 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-002 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js`, `tests/event-day-group-move.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-counts.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-sync.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-sync.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js`, `tests/event-day-group-move.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-008 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-009 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-concurrency.test.js`, `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-010 | `event-day-workbook/Code.gs` | `tests/event-day-concurrency.test.js`, `tests/event-day-workbook.test.js` | verified |

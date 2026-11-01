@@ -243,11 +243,11 @@ function eventEditInternal_(e) {
 }
 function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
-    eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});
     eventSeparateCards_(ss);
-    var journal=eventReplayEdits_(ss),complete=true,jobs=[],props=PropertiesService.getScriptProperties();
     // 군 수정은 전체 화면 복구보다 먼저 저장한다. 느린 전체 확인에 밀리지 않는다.
     if(eventPendingGroupMoves_(ss,background)){eventPlainLabels_(ss,true);return false;}
+    eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});
+    var journal=eventReplayEdits_(ss),complete=true,jobs=[],props=PropertiesService.getScriptProperties();
     eventRefreshProjections_(ss);
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
     eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
@@ -294,6 +294,11 @@ function eventPendingGroupMoves_(ss,background){
     }
   }
   return processed>0;
+}
+function eventSyncGroupMoves(){
+ var ss=eventPlainWrap_(SpreadsheetApp.getActive());
+ PropertiesService.getScriptProperties().setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
+ return eventWithLock_(ss,function(){eventSeparateCards_(ss);eventPendingGroupMoves_(ss,false);eventPlainLabels_(ss,true);},180000);
 }
 function eventSelected_(ss){var sheet=ss.getActiveSheet(),row=sheet.getActiveRange().getRow();if(!eventIsView_(sheet.getName())||row<2)throw new Error('명단에서 대상 행을 선택해 주세요.');var values=sheet.getRange(row,1,1,EVENT.width).getValues()[0];if(!values[0])throw new Error('자동 연결된 행을 선택해 주세요.');return {sheet:sheet,row:row,values:values};}
 function eventAcceptConflict(){var ss=SpreadsheetApp.getActive();eventWithLock_(ss,function(){var s=eventSelected_(ss),base=eventBaseline_(s.values),cols=[];if(!base)throw new Error('화면 비교값이 없습니다. 저장값 복원을 사용해 주세요.');for(var c=1;c<=17;c++)if(!eventEqual_(s.values[c],base[c]))cols.push(c);eventProcessRow_(ss,s.sheet,s.row,cols,undefined,true);eventResolveLog_(ss,s.values[0],'입력 적용');});}
