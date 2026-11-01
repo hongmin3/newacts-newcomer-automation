@@ -645,5 +645,5 @@ function eventImportUnsaved(){
   });});
   PropertiesService.getScriptProperties().setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
   eventPlainLabels_(ss,true);console.log('신규 입력 우선 확인 '+processed+'건');return complete;
- },60000);
+ },180000);
 }
