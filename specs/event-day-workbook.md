@@ -54,6 +54,7 @@
 - 아직 처리되지 않은 다른 입력은 화면 갱신으로 덮어쓰지 않는다. 서로 다른 항목의 변경은 합칠 수 있다. 다음 편집에서는 같은 명단의 대기 행과 항목을 함께 처리한다.
 - 다른 편집이 진행 중이면 최대 15초 동안 차례를 기다린다. 그래도 처리하지 못하면 입력값을 남기고 안내한다.
 - 입력을 비우거나 같은 사람으로 연결한 기록은 숨겨진 변경 기록에 남긴다. 개인정보는 저장소에 넣지 않는다.
+- 기존 번호에서 저장된 이름과 휴대폰이 함께 달라지거나, 입력 이름·휴대폰이 같은 종류의 다른 저장 카드와 정확히 일치하면 원본 수정을 보류한다. 입력 확인 메모를 남기고 화면 입력·관리번호·기존 원본을 보존한다. 이름·연락처와 연결 번호를 함께 옮겼는지 확인한 뒤 연결을 정리한다.
 
 ### REQ-EVENTDAYWORKBOOK-005 기존 양식처럼 단순한 명단
 
@@ -159,7 +160,7 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 | REQ-EVENTDAYWORKBOOK-001 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-002 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js`, `tests/event-day-group-move.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-counts.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-identity-guard.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-numbering.test.js`, `tests/event-day-sync.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-sync.test.js`, `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js`, `tests/event-day-group-move.test.js` | verified |

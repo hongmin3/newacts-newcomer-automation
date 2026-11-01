@@ -147,6 +147,11 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   if(!isNew&&!base){sheet.getRange(rowNumber,19).setValue('화면 비교값 손상: 입력 확인 필요');return;}
   if(!isNew&&eventFind_(sheet,input[0]).length>1&&!/^충돌:/.test(eventText_(input[18]))){sheet.getRange(rowNumber,19).setValue('관리번호 중복: 전체 행 복사를 하지 마세요.');return;}
   if(reserved)isNew=true;
+  if(!isNew){
+    var inputIdentity=eventKey_(input),storedIdentity=eventKey_(records[existingIndex]),sameKind=eventRegisteredView_(sheet.getName())?14:13;
+    if(base&&eventText_(base[5])&&eventText_(base[9])&&!eventEqual_(input[5],base[5])&&String(input[9]||'').replace(/\D/g,'')!==String(base[9]||'').replace(/\D/g,''))throw new Error('이름과 휴대폰이 함께 바뀌어 관리번호 연결 확인이 필요합니다. 입력 내용과 기존 원본을 보존했습니다.');
+    if(inputIdentity&&inputIdentity!==storedIdentity&&records.some(function(r){return !r[21]&&r[sameKind]&&r[0]!==input[0]&&eventKey_(r)===inputIdentity;}))throw new Error('이름·휴대폰이 다른 관리번호의 기존 카드와 일치합니다. 입력 셀만 이동했는지 확인해 주세요. 기존 원본을 보존했습니다.');
+  }
   if(isNew){
     candidate=Array(EVENT.width).fill('');candidate[0]=reserved?input[0]:Utilities.getUuid();candidate[1]=EVENT.date;candidate[2]=eventGroup_(sheet.getName())||'기타';candidate[13]=!eventRegisteredView_(sheet.getName());candidate[14]=eventRegisteredView_(sheet.getName());candidate[15]=false;candidate[20]=0;candidate[21]=false;
     for(var c=1;c<=17;c++)if(input[c]!==''&&input[c]!==null)patch[c]=input[c];
@@ -243,6 +248,7 @@ function eventEditInternal_(e) {
 }
 function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
+    eventPlainNumbers_(ss);
     var urgentProps=PropertiesService.getScriptProperties(),urgent=urgentProps.getProperty('EVENT_UNSAVED_REQUEST');
     if(urgent){
       if(urgentProps.getProperty('EVENT_UNSAVED_PHASE')!=='fresh'){
@@ -492,15 +498,8 @@ function eventPlainLabels_(ss,onlyTouched,verifyRules) {
     if(map.registered)eventRouteDropdown_(sheet,verifyRules);
     var physical=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
     if(!count)return;
-    var visible=physical.getRange(start,1,count,11).getValues(),number=0;
-    var needsNumbers=visible.some(function(row){var wanted=eventText_(row[2])?++number:'';return !eventEqual_(row[0],wanted);});
-    if(needsNumbers){
-      // A열만 한 번에 갱신한다. 이름과 입력값은 쓰지 않으며 최신 이름으로 계산한다.
-      var names=physical.getRange(start,3,count,1).getValues();number=0;
-      var numbers=names.map(function(row){return [eventText_(row[0])?++number:''];});
-      eventStructureGuard_(physical);
-      physical.getRange(start,1,count,1).setValues(numbers);
-    }
+    var visible=physical.getRange(start,1,count,11).getValues();
+    eventWriteNumbers_(physical,start,visible);
     visible.forEach(function(row,i){
       var hasName=!!eventText_(row[2]);
       if(hasName&&row[8]!==eventDisplayGroup_(row[8])&&eventEqual_(physical.getRange(start+i,9).getValues()[0][0],row[8])){
@@ -511,6 +510,25 @@ function eventPlainLabels_(ss,onlyTouched,verifyRules) {
       }
     });
   });
+}
+
+/** 긴 동기화 전에 모든 화면의 번호만 확인한다. 입력·범위·서식은 쓰지 않는다. */
+function eventPlainNumbers_(ss){
+  var labels=ss.real?eventPlainWrap_(ss.real):ss;
+  eventViews_().forEach(function(name){
+    var sheet=labels.getSheetByName(name),map=sheet.plainMap;if(!map)return;
+    var p=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,p.getLastRow()-start+1));
+    if(count)eventWriteNumbers_(p,start,p.getRange(start,1,count,3).getValues());
+  });
+}
+function eventWriteNumbers_(physical,start,visible){
+  var number=0,needsNumbers=visible.some(function(row){var wanted=eventText_(row[2])?++number:'';return !eventEqual_(row[0],wanted);});
+  if(!needsNumbers)return;
+  // A열만 한 번에 갱신한다. 최신 이름으로 계산하고 행 이동 여부를 확인한다.
+  var names=physical.getRange(start,3,visible.length,1).getValues();number=0;
+  var numbers=names.map(function(row){return [eventText_(row[0])?++number:''];});
+  eventStructureGuard_(physical);
+  physical.getRange(start,1,visible.length,1).setValues(numbers);
 }
 
 /** 시간 기반 실행. 잠금 대기·실패 뒤에도 새 편집 없이 재시도한다. */

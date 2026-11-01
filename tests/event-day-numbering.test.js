@@ -17,3 +17,12 @@ let changed=false;g.setHook(e=>{if(!changed&&e.kind==='read'&&e.phase==='after'&
 wrapped=g.ctx.eventPlainWrap_(g.book);wrapped.labelNames={[gs.name]:true};g.ctx.eventPlainLabels_(wrapped,true);
 assert.deepEqual(gs.data.slice(1).map(r=>r[0]),[1,'',2]);assert.equal(gs.data[3][6],'최신주소');
 console.log('통과: 갱신 직전 이름 삭제 반영·동시 주소 입력 보존');
+// 대기 입력이 다른 군에서 계속 처리돼도 모든 명단의 순번을 먼저 확인한다.
+const q=createFixture();q.input('조군',3,3,'먼저저장');q.sheets['조군'].getRange(3,1).setValue(99);
+q.hold('busy');q.input('영군',3,3,'신규대기');q.ctx.eventImportUnsaved();q.release();
+q.repair();assert.equal(q.sheets['조군'].data[2][0],1,'신규 대기 처리 전에 다른 군 번호도 정리');
+console.log('통과: 신규 대기 중에도 전체 명단 순번 먼저 확인');
+const cacheCheck=createFixture(),cacheWrap=cacheCheck.ctx.eventPlainWrap_(cacheCheck.book);
+cacheCheck.ctx.eventPlainNumbers_(cacheWrap);
+assert.deepEqual(Object.keys(cacheWrap.labelNames),[],'번호 확인이 명단 전체를 수정 대상으로 표시하지 않음');
+console.log('통과: 번호 확인 후 실제 수정 대상 범위 유지');
