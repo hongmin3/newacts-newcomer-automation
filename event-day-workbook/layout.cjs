@@ -21,6 +21,7 @@ function build(oldSheets=[]){
   areas.forEach(a=>{
    const hs=(a.registered?registeredHeaders:headers).map((h,i)=>i===2?'이 름':i===4?(s.group?'나이':'나이(생년월일)'):h);
    req.push(block(s.id,a.header,0,[hs]));
+   if(a.registered)req.push({setDataValidation:{range:{sheetId:s.id,startRowIndex:a.start,endRowIndex:a.end,startColumnIndex:12,endColumnIndex:13},rule:{condition:{type:'ONE_OF_LIST',values:E.registrationRoutes.map(userEnteredValue=>({userEnteredValue}))},strict:true,showCustomUi:true}}});
    var fs=styles(s.group?style.header:(a.registered?style.totalRegistrationHeader:style.totalVisitorHeader));if(a.registered)fs.push(style.header[12]||style.header[11]||{});fmt(s.id,a.header,fs);
    const bs=styles(style.body);if(a.registered)bs.push(style.body[12]||{});
    bs.forEach((f,i)=>req.push({repeatCell:{range:{sheetId:s.id,startRowIndex:a.start,endRowIndex:a.end,startColumnIndex:i,endColumnIndex:i+1},cell:{userEnteredFormat:{...f,numberFormat:{type:'TEXT'}}},fields:'userEnteredFormat'}}));

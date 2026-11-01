@@ -35,16 +35,17 @@
 3. 어느 탭에서든 입력 항목을 수정하면 같은 관리번호의 기록이 함께 바뀐다. 군을 바꾸면 새 군으로 이동한다.
 4. 여러 행 붙여넣기를 지원한다. 관리번호·수정시각·내부 비교값은 담당자가 바꾸지 않는다.
 
-- 이름과 정리한 휴대전화가 모두 같은 경우만 기존 사람에게 연결할 수 있다. 전화번호가 없으면 이름만으로 합치지 않는다.
+- 이름·정리한 휴대전화·군·팀이 모두 같은 경우만 기존 입력에 연결할 수 있다. 전화번호가 없으면 이름만으로 합치지 않는다.
 - 같은 번호의 다른 이름, 연락처 누락, 동명이인은 확인할 수 있도록 표시한다.
 - 이름·날짜·군·체크 값·나이·생년월일·전화번호를 검사한다. 맞지 않으면 기존 기록을 보존하고 입력 행에 이유를 표시한다.
 
-### REQ-EVENTDAYWORKBOOK-003 방문 이력과 등록 연결 및 집계
+### REQ-EVENTDAYWORKBOOK-003 방문·등록 독립 입력과 전체 삭제 및 집계
 
-- 등록 명단에 이름을 적으면 방문 명단에도 자동으로 추가한다. 체크박스는 쓰지 않는다.
+- 방문과 등록은 독립해서 입력한다. 등록 명단에 이름을 적어도 방문 명단에는 자동 추가하지 않는다. 이름·정리한 전화번호·군·팀이 같은 방문 기록이 이미 있으면 관리번호만 함께 사용한다. 체크박스는 쓰지 않는다.
 - 방문 명단과 등록 명단은 별도 입력 영역이다. 군별 탭의 위쪽은 방문, 아래쪽은 등록 명단이다.
 - 각 명단의 1행 옆에서 방문자 수와 등록자 수만 보여 준다. 관리번호로 같은 사람을 구분한다. 비율과 별도 현황판은 만들지 않는다.
-- 등록 명단에서 이름을 비우면 등록만 해제하고 방문 이력은 남긴다. 등록자가 남아 있으면 방문 명단을 지워도 복원한다.
+- 전체·군별 방문 또는 등록 명단에서 이름을 비우면 그 관리번호를 취소하고 모든 방문·등록 화면에서 함께 제외한다. 변경 전 값과 대기 중이던 입력은 숨김 변경 기록에 남긴다.
+- 자동화가 쓰는 숨김 연결 열은 지우지 않는다. 행 자체를 삭제해 연결 열까지 없애면 삭제한 사람을 구분할 수 없으므로 원본에서 화면이 복구될 수 있다. 사람을 삭제할 때는 이름 또는 보이는 명단 내용만 비운다.
 
 ### REQ-EVENTDAYWORKBOOK-004 정보 차이와 입력 보존
 
@@ -59,7 +60,7 @@
 - 전체 명단은 1행 머리글, 2행부터 입력한다. 군별 탭은 원본의 파란 제목·빨간 열 제목·검은 테두리를 쓴다.
 - 군별 방문은 1행 제목·2행 열 제목·3~22행 입력·23행 계다. 등록은 25행 제목·26행 열 제목·27~36행 입력·37행 계다.
 - 방문은 처음 20명, 등록은 10명분을 가까이 배치한다. 자동 반영할 빈칸이 부족하거나 마지막 입력 칸의 다음 행에 직접 입력하면 5행을 더하고 아래쪽 등록 구역을 함께 옮긴다. 사람이 행을 더해도 이름이 지정된 입력 범위로 구역을 구분한다.
-- 체크박스·결신 열·등록 비율·테이블 버튼·사용자 메뉴·별도 현황판은 표시하지 않는다.
+- 체크박스·결신 열·등록 비율·테이블 버튼·사용자 메뉴·별도 현황판은 표시하지 않는다. 등록경로는 REQ-EVENTDAYWORKBOOK-009의 한 칸 선택형을 사용한다.
 - 내부 연결 정보와 오류 기록은 숨긴다. 화면에는 명단과 인원수만 남긴다.
 
 ### REQ-EVENTDAYWORKBOOK-006 자동 순번과 방문 명단의 순 표시
@@ -84,23 +85,46 @@
 - `명`과 `명군`처럼 어느 형태로 입력해도 같은 군으로 처리하고 화면에는 짧게 표시한다. 기존 명단도 같은 기준으로 정리한다.
 - 탭 이름·내부 연결에 쓰는 군 값·집계 기준은 유지한다. 군 표시만 짧게 바꿔서 군 이동이나 집계가 달라지지 않게 한다.
 
+### REQ-EVENTDAYWORKBOOK-009 등록경로 네 가지 단일 선택과 연결
+
+- 전체 등록 명단과 각 군의 등록 구역에서 `직접방문`·`설문지`·`관계`·`교인인도` 중 하나를 선택한다. 선택하지 않은 빈칸도 허용한다.
+- 선택한 값은 같은 관리번호의 전체 등록·군별 등록 명단에 함께 반영한다. 방문 명단에는 선택 칸을 만들지 않는다.
+- 네 값 외의 입력은 저장하지 않고 셀 메모로 안내한다. 입력 행이 자동으로 늘어나거나 등록 구역이 이동해도 선택 목록을 유지한다.
+
+### REQ-EVENTDAYWORKBOOK-010 소속이 다른 중복 명단 보존과 경고
+
+- 이름과 정리한 휴대전화가 같아도 군 또는 팀이 다르면 두 행을 각각 보존한다. 한쪽 소속을 덮어쓰거나 행을 합치지 않는다.
+- 전체·군별 관련 명단에 중복 확인 메모를 표시하고 이름 칸을 연한 노란색으로 강조한다. 집계는 남겨 둔 각 행의 관리번호를 기준으로 한다.
+- 이름·휴대전화·군·팀이 모두 같으면 기존 입력에 연결한다. 전화번호 없는 동명이인은 합치지 않고 확인 메모를 남긴다.
+- 이전 연결 방식 때문에 같은 관리번호가 다른 군의 확인 대기 행에도 남아 있으면, 이름·휴대전화가 같은 소속 차이만 새 관리번호로 분리해 보존한다. 바뀐 연결은 숨김 변경 기록에 남긴다.
+
 ## 11. 테스트 사양
 
 ### TEST-EVENTDAYWORKBOOK-001 양방향 입력과 안전 경계
 
-`tests/event-day-workbook.test.js`를 `node`로 실행하여 실제 `onEdit` 진입점에 가짜 Sheets 경계를 연결한다. 단순 명단의 방문·등록 입력 영역과 등록 입력 시 방문 자동 추가도 확인한다. 전체→군, 군→전체, 등록→방문 유지, 군 이동, 여러 행 입력, 동일인 연결, 이름만 같은 사람 분리, 입력 검사, 서로 다른 항목 수정, 동일 항목 충돌, 미처리 입력 보존, 오류 후 복구, 이름 비우기를 확인한다.
+`tests/event-day-workbook.test.js`를 `node`로 실행하여 실제 `onEdit` 진입점에 가짜 Sheets 경계를 연결한다. 단순 명단의 방문·등록 입력 영역과 등록 단독 입력이 방문을 만들지 않는지와 어느 명단의 이름 비우기도 전체 삭제로 전파되는지 확인한다. 전체→군, 군→전체, 방문·등록 독립과 전체 삭제, 군 이동, 여러 행 입력, 동일인 연결, 이름만 같은 사람 분리, 입력 검사, 서로 다른 항목 수정, 동일 항목 충돌, 미처리 입력 보존, 오류 후 복구, 이름 비우기를 확인한다.
 
 실제 Google Sheets에서는 가상 인물로 양방향 입력·수정·등록 연결·군 이동·집계를 확인한 뒤 시험 자료를 제거한다. 로컬 검사는 권한과 Google의 편집 이벤트 전달을 대신 검증하지 않는다.
+
+### TEST-EVENTDAYWORKBOOK-002 동시 입력과 중단 경계
+
+Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 대기 입력, 처리 중 다른 담당자의 입력, 같은 칸·다른 칸 수정, 쓰기 전후 중단을 확인한다. 50가지 순서의 2,000명 입력·500명 삭제와 군 이동에서 인물 집합·중복·누락·연속 번호를 대조한다. 등록 단독 입력·전체 삭제·등록경로 네 값의 양방향 연결·새 입력 행의 선택 목록·명단 밖 수식 보존도 확인한다.
+
+### TEST-EVENTDAYWORKBOOK-003 분리된 Google Sheets 통합 검증
+
+개인정보 없는 전용 파일에 같은 열 구성과 이름 지정 범위를 만든다. `tests/fixtures/event-day-live.gs`의 시험 함수를 실행하여 10개 군의 이벤트 누락 복구·실제 집계 수식·전체 삭제·등록 단독 입력·등록경로 네 값·저장 응답 유실을 확인한다. 운영 명단에서는 이 함수를 실행하지 않는다. 다른 Google 계정 여러 개의 실제 동시 입력은 이 절차만으로 검증하지 않는다.
 
 ## 12. 요구사항 추적성
 
 | Requirement | Implementation | Test | Status |
 |---|---|---|---|
 | REQ-EVENTDAYWORKBOOK-001 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-002 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-002 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-003 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-004 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
 | REQ-EVENTDAYWORKBOOK-005 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
-| REQ-EVENTDAYWORKBOOK-008 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-006 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-007 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-008 | `event-day-workbook/Code.gs` | `tests/event-day-workbook.test.js`, `tests/event-day-concurrency.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-009 | `event-day-workbook/Code.gs`, `event-day-workbook/layout.cjs` | `tests/event-day-concurrency.test.js`, `tests/event-day-workbook.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-010 | `event-day-workbook/Code.gs` | `tests/event-day-concurrency.test.js`, `tests/event-day-workbook.test.js` | verified |

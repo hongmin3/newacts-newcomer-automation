@@ -78,7 +78,7 @@ edit(ctx.EVENT.visitors,2,3,'조군');assert.equal(rows('신군').length,0);asse
 paste('명군',2,6,[['가상둘','여',25,'20010101','01000000002'],['가상셋','남',27,'19990101','01000000003']]);
 assertHealthy('명군');assert.equal(rows('명군').length,2);assert.equal(rows(ctx.EVENT.visitors).length,3);
 // 총 등록에서 기존 사람 입력. 방문·등록 한 관리번호로 연결한다.
-paste(ctx.EVENT.registrations,2,6,[['가상하나','남',30,'19960101','010-0000-0001']]);
+paste(ctx.EVENT.registrations,2,3,[['조군','시작팀','시작순','가상하나','남',30,'19960101','010-0000-0001']]);
 assertHealthy(ctx.EVENT.registrations);assert.equal(rows(ctx.EVENT.raw).length,3);assert.equal(rows(ctx.EVENT.registrations).length,1);
 assert.equal(rows(ctx.EVENT.visitors)[0][0],rows(ctx.EVENT.registrations)[0][0]);
 // 이름만 같은 무전화 기록은 합치지 않는다. 같은 전화번호 다른 이름도 구분.
@@ -112,18 +112,18 @@ assert.ok(requests.every(r=>Object.keys(r).length===1));
 assert.equal(requests.filter(r=>r.addTable).length,0);
 assert.equal(requests.filter(r=>r.addSheet&&r.addSheet.properties.gridProperties.frozenRowCount===1).length,15);
 assert.ok(requests.filter(r=>r.addTable).every(r=>r.addTable.table.range.startRowIndex===0));
-assert.equal(requests.filter(r=>r.setDataValidation).length,0,'유형 적용된 테이블 열에 별도 validation을 겹치지 않는다');
+assert.equal(requests.filter(r=>r.setDataValidation).length,11,'전체·군별 등록경로에만 단일 선택 목록을 만든다');
 // 지연된 이벤트의 과거 e.value보다 화면의 최신 입력을 처리해야 한다.
 const delayedId=rows(ctx.EVENT.raw)[0][0],delayedRow=ctx.eventFind_(ss.sheets[ctx.EVENT.visitors],delayedId)[0].row;
 ss.sheets[ctx.EVENT.visitors].getRange(delayedRow,4).setValue('최신입력');
 ctx.onEdit({source:ss,range:ss.sheets[ctx.EVENT.visitors].getRange(delayedRow,4),value:'이전이벤트'});
 assert.equal(rows(ctx.EVENT.raw).find(r=>r[0]===delayedId)[3],'최신입력');assert.equal(rows(ctx.EVENT.visitors).find(r=>r[0]===delayedId)[3],'최신입력');
-// 기존 사람과 다른 팀을 붙여넣어 충돌한 신규 행도 메뉴로 해결할 수 있다.
+// 다른 팀의 신규 행은 기존 사람을 덮지 않고 보존한다.
 const conflictRow=ctx.eventData_(ss.sheets[ctx.EVENT.registrations]).length+2;
 paste(ctx.EVENT.registrations,conflictRow,4,[['다른팀','','가상하나','남',30,'19960101','01000000001']]);
-assert.match(ss.sheets[ctx.EVENT.registrations].getRange(conflictRow,19).getValues()[0][0],/^충돌:/);
+assert.match(ss.sheets[ctx.EVENT.registrations].getRange(conflictRow,19).getValues()[0][0],/동일인 중복/);
 assert.ok(ss.sheets[ctx.EVENT.registrations].getRange(conflictRow,1).getValues()[0][0]);
-active=ss.sheets[ctx.EVENT.registrations];active.activeRow=conflictRow;ctx.eventRestoreRow();active.activeRow=2;
+assert.equal(rows(ctx.EVENT.registrations).find(r=>r[3]==='다른팀')[2],'기타');
 // 원래 Google 테이블은 빈 BOOLEAN 열에 false를 채운다. 첫 실제 기록은 2행에 보여야 한다.
 ss.sheets['전군'].getRange(2,14,20,3).setValues(Array.from({length:20},()=>[false,false,false]));
 edit('전군',2,6,'가상체크');
@@ -131,7 +131,7 @@ assert.equal(rows('전군')[0][13],true,'빈 체크박스 기본값이 방문 �
 assert.equal(ss.sheets[ctx.EVENT.visitors].data.findIndex(r=>r?.[5]==='가상체크')<20,true);
 // 이름 후 전화번호를 순서대로 적어도 기존 인물과 연결된다.
 const visitorCount=rows(ctx.EVENT.raw).filter(r=>!r[21]).length;
-edit(ctx.EVENT.registrations,5,6,'가상둘');edit(ctx.EVENT.registrations,5,10,'01000000002');
+ss.sheets[ctx.EVENT.registrations].getRange(5,3).setValue('명군');edit(ctx.EVENT.registrations,5,6,'가상둘');edit(ctx.EVENT.registrations,5,10,'01000000002');
 assert.equal(rows(ctx.EVENT.raw).filter(r=>!r[21]).length,visitorCount,'순차 입력도 같은 이름+전화번호이면 한 사람이어야 한다');
 assert.equal(rows(ctx.EVENT.registrations).filter(r=>r[5]==='가상둘').length,1);
 const afterMergeCount=rows(ctx.EVENT.raw).filter(r=>!r[21]).length;ctx.eventUndoCancel();assert.equal(rows(ctx.EVENT.raw).filter(r=>!r[21]).length,afterMergeCount,'동일인 연결로 폐기한 ID는 취소 복구 대상이 아니다');
@@ -144,7 +144,11 @@ console.log('실제 onEdit 경계: 양방향·군 이동·여러 행·동일인�
 const normalized=ss.sheets[ctx.EVENT.raw];normalized.getRange(2,14).setValue('true');normalized.getRange(2,15).setValue('false');normalized.getRange(2,22).setValue('false');
 const normalizedRow=ctx.eventData_(normalized)[0];assert.equal(normalizedRow[13],true);assert.equal(normalizedRow[14],false);assert.equal(normalizedRow[21],false);
 
-// 실제 단순 명단 열 배치를 통과한다. 등록 쪽에 이름을 적으면 방문 쪽에도 생긴다.
+// 실제 단순 명단 열 배치를 통과한다. 등록만 입력하면 방문 쪽에는 추가하지 않는다.
+Range.prototype.setDataValidation=function(){return this;};
+Sheet.prototype.getConditionalFormatRules=function(){return [];};Sheet.prototype.setConditionalFormatRules=function(){};ctx.SpreadsheetApp.newConditionalFormatRule=()=>({whenFormulaSatisfied(){return this;},setBackground(){return this;},setRanges(){return this;},build(){return {};}});
+ctx.SpreadsheetApp.newDataValidation=()=>({requireValueInList(){return this;},setAllowInvalid(){return this;},build(){return {};}});
+Range.prototype.getFormulas=function(){return Array.from({length:this.nr},()=>Array(this.nc).fill(''));};
 Range.prototype.getNote=function(){return this.sheet.notes?.[`${this.row},${this.col}`]||'';};
 Range.prototype.setNote=function(v){this.sheet.notes??={};this.sheet.notes[`${this.row},${this.col}`]=v;return this;};
 Range.prototype.clearNote=function(){this.sheet.notes??={};for(let i=0;i<this.nr;i++)for(let j=0;j<this.nc;j++)delete this.sheet.notes[`${this.row+i},${this.col+j}`];return this;};
@@ -159,22 +163,22 @@ ctx.EVENT.groups.forEach((g,i)=>{const s=plain.sheets[g];s.id=310+i;plain.namedR
 ctx.SpreadsheetApp.getActive=()=>plain;
 let ps=plain.sheets['신군'];ps.getRange(27,3,1,4).setValues([['단순등록시험','여',30,'01000000008']]);ctx.onEdit({source:plain,range:ps.getRange(27,3,1,4)});
 assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][0],'단순등록시험');
-assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'단순등록시험');
-assert.equal(ps.getRange(3,3).getValues()[0][0],'단순등록시험');
-assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][13],true);assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][14],true);
+assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'');
+assert.equal(ps.getRange(3,3).getValues()[0][0],'');
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][13],false);assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][14],true);
 ps.getRange(27,3).setValue('');ctx.onEdit({source:plain,range:ps.getRange(27,3)});
 assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][0],'');
-assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'단순등록시험');
-assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][14],false);
+assert.equal(plain.sheets[ctx.EVENT.visitors].getRange(2,3).getValues()[0][0],'');
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw])[0][21],true);
 const visitor=plain.sheets[ctx.EVENT.visitors];visitor.getRange(2,3).setValue('');ctx.onEdit({source:plain,range:visitor.getRange(2,3)});
 assert.equal(ps.getRange(3,3).getValues()[0][0],'');
 assert.ok(!fs.readFileSync(file,'utf8').includes('.createMenu('),'추가 메뉴를 만들지 않는다');
-assert.ok(!layout.build().some(r=>r.addTable||r.setDataValidation),'표 버튼·체크박스·드롭다운을 만들지 않는다');
-console.log('단순 명단 실제 열 배치: 군 등록 입력→전체 등록·방문, 등록 비우기→방문 유지, 방문 비우기 통과');
+assert.ok(!layout.build().some(r=>r.addTable),'표 버튼은 만들지 않는다');
+console.log('단순 명단 실제 열 배치: 군 등록 입력→전체 등록만 반영, 이름 비우기→전체 삭제 통과');
 // 편집 이벤트가 빠진 이름 비우기도 다시 열 때 등록 해제로 처리한다.
 ps.getRange(29,3,1,4).setValues([['다시열기시험','여',31,'01000000005']]);ctx.onEdit({source:plain,range:ps.getRange(29,3,1,4)});
 ps.getRange(29,3).setValue('');ctx.eventRepair(true);
-assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='다시열기시험')[14],false,'대기 중인 이름 비우기는 다시 열 때도 처리해야 한다');
+assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='다시열기시험')[21],true,'대기 중인 이름 비우기는 다시 열 때도 처리해야 한다');
 
 // 방문 칸이 차면 등록 구역을 유지하며 다섯 줄을 더한다.
 Range.prototype.copyFormatToRange=function(){};
@@ -192,18 +196,18 @@ assert.ok(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).some(r=>r[5]==='직접초�
 const regRange=plain.getRangeByName('_EVENT_310_REG'),regNext=regRange.getLastRow()+1,oldRegSize=regRange.getNumRows();
 ps.getRange(regNext,3,1,4).setValues([['등록초과시험','여',33,'01000000001']]);ctx.onEdit({source:plain,range:ps.getRange(regNext,3,1,4)});
 assert.equal(plain.getRangeByName('_EVENT_310_REG').getNumRows(),oldRegSize+5);
-const regOverflowRecord=ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='등록초과시험');assert.equal(regOverflowRecord[13],true);assert.equal(regOverflowRecord[14],true);
+const regOverflowRecord=ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[5]==='등록초과시험');assert.equal(regOverflowRecord[13],false);assert.equal(regOverflowRecord[14],true);
 
 // Validates: REQ-EVENTDAYWORKBOOK-006. 순번만 수정, 중간 빈칸, 등록의 순 보존.
 const numSheet=plain.sheets['조군'];
 numSheet.getRange(27,3,1,9).setValues([['번호등록','여',24,'01000000007','','','조군','팀','등록순']]);
 ctx.onEdit({source:plain,range:numSheet.getRange(27,3,1,9)});
 numSheet.getRange(7,3).setValue('빈칸뒤방문');ctx.onEdit({source:plain,range:numSheet.getRange(7,3)});
-assert.equal(numSheet.getRange(7,1).getValues()[0][0],2,'중간 빈 행을 제외하고 순번을 매긴다');
-assert.equal(numSheet.getRange(3,11).getValues()[0][0],'-','등록에서 연결된 방문도 순은 -다');
+assert.equal(numSheet.getRange(7,1).getValues()[0][0],1,'중간 빈 행을 제외하고 순번을 매긴다');
+assert.equal(numSheet.getRange(3,11).getValues()[0][0],'','등록만 입력하면 방문 행을 만들지 않는다');
 assert.equal(numSheet.getRange(27,11).getValues()[0][0],'등록순','등록 순을 보존한다');
 numSheet.getRange(7,1).setValue(999);ctx.onEdit({source:plain,range:numSheet.getRange(7,1)});
-assert.equal(numSheet.getRange(7,1).getValues()[0][0],2,'순번 직접 수정도 복구한다');
+assert.equal(numSheet.getRange(7,1).getValues()[0][0],1,'순번 직접 수정도 복구한다');
 numSheet.getRange(7,11).setValue('방문입력순');ctx.onEdit({source:plain,range:numSheet.getRange(7,11)});
 assert.equal(numSheet.getRange(7,11).getValues()[0][0],'-');
 const visitId=numSheet.getRange(7,29).getValues()[0][0];
@@ -211,7 +215,7 @@ assert.equal(ctx.eventData_(plain.sheets[ctx.EVENT.raw]).find(r=>r[0]===visitId)
 numSheet.getRange(7,3).setValue('');ctx.onEdit({source:plain,range:numSheet.getRange(7,3)});
 assert.equal(numSheet.getRange(7,1).getValues()[0][0],'');
 numSheet.getRange(3,1).setValue(48);ctx.eventRepair(true);
-assert.equal(numSheet.getRange(3,1).getValues()[0][0],1,'다시 열어도 순번을 고친다');
+assert.equal(numSheet.getRange(3,1).getValues()[0][0],'','이름이 없는 행의 순번은 지운다');
 assert.equal(numSheet.getRange(27,11).getValues()[0][0],'등록순');
 console.log('자동 연속 순번·번호 수정 복구·방문 순 표시·등록 순 보존 통과');
 
@@ -229,6 +233,7 @@ const moved=plain.sheets['명군'];assert.equal(moved.getRange(27,11).getValues(
 console.log('군 이동 뒤 전체·군별 각 명단의 연속 번호와 등록 순 보존 통과');
 // Validates: REQ-EVENTDAYWORKBOOK-004. 이전 편집 이벤트가 대기한 칸도 다음 편집에서 처리한다.
 const pendingSheet=plain.sheets[ctx.EVENT.visitors];
+if(!pendingSheet.getRange(3,3).getValues()[0][0]){pendingSheet.getRange(3,3).setValue('대기행준비');ctx.onEdit({source:plain,range:pendingSheet.getRange(3,3)});}
 pendingSheet.getRange(2,10).setValue('대기팀자동반영');
 pendingSheet.getRange(3,8).setValue('대기전도자자동반영');
 pendingSheet.getRange(2,12).setValue('후속수정');ctx.onEdit({source:plain,range:pendingSheet.getRange(2,12)});

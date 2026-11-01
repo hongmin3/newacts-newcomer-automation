@@ -1,6 +1,7 @@
 /** @OnlyCurrentDoc */
 /** 2026-11-01 당일 파일 전용. 기존 등록/메일 프로젝트와 분리된 container-bound script. */
 var EVENT = Object.freeze({date:'2026-11-01', firstRow:2, width:22,
+  registrationRoutes:['직접방문','설문지','관계','교인인도'],
   groups:['신군','조군','명군','총군','영군','석군','전군','임군','슬군','기타'],
   visitors:'총 방문 새가족', registrations:'총 등록 새가족', raw:'_원본', log:'_변경기록', conflicts:'_충돌',
   headers:['관리번호','날짜','군','팀','순','이름','성별','나이','생년월일','휴대폰','주소','인도자','예배(부)','방문','등록','결신','등록경로','비고','확인사항','수정시각','버전','화면 비교값']});
@@ -48,6 +49,7 @@ function eventApplyPatch_(canonical, baseline, patch, source, force) {
     if(col===1){v=eventDate_(v)||EVENT.date;if(v!==EVENT.date)throw new Error('이 시트는 2026년 11월 1일 행사 전용입니다.');}
     else if(col===2){v=eventText_(v)|| (eventGroup_(source)||'기타');if(v!=='기타'&&!/군$/.test(v))v+='군';if(EVENT.groups.indexOf(v)<0)throw new Error('군은 목록에서 선택해 주세요.');}
     else if(col===9)v=eventPhone_(v);
+    else if(col===16){v=eventText_(v);if(v&&EVENT.registrationRoutes.indexOf(v)<0)throw new Error('등록경로는 직접방문·설문지·관계·교인인도 중 하나를 선택해 주세요.');}
     else if(col>=13&&col<=15)v=eventBool_(v);
     else if(col===7){if(v!==''&&v!==null){var ageText=eventText_(v);if(/^-/.test(ageText))throw new Error('나이·생년월일을 확인해 주세요.');v=/^\d{1,3}$/.test(ageText)&&Number(ageText)<=120?Number(ageText):ageText;}else v='';}
     else if(col===8){v=eventText_(v);if(v){var birth=v.replace(/[-./]/g,'');if(!/^\d{8}$/.test(birth))throw new Error('생년월일은 YYYYMMDD로 입력해 주세요.');var y=+birth.slice(0,4),m=+birth.slice(4,6),d=+birth.slice(6,8),date=new Date(Date.UTC(y,m-1,d));if(date.getUTCFullYear()!==y||date.getUTCMonth()+1!==m||date.getUTCDate()!==d||birth>'20261101'||y<1900)throw new Error('생년월일 날짜를 확인해 주세요.');v=birth;}}
@@ -57,7 +59,7 @@ function eventApplyPatch_(canonical, baseline, patch, source, force) {
   });
   if(!eventText_(row[5]))throw new Error('이름은 비울 수 없습니다. 기록 취소는 행축 명단 메뉴를 사용해 주세요.');
   row[1]=row[1]||EVENT.date;row[2]=row[2]||'기타';
-  if(row[14])row[13]=true;
+
   return {row:row,conflicts:conflicts};
 }
 /** 화면에 아직 처리하지 않은 입력이 있으면 그 칸과 이전 비교값을 보존한다. */
@@ -126,6 +128,7 @@ function eventProject_(ss,record,oldGroup,sourceName,cache) {
     var fresh=sheet.getRange(item.row,1,1,EVENT.width).getValues()[0];
     for(var c=1;c<=17;c++)if(!eventEqual_(fresh[c],item.values[c])){p.values[c]=fresh[c];p.baseline[c]=baseline[c];p.pending=true;}
     if(p.pending)p.values[18]='다른 입력 처리 대기: 자동으로 다시 반영합니다.';
+    if(/^충돌:/.test(eventText_(fresh[18])))p.values[18]=fresh[18];
     p.values[21]=JSON.stringify(p.baseline.slice(0,21));
     // 입력 열은 실제로 갱신이 필요한 칸만 쓴다. 대기 중인 다른 칸은 쓰지 않는다.
     for(var j=0;j<EVENT.width;j++)if(!eventEqual_(fresh[j],p.values[j]))eventWrite_(sheet.getRange(item.row,j+1,1,1),[[p.values[j]]]);
@@ -136,19 +139,21 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   if(isNew&&!eventText_(input[5])){sheet.getRange(rowNumber,19).setValue('이름 입력 후 자동 연결');return;}
   var mergedFrom=null;
   var existingIndex=records.findIndex(function(r){return r[0]===input[0];}),candidate,patch={};
-  if(!isNew&&existingIndex<0){sheet.getRange(rowNumber,19).setValue('관리번호 확인 필요: 새 기록은 관리번호를 붙여넣지 마세요.');return;}
+  var reserved=!isNew&&existingIndex<0&&base&&base[0]===input[0]&&Number(base[20])===0;
+  if(!isNew&&existingIndex<0&&!reserved){sheet.getRange(rowNumber,19).setValue('관리번호 확인 필요: 새 기록은 관리번호를 붙여넣지 마세요.');return;}
   if(!isNew&&!base){sheet.getRange(rowNumber,19).setValue('화면 비교값 손상: 입력 확인 필요');return;}
   if(!isNew&&eventFind_(sheet,input[0]).length>1&&!/^충돌:/.test(eventText_(input[18]))){sheet.getRange(rowNumber,19).setValue('관리번호 중복: 전체 행 복사를 하지 마세요.');return;}
+  if(reserved)isNew=true;
   if(isNew){
-    candidate=Array(EVENT.width).fill('');candidate[0]=Utilities.getUuid();candidate[1]=EVENT.date;candidate[2]=eventGroup_(sheet.getName())||'기타';candidate[13]=true;candidate[14]=eventRegisteredView_(sheet.getName());candidate[15]=false;candidate[20]=0;candidate[21]=false;
+    candidate=Array(EVENT.width).fill('');candidate[0]=reserved?input[0]:Utilities.getUuid();candidate[1]=EVENT.date;candidate[2]=eventGroup_(sheet.getName())||'기타';candidate[13]=!eventRegisteredView_(sheet.getName());candidate[14]=eventRegisteredView_(sheet.getName());candidate[15]=false;candidate[20]=0;candidate[21]=false;
     for(var c=1;c<=17;c++)if(input[c]!==''&&input[c]!==null)patch[c]=input[c];
     // 초기 체크박스 false는 전체 등록 탭의 기본 등록을 해제하지 않는다.
-    patch[13]=true;
+    patch[13]=!eventRegisteredView_(sheet.getName());
     if(eventRegisteredView_(sheet.getName())&&input[14]!==true)patch[14]=true;
   }else{candidate=records[existingIndex];columns.forEach(function(c){if(c>=1&&c<=17)patch[c]=input[c];});}
   var planned=eventApplyPatch_(candidate,isNew?null:base,patch,sheet.getName(),force);
   // 이름을 먼저 쓴 뒤 전화번호를 채우는 입력도 같은 사람으로 연결한다.
-  var key=eventKey_(planned.row),matches=key?records.map(function(r,i){return {r:r,i:i};}).filter(function(x){return !x.r[21]&&x.r[0]!==candidate[0]&&eventKey_(x.r)===key;}):[];
+  var key=eventKey_(planned.row),matches=key?records.map(function(r,i){return {r:r,i:i};}).filter(function(x){return !x.r[21]&&x.r[0]!==candidate[0]&&eventKey_(x.r)===key&&eventStoredGroup_(x.r[2])===eventStoredGroup_(planned.row[2])&&eventText_(x.r[3])===eventText_(planned.row[3]);}):[];
   if(matches.length>1)throw new Error('동일인 후보가 여러 명입니다. 기존 관리번호를 확인해 주세요.');
   if(matches.length===1){
     mergedFrom=existingIndex<0?null:{row:candidate.slice(),index:existingIndex};
@@ -160,7 +165,7 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
     }
     // 기본 기타 배정으로 기존 군을 덮지 않는다. 군을 직접 고친 경우만 반영한다.
     if(Object.prototype.hasOwnProperty.call(patch,2))merge[2]=incoming[2];
-    merge[13]=true;if(eventRegisteredView_(sheet.getName()))merge[14]=true;
+    if(eventRegisteredView_(sheet.getName()))merge[14]=true;else merge[13]=true;
     var mergeBase=Array(EVENT.width).fill('');
     [13,14,15].forEach(function(c){mergeBase[c]=candidate[c];});
     planned=eventApplyPatch_(candidate,mergeBase,merge,sheet.getName(),force);
@@ -183,6 +188,9 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   var changed=isNew||!!mergedFrom||planned.row.slice(1,18).some(function(v,i){return !eventEqual_(v,candidate[i+1]);});
   var after=planned.row;after[0]=candidate[0];after[21]=false;after[18]=eventHealth_(after,records.filter(function(r){return !mergedFrom||r[0]!==mergedFrom.row[0];}));
   if(changed){after[19]=eventNow_();after[20]=(Number(candidate[20])||0)+1;
+    // 원본보다 먼저 입력 행에 번호와 버전 0 비교값을 한 번에 남긴다.
+    // 원본 쓰기 직후 응답이 끊겨도 같은 번호로 이어서 처리한다.
+    if(isNew&&existingIndex<0&&sheet.stageCreate){var draft=after.slice(0,21);draft[20]=0;sheet.stageCreate(rowNumber,draft);}
     eventAudit_(ss,isNew&&existingIndex<0?'추가':'수정',sheet.getName(),existingIndex<0?null:candidate,after);
     if(existingIndex<0){raw.appendRow(eventSafeValues_(after));existingIndex=records.length;}else eventWrite_(raw.getRange(existingIndex+2,1,1,EVENT.width),[after]);
   }
@@ -232,15 +240,18 @@ function eventRepair(silent,background) {
     var complete=true;
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
     eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
+      row=eventSplitAssignmentPending_(ss,sheet,i+2,row);
       var base=eventBaseline_(row),cols=[];
       if(/^충돌:/.test(eventText_(row[18])))return;
       if(!row[0]){if(!eventText_(row[5]))return;for(var c=1;c<=17;c++)cols.push(c);}
       else if(base){for(var j=1;j<=17;j++)if(!eventEqual_(row[j],base[j]))cols.push(j);}
+      if(!cols.length&&row[0]&&base&&Number(base[20])===0)cols.push(5);
       if(!cols.length)return;
       try{if(sheet.plainMap&&row[0]&&!eventText_(row[5]))eventPlainClear_(ss,sheet,i+2,sheet.plainMap);else eventProcessRow_(ss,sheet,i+2,cols,undefined,false);}catch(err){complete=false;sheet.getRange(i+2,19).setValue('입력 확인: '+err.message);}
     });});
+    eventRefreshHealth_(ss);
     var cache={};eventViews_().forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});cache[name]={byId:byId,nextRow:data.length+2};});
-    eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(row){var needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20]);});if(needs)eventProject_(ss,row,'','*',cache);});
+    eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(row){var needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20])||base[18]!==row[18];});if(needs)eventProject_(ss,row,'','*',cache);});
     eventPlainLabels_(ss);
     if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
     return complete;
@@ -312,11 +323,18 @@ function eventPlainSheet_(physical,map,onResize) {
     else if(col===18)note(row,value);
     else if(i>=0)physical.getRange(row+map.offset,map.start+i).setValue(col===2?eventDisplayGroup_(value):!map.registered&&col===4?'-':value);
   }
-  var sheet={plainMap:map,physical:physical,refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;physical.insertRowsBefore(at,5);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+4);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+5,map.cols.length));onResize();},
+  var sheet={plainMap:map,physical:physical,stageCreate:function(row,draft){eventWrite_(physical.getRange(row+map.offset,map.meta,1,2),[[draft[0],JSON.stringify(draft)]]);},refresh:function(){eventPlainConfigure_(physical,map);},getName:function(){return map.name;},getLastRow:function(){return Math.max(1,Math.min(physical.getLastRow(),map.offset+map.limit)-map.offset);},getMaxRows:function(){return map.limit;},insertRowsAfter:function(a,b){if(!map.group){physical.insertRowsAfter(a,b);map.limit+=b;return;}var start=map.offset+2,length=map.limit-1,at=start+length;physical.insertRowsBefore(at,5);physical.getRange(at-1,1,1,32).copyFormatToRange(physical,1,32,at,at+4);physical.getParent().setNamedRange(map.rangeName,physical.getRange(start,1,length+5,map.cols.length));onResize();},
     getActiveRange:function(){return {getRow:function(){return physical.getActiveRange().getRow()-map.offset;}};},
     getRange:function(row,col,nr,nc){nr=nr||1;nc=nc||1;return {
       getValues:function(){return readRows(row,nr).map(function(r){return r.slice(col-1,col-1+nc);});},
-      setValues:function(values){values.forEach(function(values,r){if(col===1&&values.length===22){var view=map.cols.map(function(c){return c<0?row+r-1:c===2?eventDisplayGroup_(values[c]):!map.registered&&c===4?'-':values[c];});eventWrite_(physical.getRange(row+r+map.offset,map.start,1,map.cols.length),[view]);eventWrite_(physical.getRange(row+r+map.offset,map.meta,1,2),[[values[0],values[21]]]);note(row+r,values[18]);}else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
+      setValues:function(values){values.forEach(function(values,r){if(col===1&&values.length===22){
+        // 화면 내용과 관리번호를 한 번에 저장해 한쪽만 남는 중단 상태를 막는다.
+        var target=physical.getRange(row+r+map.offset,1,1,32),current=target.getValues()[0],formulas=target.getFormulas()[0];
+        var whole=eventSafeValues_(current);formulas.forEach(function(formula,i){if(formula)whole[i]=formula;});
+        var view=eventSafeValues_(map.cols.map(function(c){return c<0?row+r-1:c===2?eventDisplayGroup_(values[c]):!map.registered&&c===4?'-':values[c];}));
+        view.forEach(function(v,i){whole[map.start+i-1]=v;});whole[map.meta-1]=values[0];whole[map.meta]=values[21];
+        target.setValues([whole]);note(row+r,values[18]);
+      }else values.forEach(function(v,c){write(row+r,col+c-1,v);});});return this;},
       setValue:function(v){return this.setValues([[v]]);},
       clearContent:function(){physical.getRange(row+map.offset,map.start,nr,map.cols.length).clearContent();physical.getRange(row+map.offset,map.meta,nr,2).clearContent();physical.getRange(row+map.offset,map.start+2,nr,1).clearNote();return this;}
     };}};
@@ -326,11 +344,10 @@ function eventPlainClear_(ss,sheet,rowNumber,map) {
   var input=sheet.getRange(rowNumber,1,1,22).getValues()[0];if(!input[0])return;
   var raw=ss.getSheetByName(EVENT.raw),records=eventData_(raw),i=records.findIndex(function(r){return r[0]===input[0];});if(i<0)return;
   var before=records[i],after=before.slice();
-  if(map.registered)after[14]=false;
-  else if(before[14]){sheet.getRange(rowNumber,1,1,22).clearContent();eventProject_(ss,before,'','*');ss.toast('등록자는 방문 명단에도 유지됩니다.','입력 안내',5);return;}
-  else {after[13]=false;after[21]=true;}
-  after[19]=eventNow_();after[20]=Number(before[20])+1;
-  eventAudit_(ss,map.registered?'등록 명단 비우기':'방문 명단 비우기',map.name,before,after);
+  // 어느 명단에서든 이름을 지우면 그 사람을 전체 방문·등록 화면에서 제외한다.
+  // 원래 방문·등록 여부는 취소 기록에 남겨 복구할 수 있게 한다.
+  after[21]=true;after[19]=eventNow_();after[20]=Number(before[20])+1;
+  eventAudit_(ss,'취소',map.name,before,after,'이름 비우기: 전체 방문·등록 명단에서 삭제');
   eventWrite_(raw.getRange(i+2,1,1,22),[after]);sheet.getRange(rowNumber,1,1,22).clearContent();eventProject_(ss,after,before[2],'*');
 }
 function eventPlainFooter_(physical,map){
@@ -364,6 +381,7 @@ function onEdit(e) {
       if(/^충돌:/.test(eventText_(values[18]))&&!inEvent)return;
       if(!values[0]){if(!eventText_(values[5]))return;changed=columns.slice();}
       else if(base){for(var c=1;c<=17;c++)if(!eventEqual_(values[c],base[c]))changed.push(c);}
+      if(!changed.length&&values[0]&&base&&Number(base[20])===0)changed.push(5);
       if(!changed.length){if(base&&/^다른 입력 처리 대기:/.test(eventText_(values[18])))sheet.getRange(row,19).setValue(base[18]||'');return;}
       try{if(changed.indexOf(5)>=0&&!eventText_(values[5])&&values[0])eventPlainClear_(ss,sheet,row,map);else eventProcessRow_(ss,sheet,row,changed,undefined,false);}
       catch(err){sheet.getRange(row,19).setValue('입력 확인: '+err.message);e.source.toast(err.message,'입력 확인',6);}
@@ -376,6 +394,8 @@ function eventPlainLabels_(ss,onlyTouched) {
   (onlyTouched?Object.keys(ss.labelNames||{}):eventViews_()).forEach(function(name){
     var sheet=ss.getSheetByName(name),map=sheet.plainMap;
     if(!map)return;
+    eventDuplicateRule_(sheet);
+    if(map.registered)eventRouteDropdown_(sheet);
     var physical=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
     if(!count)return;
     var visible=physical.getRange(start,1,count,11).getValues(),number=0;
@@ -402,4 +422,37 @@ function eventAutoSync() {
     props.setProperty('EVENT_SYNC_LAST',String(Date.now()));
     console.log('행축 대기 입력 자동 확인 완료');
   }
+}
+
+function eventRouteDropdown_(sheet){
+  var map=sheet.plainMap,physical=sheet.physical,props=PropertiesService.getScriptProperties();
+  var signature=JSON.stringify([map.offset+2,map.limit-1,EVENT.registrationRoutes]);
+  var key='EVENT_ROUTE_RANGE_'+physical.getSheetId();
+  if(props.getProperty(key)===signature)return;
+  var rule=SpreadsheetApp.newDataValidation().requireValueInList(EVENT.registrationRoutes,true).setAllowInvalid(false).build();
+  physical.getRange(map.offset+2,13,map.limit-1,1).setDataValidation(rule);
+  props.setProperty(key,signature);
+}
+
+function eventRefreshHealth_(ss) {
+  var raw=ss.getSheetByName(EVENT.raw),records=eventData_(raw);
+  records.forEach(function(row,i){if(row[21])return;var health=eventHealth_(row,records);if(row[18]!==health)raw.getRange(i+2,19).setValue(health);});
+}
+function eventSplitAssignmentPending_(ss,sheet,n,row) {
+  var group=eventGroup_(sheet.getName()),base=eventBaseline_(row);
+  if(!group||!base||!/^군 변경 전 입력 확인/.test(eventText_(row[18]))||!eventKey_(row))return row;
+  var found=eventData_(ss.getSheetByName(EVENT.raw)).filter(function(r){return r[0]===row[0]&&!r[21];})[0];
+  if(!found||found[2]===group||row[2]!==group||eventKey_(found)!==eventKey_(row))return row;
+  eventAudit_(ss,'소속별 기록 분리',sheet.getName(),row,found,'이전 군 확인 대기 행의 소속과 입력값을 별도 기록으로 보존');
+  var separate=row.slice();separate[0]='';separate[21]='';separate[18]='';separate[13]=!eventRegisteredView_(sheet.getName());separate[14]=eventRegisteredView_(sheet.getName());
+  eventWrite_(sheet.getRange(n,1,1,EVENT.width),[separate]);return separate;
+}
+function eventDuplicateRule_(sheet) {
+  var map=sheet.plainMap,physical=sheet.physical,start=map.offset+2,count=map.limit-1;
+  var tag='EVENT_DUPLICATE_'+(map.registered?'REG':'VISIT'),key=tag+'_'+physical.getSheetId(),signature=JSON.stringify([start,count]);
+  var props=PropertiesService.getScriptProperties();if(props.getProperty(key)===signature)return;
+  var formula=`=AND(N("${tag}")=0,$C${start}<>"",$F${start}<>"",COUNTIFS(INDIRECT("'_원본'!F2:F"),$C${start},INDIRECT("'_원본'!J2:J"),$F${start},INDIRECT("'_원본'!V2:V"),FALSE)>1)`;
+  var rules=physical.getConditionalFormatRules().filter(function(rule){var condition=rule.getBooleanCondition();return !condition||!condition.getCriteriaValues().some(function(v){return String(v).indexOf(tag)>=0;});});
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(formula).setBackground('#fff2cc').setRanges([physical.getRange(start,3,count,1)]).build());
+  physical.setConditionalFormatRules(rules);props.setProperty(key,signature);
 }
