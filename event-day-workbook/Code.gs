@@ -105,8 +105,8 @@ function eventMember_(row,name){if(row[21])return false;if(name===EVENT.visitors
 function eventFind_(sheet,id){
   var data=eventData_(sheet),matches=[];data.forEach(function(r,i){if(r[0]===id)matches.push({row:i+2,values:r});});return matches;
 }
-function eventProject_(ss,record,oldGroup,sourceName,cache) {
-  var names=(sourceName==='*'?eventViews_():[EVENT.visitors,EVENT.registrations].concat(eventGroupViews_(record[2]),eventGroupViews_(oldGroup),[sourceName])).filter(function(n,i,a){return eventIsView_(n)&&a.indexOf(n)===i;});
+function eventProject_(ss,record,oldGroup,sourceName,cache,onlyNames) {
+  var names=(onlyNames||(sourceName==='*'?eventViews_():[EVENT.visitors,EVENT.registrations].concat(eventGroupViews_(record[2]),eventGroupViews_(oldGroup),[sourceName]))).filter(function(n,i,a){return eventIsView_(n)&&a.indexOf(n)===i;});
   names.forEach(function(name){
     var sheet=ss.getSheetByName(name);if(!sheet)throw new Error('필수 탭이 없습니다: '+name);
     var matches=cache?(cache[name].byId[record[0]]||[]):eventFind_(sheet,record[0]);
@@ -245,8 +245,14 @@ function eventRepair(silent,background) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());return eventWithLock_(ss,function(){
     var urgentProps=PropertiesService.getScriptProperties(),urgent=urgentProps.getProperty('EVENT_UNSAVED_REQUEST');
     if(urgent){
+      if(urgentProps.getProperty('EVENT_UNSAVED_PHASE')!=='fresh'){
+        var restored=eventRestoreMissing_(ss,20000);
+        if(restored.complete)urgentProps.deleteProperty('EVENT_UNSAVED_MISSING');else urgentProps.setProperty('EVENT_UNSAVED_MISSING','1');
+        if(restored.processed){urgentProps.setProperty('EVENT_UNSAVED_PHASE','fresh');urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());return false;}
+      }
       var urgentResult=eventDrainUnsaved_(ss,20000);
-      if(urgentResult.complete&&urgentProps.getProperty('EVENT_UNSAVED_REQUEST')===urgent)urgentProps.deleteProperty('EVENT_UNSAVED_REQUEST');
+      urgentProps.deleteProperty('EVENT_UNSAVED_PHASE');
+      if(urgentResult.complete&&urgentProps.getProperty('EVENT_UNSAVED_MISSING')!=='1'&&urgentProps.getProperty('EVENT_UNSAVED_REQUEST')===urgent)urgentProps.deleteProperty('EVENT_UNSAVED_REQUEST');
       urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());
       return false;
     }
@@ -707,6 +713,20 @@ function eventDrainUnsaved_(ss,budget){
  }
  if(processed)eventPlainLabels_({labelNames:touched,getSheetByName:ss.getSheetByName},true);
  console.log('신규 입력 우선 확인 '+processed+'건'+(complete?'':' / 다음 자동 확인에서 계속'));
+ return {complete:complete,processed:processed};
+}
+/** 번호가 있는 화면은 보존하고 저장된 번호의 화면 누락만 복구한다. */
+function eventRestoreMissing_(ss,budget){
+ var cache={},names=eventViews_(),jobs=[],touched={};
+ names.forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(row,i){if(row[0]){byId[row[0]]=byId[row[0]]||[];byId[row[0]].push({row:i+2,values:row});}});cache[name]={byId:byId,nextRow:data.length+2};});
+ eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(row){names.forEach(function(name){if(eventMember_(row,name)&&!cache[name].byId[row[0]])jobs.push({record:row,name:name});});});
+ var started=Date.now(),processed=0,complete=true;
+ for(var i=0;i<jobs.length;i++){
+  if(processed&&Date.now()-started>=budget){complete=false;break;}
+  var job=jobs[i];eventProject_(ss,job.record,'','*',cache,[job.name]);processed++;touched[job.name]=true;
+ }
+ if(processed)eventPlainLabels_({labelNames:touched,getSheetByName:ss.getSheetByName},true);
+ if(processed)console.log('저장된 명단의 화면 누락 복구 '+processed+'건');
  return {complete:complete,processed:processed};
 }
 
