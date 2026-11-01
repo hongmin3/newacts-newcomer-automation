@@ -131,6 +131,7 @@
 - 군별 또는 전체 명단에서 사람의 행을 삭제하면 같은 종류의 전체·군별 명단에서도 제외한다. 방문을 지워도 등록 카드는 유지한다. 취소 전 원본과 다른 화면의 미처리 입력은 변경 기록에 보관한다.
 - 시트별 행 수와 표시된 관리번호를 기억한다. 행 수 감소 또는 행 삭제 알림을 확인하고, 그 시트에서 사라진 관리번호만 취소 후보로 삼는다. 같은 관리번호가 같은 시트의 다른 행에 남으면 사람을 취소하지 않는다.
 - 처음 활성화할 때 현재 명단을 기준으로 기억한다. 그 전에 이미 빠져 있던 기록이나 행 수 변화 없이 잠시 빠진 화면은 삭제로 추측하지 않고 기존 누락 복구를 적용한다.
+- 이름 지정 입력 범위의 시작이 실제 이름 머리글 바로 다음 행과 다르면, 머리글과 계 위치를 확인해 범위 정의를 바로잡는다. 명단 입력값과 행 순서는 바꾸지 않는다.
 - 행을 추가하면 이름 지정 입력 범위·순번·계가 따라간다. 빈 행을 지우면 사람 수는 유지한다. 입력 구역의 모든 데이터 행을 지웠다면 머리글·계 사이에 빈 입력 행을 확보한다.
 - 처리 중 행 위치가 바뀌면 이전 좌표로 쓰기를 계속하지 않고 다시 확인한다. 동시에 다른 군에 적는 입력과 다른 종류의 카드는 유지한다. 잠금을 기다리거나 중단되면 다음 확인에서 이어 처리한다.
 - 명단의 데이터 행에 적용한다. 머리글·열·시트 탭 삭제처럼 입력 구역을 판별할 수 없는 변경은 사람 삭제로 추측하지 않고 확인이 필요하다고 알린다.
@@ -174,4 +175,4 @@ Node.js로 `tests/event-day-concurrency.test.js`를 실행하여 10개 군의 �
 
 | REQ-EVENTDAYWORKBOOK-013 | `event-day-workbook/Code.gs` | `tests/event-day-status.test.js` | verified |
 
-| REQ-EVENTDAYWORKBOOK-014 | `event-day-workbook/Code.gs` | `tests/event-day-structure.test.js` | verified |
+| REQ-EVENTDAYWORKBOOK-014 | `event-day-workbook/Code.gs` | `tests/event-day-numbering.test.js`, `tests/event-day-structure.test.js` | verified |

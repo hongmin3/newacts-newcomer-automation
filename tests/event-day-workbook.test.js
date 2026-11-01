@@ -162,7 +162,7 @@ const plain={sheets:{},getSheetByName(n){return this.sheets[n];},getSheets(){ret
 ctx.EVENT.groups.concat([ctx.EVENT.visitors,ctx.EVENT.registrations,ctx.EVENT.raw,ctx.EVENT.log,ctx.EVENT.conflicts]).forEach(n=>plain.sheets[n]=new Sheet(plain,n));
 plain.namedRanges={};plain.getRangeByName=n=>plain.namedRanges[n];plain.setNamedRange=(n,r)=>{plain.namedRanges[n]=r;};
 Sheet.prototype.getParent=function(){return this.ss;};Sheet.prototype.getSheetId=function(){return this.id||310;};
-ctx.EVENT.groups.forEach((g,i)=>{const s=plain.sheets[g];s.id=310+i;plain.namedRanges[`_EVENT_${s.id}_VISIT`]=s.getRange(3,1,20,12);plain.namedRanges[`_EVENT_${s.id}_REG`]=s.getRange(27,1,10,13);});
+ctx.EVENT.groups.forEach((g,i)=>{const s=plain.sheets[g];s.id=310+i;s.getRange(2,3).setValue('이름');s.getRange(26,3).setValue('이름');s.getRange(23,11).setValue('계');s.getRange(37,12).setValue('계');plain.namedRanges[`_EVENT_${s.id}_VISIT`]=s.getRange(3,1,20,12);plain.namedRanges[`_EVENT_${s.id}_REG`]=s.getRange(27,1,10,13);});
 ctx.SpreadsheetApp.getActive=()=>plain;
 let ps=plain.sheets['신군'];ps.getRange(27,3,1,4).setValues([['단순등록시험','여',30,'01000000008']]);ctx.onEdit({source:plain,range:ps.getRange(27,3,1,4)});
 assert.equal(plain.sheets[ctx.EVENT.registrations].getRange(2,3).getValues()[0][0],'단순등록시험');

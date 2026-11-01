@@ -26,3 +26,13 @@ const cacheCheck=createFixture(),cacheWrap=cacheCheck.ctx.eventPlainWrap_(cacheC
 cacheCheck.ctx.eventPlainNumbers_(cacheWrap);
 assert.deepEqual(Object.keys(cacheWrap.labelNames),[],'번호 확인이 명단 전체를 수정 대상으로 표시하지 않음');
 console.log('통과: 번호 확인 후 실제 수정 대상 범위 유지');
+// 행 수는 그대로지만 입력 범위 시작만 밀렸을 때 첫 두 명이 빠지는 재현.
+const rangeFix=createFixture(),rp=rangeFix.sheets['명군'];
+rangeFix.input('명군',27,3,[['범위첫째','여',30,'01099999301'],['범위둘째','남',31,'01099999302']]);
+rangeFix.book.setNamedRange('_EVENT_'+rp.id+'_REG',rp.getRange(29,1,8,13));
+const namesBefore=JSON.stringify(rp.data.map(r=>r.slice(2,13)));
+const repaired=rangeFix.ctx.eventPlainConfigure_(rp,rangeFix.ctx.eventPlainMap_('명군::등록'));
+assert.equal(repaired.offset+2,27,'실제 머리글 다음 첫 입력 행을 복구');
+assert.equal(rangeFix.book.getRangeByName('_EVENT_'+rp.id+'_REG').getNumRows(),10);
+assert.equal(JSON.stringify(rp.data.map(r=>r.slice(2,13))),namesBefore);
+console.log('통과: 머리글과 입력 범위 불일치 복구·첫 두 명과 입력 보존');

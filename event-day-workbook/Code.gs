@@ -365,6 +365,15 @@ function eventPlainConfigure_(physical,map){
     map.rangeName='_EVENT_'+physical.getSheetId()+'_'+(map.registered?'REG':'VISIT');
     var region=physical.getParent().getRangeByName(map.rangeName);
     if(!region)throw new Error('명단 입력 범위를 확인해 주세요.');
+    var boundary=region.getRow()+':'+region.getNumRows();
+    if(map.checkedBoundary!==boundary){
+      var header=physical.getRange(Math.max(1,region.getRow()-1),3).getValues()[0][0];
+      if(eventText_(header).replace(/\s/g,'')!=='이름'){
+        eventStructureValidate_(physical);eventStructureRepairRanges_(physical);
+        region=physical.getParent().getRangeByName(map.rangeName);
+      }
+      map.checkedBoundary=region.getRow()+':'+region.getNumRows();
+    }
     map.offset=region.getRow()-2;map.limit=region.getNumRows()+1;map.start=1;
   }
   return map;

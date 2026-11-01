@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="b6baa1f1caecf292832b7e13bdf1db590bf52ad48a84ca44f5ad3cd80515f7c8">
+<meta name="spec-source-sha256" content="fad6ec307bcd5de37715c535b4667bfd311f826adfbe8442beec80fc32d5b413">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -3116,8 +3116,9 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <section class="card kind-req" id="REQ-EVENTDAYWORKBOOK-014">
 <h3><span class="idtag">REQ-EVENTDAYWORKBOOK-014</span> 명단 행 추가·삭제의 자동 반영</h3>
 <div class="card-meta"><span class="meta"><b>참조됨</b> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-003">REQ-EVENTDAYWORKBOOK-003</a></span></div>
-<details class="history"><summary>변경 이력 2</summary>
+<details class="history"><summary>변경 이력 3</summary>
 <ul>
+<li><span class="hist">2026-11-01 입력 범위 시작 오류 복구</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a>: 실제 이름 머리글과 이름 지정 입력 범위의 시작이 어긋나 첫 입력들이 번호·계산에서 빠지는 문제를 수정했다. 머리글과 계 위치로 범위 정의를 고치며 기존 명단과 행 순서는 보존한다.</li>
 <li><span class="hist">2026-11-01 명단 행 추가·삭제 연결</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a>: 행 삭제 전 관리번호와 현재 행 구조를 비교해 같은 방문·등록 카드만 전체·군 명단에서 제외한다. 삭제 전 내용과 겹친 수정은 변경 기록에 남긴다.</li>
 <li><span class="hist">2026-11-01 명단 행 추가·삭제 연결</span> <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a>: 행 삽입·삭제에 맞춰 입력 범위와 순번을 갱신하고, 모든 입력 행을 삭제하면 빈 입력 행을 확보한다. 처리 중 행 위치가 바뀌면 이전 좌표의 쓰기를 중단한다.</li>
 </ul>
@@ -3126,6 +3127,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <li>군별 또는 전체 명단에서 사람의 행을 삭제하면 같은 종류의 전체·군별 명단에서도 제외한다. 방문을 지워도 등록 카드는 유지한다. 취소 전 원본과 다른 화면의 미처리 입력은 변경 기록에 보관한다.</li>
 <li>시트별 행 수와 표시된 관리번호를 기억한다. 행 수 감소 또는 행 삭제 알림을 확인하고, 그 시트에서 사라진 관리번호만 취소 후보로 삼는다. 같은 관리번호가 같은 시트의 다른 행에 남으면 사람을 취소하지 않는다.</li>
 <li>처음 활성화할 때 현재 명단을 기준으로 기억한다. 그 전에 이미 빠져 있던 기록이나 행 수 변화 없이 잠시 빠진 화면은 삭제로 추측하지 않고 기존 누락 복구를 적용한다.</li>
+<li>이름 지정 입력 범위의 시작이 실제 이름 머리글 바로 다음 행과 다르면, 머리글과 계 위치를 확인해 범위 정의를 바로잡는다. 명단 입력값과 행 순서는 바꾸지 않는다.</li>
 <li>행을 추가하면 이름 지정 입력 범위·순번·계가 따라간다. 빈 행을 지우면 사람 수는 유지한다. 입력 구역의 모든 데이터 행을 지웠다면 머리글·계 사이에 빈 입력 행을 확보한다.</li>
 <li>처리 중 행 위치가 바뀌면 이전 좌표로 쓰기를 계속하지 않고 다시 확인한다. 동시에 다른 군에 적는 입력과 다른 종류의 카드는 유지한다. 잠금을 기다리거나 중단되면 다음 확인에서 이어 처리한다.</li>
 <li>명단의 데이터 행에 적용한다. 머리글·열·시트 탭 삭제처럼 입력 구역을 판별할 수 없는 변경은 사람 삭제로 추측하지 않고 확인이 필요하다고 알린다.</li>
@@ -3169,7 +3171,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-011">REQ-EVENTDAYWORKBOOK-011</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-concurrency.test.js</code>, <code>tests/event-day-workbook.test.js</code> | verified |</p>
 <p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-012">REQ-EVENTDAYWORKBOOK-012</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-concurrency.test.js</code> | implemented |</p>
 <p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-013">REQ-EVENTDAYWORKBOOK-013</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-status.test.js</code> | verified |</p>
-<p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-structure.test.js</code> | verified |</p>
+<p>| <a class="idref" href="#REQ-EVENTDAYWORKBOOK-014">REQ-EVENTDAYWORKBOOK-014</a> | <code>event-day-workbook/Code.gs</code> | <code>tests/event-day-numbering.test.js</code>, <code>tests/event-day-structure.test.js</code> | verified |</p>
 </section>
 <section class="chapter" id="doc-dimode-lookup">
 <h2>뉴액츠 새가족·교육 통합 자동화 — 디모데 자동 로그인 조회 기능 사양</h2>
