@@ -101,7 +101,12 @@ function buildVisitorSyncPlan_(registrations, visitors, formulas, period) {
   });
   candidates.forEach(function (item) {
     const detail = Object.assign({}, item.detail);
-    const fail = function (reason) { review.push(Object.assign(detail, {reason: reason})); };
+    const fail = function (reason, rows) {
+      const extra = {reason: reason};
+      // 검토 필요 시트(REQ-MENU-002)가 방문 명단의 어느 줄을 볼지 알려 준다.
+      if (rows && rows.length) extra.visitorRows = rows;
+      review.push(Object.assign(detail, extra));
+    };
     if (registrationNames.get(item.name).length > 1 ||
         registrationPhones.get(item.phone).length > 1) {
       fail('관리 기간 안 등록 명단에 같은 이름 또는 전화번호가 여러 줄 있음'); return;
@@ -111,14 +116,17 @@ function buildVisitorSyncPlan_(registrations, visitors, formulas, period) {
     if (nameMatches.length || phoneMatches.length) {
       if (nameMatches.length !== 1 || phoneMatches.length !== 1 ||
           nameMatches[0].index !== phoneMatches[0].index) {
-        fail('방문 명단의 이름·전화번호가 불일치하거나 여러 줄과 일치함'); return;
+        fail('방문 명단의 이름·전화번호가 불일치하거나 여러 줄과 일치함',
+          Array.from(new Set(nameMatches.concat(phoneMatches).map(function (m) { return m.index + 2; })))
+            .sort(function (a, b) { return a - b; }));
+        return;
       }
       const match = nameMatches[0]; const marker = String(match.row[13] || '').trim();
       if ((formulas[match.index] || [])[13]) {
-        fail('등록여부 셀에 수식이 있어 보존함'); return;
+        fail('등록여부 셀에 수식이 있어 보존함', [match.index + 2]); return;
       }
       if (marker === 'O') return;
-      if (marker) { fail('기존 등록여부 표시를 보존함: ' + marker); return; }
+      if (marker) { fail('기존 등록여부 표시를 보존함: ' + marker, [match.index + 2]); return; }
       updates.push({ row: match.index + 2, value: 'O' }); after[match.index][13] = 'O';
       updatedDetails.push(Object.assign(detail, {visitorRow: match.index + 2}));
       return;
@@ -299,13 +307,16 @@ const VISITOR_CAMPAIGN = Object.freeze({
 });
 
 function summarizeVisitorCampaign_(rows, period) {
-  const result = { previsit: 0, culture: 0, event: 0, unassigned: 0 };
-  rows.forEach(function (row) {
+  const result = { previsit: 0, culture: 0, event: 0, unassigned: 0, unassignedRows: [] };
+  rows.forEach(function (row, index) {
     if (!visitorNameKey_(row[5]) || String(row[12] || '').trim().toUpperCase() === 'O') return;
     const date = visitorDateKey_(row[1], 2026);
     if (!date || date < period.start || (period.end && date > period.end)) return;
     if (REGISTRATION_AUTOMATION.groups.indexOf(String(row[3] || '').trim()) < 0) {
-      result.unassigned++; return;
+      result.unassigned++;
+      result.unassignedRows.push({ row: index + 2, name: String(row[5] || '').trim(),
+        group: String(row[3] || '').trim() });
+      return;
     }
     if (date < VISITOR_CAMPAIGN.firstDate) result.previsit++;
     if (String(row[11] || '').trim().toUpperCase() === 'O') result.culture++;
