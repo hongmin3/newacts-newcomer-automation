@@ -514,16 +514,14 @@ registrationRows.forEach((row) => {
 // --- 시트 메뉴 구성 -------------------------------------------------------
 // 운영에서 쓰지 않는 미리보기·테스트 실행은 메뉴에 두지 않습니다.
 // 함수 자체는 편집기에서 쓸 수 있도록 남겨 둡니다.
-const menuBlock = maintenanceSource.slice(
-  maintenanceSource.indexOf('function onOpen'),
-  maintenanceSource.indexOf('function runRegistrationMaintenanceTrigger')
-);
-assert.doesNotMatch(menuBlock, /addItem\('변경 예정 미리보기'/,
-  '미리보기는 메뉴에서 빠져야 합니다');
-assert.doesNotMatch(menuBlock, /addItem\('승인된 테스트 실행'/,
-  '테스트 실행은 메뉴에서 빠져야 합니다');
-assert.match(menuBlock, /addItem\('군 현황판만 업데이트'/,
-  '군 현황판 갱신은 메뉴에 남아야 합니다');
+// 메뉴는 REQ-MENU-001에 따라 별도 파일의 목록에서 만든다(세부 검증: tests/registration-menu.test.js).
+const menuBlock = fs.readFileSync(
+  path.join(__dirname, '..', 'registration-project', '메뉴·검토·사용법.gs'), 'utf8');
+assert.doesNotMatch(maintenanceSource, /function onOpen/, 'onOpen은 한 파일에만 둔다');
+assert.doesNotMatch(menuBlock, /'previewRegistrationMaintenance'|'runRegistrationMaintenanceTest'/,
+  '편집기 미리보기와 테스트 실행은 메뉴에 넣지 않습니다');
+assert.match(menuBlock, /label: '지금 반영하기'/,
+  '군 현황판 갱신은 지금 반영하기 메뉴로 남아야 합니다');
 assert.match(maintenanceSource, /function previewRegistrationMaintenance/,
   '함수 자체는 편집기용으로 남겨 둡니다');
 assert.match(maintenanceSource, /function runRegistrationMaintenanceTest/);

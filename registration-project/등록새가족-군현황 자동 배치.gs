@@ -69,19 +69,7 @@ const DASHBOARD_LAYOUT = (function () {
   });
 })();
 
-function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('⛪ 새가족 자동화 시스템')
-    // 미리보기·테스트 실행은 메뉴에서 뺐습니다(2026-09-20, 운영에서 쓰지 않음).
-    // 함수는 그대로 있으므로 필요하면 Apps Script 편집기에서 실행합니다.
-    .addItem('군 현황판만 업데이트', 'updateNewFamilyStatusMenu')
-    .addItem('방문자 명단만 동기화', 'syncRegisteredToVisitedMenu')
-    .addItem('하반기 행사 집계 갱신', 'updateVisitorCampaignSummaryMenu')
-    .addItem('방문 관리 현황·마감 확인', 'visitorManagementStatusMenu')
-    .addItem('방문 관리 마감일 지정', 'closeVisitorManagementMenu')
-    .addItem('방문 관리 마감 해제', 'reopenVisitorManagementMenu')
-    .addToUi();
-}
+// 시트 메뉴(onOpen)는 `메뉴·검토·사용법.gs`에 있습니다(REQ-MENU-001).
 function runRegistrationMaintenanceTrigger() {
   if (!REGISTRATION_AUTOMATION.active) {
     console.log('등록 자동화가 비활성 상태라 실행하지 않았습니다.');
