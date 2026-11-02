@@ -1,5 +1,6 @@
 import argparse
 import csv
+import io
 import re
 import time
 from collections import defaultdict
@@ -10,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 from desktop.legacy_config import config
 
-from desktop.metrics import FORMULA_VERSION, member_metrics, resolve_registration_date
+from desktop.metrics import FORMULA_VERSION, _settlement_is_known, member_metrics, resolve_registration_date
 
 from settlement_email import (
     already_sent,
@@ -32,7 +33,7 @@ ARMY_ALIASES = {
 }
 DETAIL_HEADERS = [
     "No.", "군", "팀", "이름", "성별", "핸드폰", "등록일", "기준일",
-    "대상 일요일", "출석 일요일", "정착률", "최근 4주", "조회 상태", "비고", "디모데 ID",
+    "대상 일요일", "출석 일요일", "출석률", "최근 3개월 출석 횟수", "조회 상태", "비고", "디모데 ID", "정착상태",
 ]
 
 
@@ -257,7 +258,7 @@ def search_person_cards(right_frame, *, name="", phone=""):
     return right_frame.locator("table.tablelineno")
 
 
-def find_exact_person_card(right_frame, row):
+def _find_exact_person_card_in_scope(right_frame, row):
     expected_name = normalize_name(row.get("새신자"))
     expected_phone = format_phone(row.get("핸드폰"))
     expected_army = normalize_army(row.get("군"))
@@ -270,7 +271,7 @@ def find_exact_person_card(right_frame, row):
         for index in range(cards.count()):
             card = cards.nth(index)
             candidate = parse_person_card(card.inner_text())
-            if candidate["phone"] == expected_phone:
+            if candidate["phone"] == expected_phone and candidate["name"] == expected_name:
                 phone_candidates.append((card, candidate))
 
         matches = []
@@ -320,6 +321,11 @@ def find_exact_person_card(right_frame, row):
     if name_candidates:
         return None, "정확한교인없음", {"failure_note": "이름 후보는 있으나 생년월일과 군 정보가 일치하지 않습니다."}
     return None, "정확한교인없음", {"failure_note": f"디모데에서 '{expected_name}' 이름 검색 결과가 없습니다."}
+
+
+def find_exact_person_card(right_frame, row):
+    from desktop.search import find_with_fallback
+    return find_with_fallback(right_frame, row, _find_exact_person_card_in_scope)
 
 
 def wait_for_login(page, *, account=None, secret_store=None):
@@ -411,7 +417,7 @@ def _registration_for_run(value, roster_start=None, roster_end=None):
 def inspect_person(page, right_frame, row, as_of, *, roster_start=None, roster_end=None):
     registration = _registration_for_run(row.get("날짜"), roster_start, roster_end)
     possible_dates = sundays_between(registration, as_of)
-    if not possible_dates and (registration > as_of or roster_start is None):
+    if registration > as_of:
         return {
             "registration": registration,
             "possible": 0,
@@ -422,6 +428,10 @@ def inspect_person(page, right_frame, row, as_of, *, roster_start=None, roster_e
             "note": "기준일 이후 등록일",
             "dimode_id": "",
         }
+
+    if not possible_dates and roster_start is None:
+        return {'registration': registration, **member_metrics(registration, {}, as_of),
+                'recent': '0/0', 'status': '계산대상없음', 'note': '등록 이후 아직 주일이 없음', 'dimode_id': ''}
 
     card, match_status, matched_person = find_exact_person_card(right_frame, row)
     if card is None:
@@ -500,10 +510,10 @@ def collect_results(page, right_frame, source_rows, options, *, on_progress=None
             "possible": 0, "recent_possible": 0, "observation_status": "확인 필요",
             "formula_version": FORMULA_VERSION,
         }
-        if inspected["status"] == "조회완료":
+        if inspected["status"] in ("조회완료", "계산대상없음"):
             metrics.update({key: inspected[key] for key in metrics if key in inspected})
-        else:
-            metrics.update({"attended": None, "rate": None, "recent_attended": None, "recent_rate": None})
+        elif metrics.get("settlement_status") != "대상외":
+            metrics.update({"attended": None, "rate": None, "recent_attended": None, "recent_rate": None, "recent3_attended": None, "settled": None, "settlement_status": "확인 필요"})
         result = {
             **metrics,
             "No.": index,
@@ -516,7 +526,10 @@ def collect_results(page, right_frame, source_rows, options, *, on_progress=None
             "기준일": options.as_of,
             "대상 일요일": inspected["possible"],
             "출석 일요일": inspected["attended"],
-            "정착률": inspected["rate"],
+            "정착률": inspected["rate"],  # 과거 CSV를 읽는 내부 호환 값
+            "출석률": inspected["rate"],
+            "최근 3개월 출석 횟수": metrics.get("recent3_attended"),
+            "정착상태": metrics.get("settlement_status", "확인 필요"),
             "최근 4주": inspected["recent"],
             "조회 상태": inspected["status"],
             "비고": inspected["note"],
@@ -535,9 +548,34 @@ def collect_results(page, right_frame, source_rows, options, *, on_progress=None
     return results
 
 
+def included_as_of(item, as_of=None):
+    """기준일 이후 등록만 제외하고 날짜 미확인은 검토 대상으로 남긴다."""
+    registration = item.get("등록일") or item.get("날짜")
+    cutoff = as_of or item.get("기준일")
+    try:
+        registration = registration if isinstance(registration, date) else parse_registration_date(registration)
+        cutoff = cutoff if isinstance(cutoff, date) else date.fromisoformat(str(cutoff))
+    except (TypeError, ValueError):
+        return item.get("settlement_status", item.get("정착상태")) != "대상외"
+    return registration <= cutoff
+
+
+def detail_value(item, header):
+    """과거 결과의 누적 출석률은 보존하고 새 기간의 출석은 추정하지 않는다."""
+    if header == "출석률":
+        return item.get("출석률", item.get("정착률", item.get("rate")))
+    if header == "최근 3개월 출석 횟수":
+        return item.get(header, item.get("recent3_attended"))
+    if header == "정착상태":
+        return item.get(header) or item.get("settlement_status") or "확인 필요"
+    return item.get(header)
+
+
 def summary_rows(results):
     grouped = defaultdict(list)
     for item in results:
+        if not included_as_of(item):
+            continue
         grouped[item["군"] or "미배정"].append(item)
     order = {army: index for index, army in enumerate(ARMY_ORDER)}
     rows = []
@@ -573,15 +611,19 @@ def ensure_result_sheet(service, spreadsheet_id):
     ).execute()
     for sheet in metadata.get("sheets", []):
         if sheet["properties"]["title"] == title:
-            return sheet["properties"]["sheetId"]
+            sheet_id = sheet["properties"]["sheetId"]
+            if sheet["properties"].get("gridProperties", {}).get("columnCount", 0) < len(DETAIL_HEADERS):
+                service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests":[{"updateSheetProperties":{"properties":{"sheetId":sheet_id,"gridProperties":{"columnCount":len(DETAIL_HEADERS)}},"fields":"gridProperties.columnCount"}}]}).execute()
+            return sheet_id
     reply = service.spreadsheets().batchUpdate(
         spreadsheetId=spreadsheet_id,
-        body={"requests": [{"addSheet": {"properties": {"title": title, "gridProperties": {"rowCount": 1000, "columnCount": 15}}}}]},
+        body={"requests": [{"addSheet": {"properties": {"title": title, "gridProperties": {"rowCount": 1000, "columnCount": len(DETAIL_HEADERS)}}}}]},
     ).execute()
     return reply["replies"][0]["addSheet"]["properties"]["sheetId"]
 
 
 def write_result_sheet(service, results, as_of):
+    results = [item for item in results if included_as_of(item, as_of)]
     spreadsheet_id = spreadsheet_id_from_url(config.SHEET_URL)
     sheet_name = getattr(config, "RESULT_SHEET_NAME", "정착률")
     sheet_id = ensure_result_sheet(service, spreadsheet_id)
@@ -592,23 +634,23 @@ def write_result_sheet(service, results, as_of):
 
     service.spreadsheets().values().clear(
         spreadsheetId=spreadsheet_id,
-        range=f"'{sheet_name}'!A:O",
+        range=f"'{sheet_name}'!A:P",
         body={},
     ).execute()
 
     values = [
-        ["2026년 새가족 정착률"],
-        ["기준일", as_of.isoformat(), "업데이트", datetime.now().strftime("%Y-%m-%d %H:%M"), "산식", "등록일 포함 일요일 중 주일 출결 체크 비율"],
+        ["새가족 출석률·정착률"],
+        ["기준일", as_of.isoformat(), "업데이트", datetime.now().strftime("%Y-%m-%d %H:%M"), "산식", "출석률: 등록 이후 주일 출석 비율 / 정착률: 최근 3개월 1회 이상 출석 인원 ÷ 전체"],
         [],
-        ["군", "명단 인원", "조회 완료", "대상 일요일", "출석 일요일", "군 정착률", "", "전체 요약", "값"],
+        ["군", "명단 인원", "조회 완료", "대상 일요일", "출석 일요일", "출석률", "정착률", "전체 요약", "값"],
     ]
     # 요약 숫자는 코드 계산값이 아니라 아래에서 입력하는 Google Sheets 수식으로 집계한다.
-    values.extend([[item[0], "", "", "", "", ""] for item in summaries])
+    values.extend([[item[0], "", "", "", "", "", ""] for item in summaries])
     while len(values) < detail_start - 1:
         values.append([])
     values.append(DETAIL_HEADERS)
     for item in results:
-        values.append([cell_value(item[header]) for header in DETAIL_HEADERS])
+        values.append([cell_value(detail_value(item, header)) for header in DETAIL_HEADERS])
 
     service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
@@ -633,16 +675,27 @@ def write_result_sheet(service, results, as_of):
         body={"values": summary_formulas},
     ).execute()
 
+    service.spreadsheets().values().update(
+        spreadsheetId=spreadsheet_id, range=f"'{sheet_name}'!G5",
+        valueInputOption="USER_ENTERED", body={"values":[[
+            f'=IFERROR(COUNTIFS($B${detail_first_row}:$B${detail_last_row},$A{5+i},$P${detail_first_row}:$P${detail_last_row},"정착")/B{5+i},0)'
+        ] for i in range(len(summaries))]}).execute()
+
     overview = [
         ["전체 인원", f'=COUNTA($D${detail_first_row}:$D${detail_last_row})'],
         ["조회 완료", f'=COUNTIF($M${detail_first_row}:$M${detail_last_row},"조회완료")'],
         ["총 대상 일요일", f'=SUMIF($M${detail_first_row}:$M${detail_last_row},"조회완료",$I${detail_first_row}:$I${detail_last_row})'],
         ["총 출석 일요일", f'=SUMIF($M${detail_first_row}:$M${detail_last_row},"조회완료",$J${detail_first_row}:$J${detail_last_row})'],
-        ["전체 정착률", "=IFERROR(I8/I7,0)"],
+        ["출석률", "=IFERROR(I8/I7,0)"],
+        ["정착 인원", f'=COUNTIF($P${detail_first_row}:$P${detail_last_row},"정착")'],
+        ["정착률（미확인 포함 시 잠정）", "=IFERROR(I10/I5,0)"],
+        ["관찰 중", f'=COUNTIF($P${detail_first_row}:$P${detail_last_row},"관찰 중")'],
+        ["미정착", f'=COUNTIF($P${detail_first_row}:$P${detail_last_row},"미정착")'],
+        ["미확인", f'=COUNTIF($P${detail_first_row}:$P${detail_last_row},"확인 필요")'],
     ]
     service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
-        range=f"'{sheet_name}'!H5:I9",
+        range=f"'{sheet_name}'!H5:I14",
         valueInputOption="USER_ENTERED",
         body={"values": overview},
     ).execute()
@@ -654,25 +707,29 @@ def write_result_sheet(service, results, as_of):
     border = {"style": "SOLID", "color": {"red": 0.78, "green": 0.81, "blue": 0.84}}
     used_rows = detail_start + len(results)
     requests = [
-        {"unmergeCells": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 15}}},
-        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": max(used_rows, 20), "startColumnIndex": 0, "endColumnIndex": 15}, "cell": {"userEnteredFormat": {"backgroundColor": white, "textFormat": {"foregroundColor": {"red": 0.12, "green": 0.12, "blue": 0.12}, "bold": False}, "horizontalAlignment": "LEFT", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP"}}, "fields": "userEnteredFormat"}},
-        {"mergeCells": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 15}, "mergeType": "MERGE_ALL"}},
-        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 15}, "cell": {"userEnteredFormat": {"backgroundColor": navy, "horizontalAlignment": "CENTER", "textFormat": {"foregroundColor": white, "bold": True, "fontSize": 16}}}, "fields": "userEnteredFormat"}},
+        {"unmergeCells": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 16}}},
+        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": max(used_rows, 20), "startColumnIndex": 0, "endColumnIndex": 16}, "cell": {"userEnteredFormat": {"backgroundColor": white, "textFormat": {"foregroundColor": {"red": 0.12, "green": 0.12, "blue": 0.12}, "bold": False}, "horizontalAlignment": "LEFT", "verticalAlignment": "MIDDLE", "wrapStrategy": "WRAP"}}, "fields": "userEnteredFormat"}},
+        {"mergeCells": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 16}, "mergeType": "MERGE_ALL"}},
+        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 1, "startColumnIndex": 0, "endColumnIndex": 16}, "cell": {"userEnteredFormat": {"backgroundColor": navy, "horizontalAlignment": "CENTER", "textFormat": {"foregroundColor": white, "bold": True, "fontSize": 16}}}, "fields": "userEnteredFormat"}},
         {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 0, "endColumnIndex": 6}, "cell": {"userEnteredFormat": {"backgroundColor": light_blue, "horizontalAlignment": "CENTER", "textFormat": {"bold": True}, "borders": {"top": border, "bottom": border, "left": border, "right": border}}}, "fields": "userEnteredFormat"}},
         {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 3, "endRowIndex": 4, "startColumnIndex": 7, "endColumnIndex": 9}, "cell": {"userEnteredFormat": {"backgroundColor": light_blue, "horizontalAlignment": "CENTER", "textFormat": {"bold": True}, "borders": {"top": border, "bottom": border, "left": border, "right": border}}}, "fields": "userEnteredFormat"}},
-        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start - 1, "endRowIndex": detail_start, "startColumnIndex": 0, "endColumnIndex": 15}, "cell": {"userEnteredFormat": {"backgroundColor": navy, "horizontalAlignment": "CENTER", "textFormat": {"foregroundColor": white, "bold": True}, "borders": {"top": border, "bottom": border, "left": border, "right": border}}}, "fields": "userEnteredFormat"}},
-        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start, "endRowIndex": used_rows, "startColumnIndex": 0, "endColumnIndex": 15}, "cell": {"userEnteredFormat": {"borders": {"bottom": border}}}, "fields": "userEnteredFormat.borders"}},
+        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start - 1, "endRowIndex": detail_start, "startColumnIndex": 0, "endColumnIndex": 16}, "cell": {"userEnteredFormat": {"backgroundColor": navy, "horizontalAlignment": "CENTER", "textFormat": {"foregroundColor": white, "bold": True}, "borders": {"top": border, "bottom": border, "left": border, "right": border}}}, "fields": "userEnteredFormat"}},
+        {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start, "endRowIndex": used_rows, "startColumnIndex": 0, "endColumnIndex": 16}, "cell": {"userEnteredFormat": {"borders": {"bottom": border}}}, "fields": "userEnteredFormat.borders"}},
         {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 4, "endRowIndex": 4 + len(summaries), "startColumnIndex": 5, "endColumnIndex": 6}, "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}}}, "fields": "userEnteredFormat.numberFormat"}},
         {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": 8, "endRowIndex": 9, "startColumnIndex": 8, "endColumnIndex": 9}, "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}}}, "fields": "userEnteredFormat.numberFormat"}},
         {"repeatCell": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start, "endRowIndex": used_rows, "startColumnIndex": 10, "endColumnIndex": 11}, "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}, "horizontalAlignment": "CENTER"}}, "fields": "userEnteredFormat(numberFormat,horizontalAlignment)"}},
         {"updateSheetProperties": {"properties": {"sheetId": sheet_id, "gridProperties": {"frozenRowCount": detail_start, "frozenColumnCount": 0}}, "fields": "gridProperties.frozenRowCount,gridProperties.frozenColumnCount"}},
-        {"setBasicFilter": {"filter": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start - 1, "endRowIndex": used_rows, "startColumnIndex": 0, "endColumnIndex": 15}}}},
+        {"setBasicFilter": {"filter": {"range": {"sheetId": sheet_id, "startRowIndex": detail_start - 1, "endRowIndex": used_rows, "startColumnIndex": 0, "endColumnIndex": 16}}}},
     ]
-    widths = [85, 55, 90, 95, 55, 125, 95, 95, 90, 90, 85, 85, 105, 220, 90]
+    requests.extend([
+        {"repeatCell":{"range":{"sheetId":sheet_id,"startRowIndex":4,"endRowIndex":4+len(summaries),"startColumnIndex":6,"endColumnIndex":7},"cell":{"userEnteredFormat":{"numberFormat":{"type":"PERCENT","pattern":"0.0%"}}},"fields":"userEnteredFormat.numberFormat"}},
+        {"repeatCell":{"range":{"sheetId":sheet_id,"startRowIndex":10,"endRowIndex":11,"startColumnIndex":8,"endColumnIndex":9},"cell":{"userEnteredFormat":{"numberFormat":{"type":"PERCENT","pattern":"0.0%"}}},"fields":"userEnteredFormat.numberFormat"}},
+    ])
+    widths = [85, 55, 90, 95, 55, 125, 95, 95, 90, 90, 85, 130, 105, 220, 90, 95]
     for index, width in enumerate(widths):
         requests.append({"updateDimensionProperties": {"range": {"sheetId": sheet_id, "dimension": "COLUMNS", "startIndex": index, "endIndex": index + 1}, "properties": {"pixelSize": width}, "fields": "pixelSize"}})
     for index, item in enumerate(results, start=detail_start):
-        rate = item["정착률"]
+        rate = detail_value(item, "출석률")
         if rate is None:
             color = light_gray
         elif rate >= 0.7:
@@ -690,14 +747,18 @@ def write_result_sheet(service, results, as_of):
 
 
 def save_csv(results):
+    from desktop.runtime import write_private_file
+
     output_dir = PROJECT_DIR / "output"
     output_dir.mkdir(exist_ok=True)
     path = output_dir / "settlement_result.csv"
-    with path.open("w", newline="", encoding="utf-8-sig") as stream:
-        writer = csv.DictWriter(stream, fieldnames=DETAIL_HEADERS)
-        writer.writeheader()
-        for item in results:
-            writer.writerow({key: cell_value(item[key]) for key in DETAIL_HEADERS})
+    stream = io.StringIO(newline="")
+    writer = csv.DictWriter(stream, fieldnames=DETAIL_HEADERS)
+    writer.writeheader()
+    for item in results:
+        if included_as_of(item):
+            writer.writerow({key: cell_value(detail_value(item, key)) for key in DETAIL_HEADERS})
+    write_private_file(path, "\ufeff" + stream.getvalue())
     return path
 
 
@@ -714,7 +775,20 @@ def load_previous_results():
             item["기준일"] = datetime.strptime(item["기준일"], "%Y-%m-%d").date() if item["기준일"] else None
             item["대상 일요일"] = int(item["대상 일요일"] or 0)
             item["출석 일요일"] = int(item["출석 일요일"]) if item["출석 일요일"] else None
-            item["정착률"] = float(item["정착률"]) if item["정착률"] else None
+            item["정착률"] = float(item.get("출석률", item.get("정착률")) or 0) if item.get("출석률", item.get("정착률")) else None
+            item["출석률"] = item["정착률"]
+            item["recent3_attended"] = None
+            item["settled"] = None
+            item["정착상태"] = item.get("정착상태") or "확인 필요"
+            item["settlement_status"] = item["정착상태"]
+            item.setdefault("최근 3개월 출석 횟수", None)
+            if item.get("최근 3개월 출석 횟수") not in (None, ""):
+                item["recent3_attended"] = int(item["최근 3개월 출석 횟수"])
+                item["settlement_status"] = item.get("정착상태")
+                if item["등록일"] and item["기준일"]:
+                    period = member_metrics(item["등록일"], {}, item["기준일"])
+                    item.update({key:period[key] for key in ('recent3_start','recent3_possible','formula_version')})
+                    item['settled'] = item['recent3_attended'] > 0
             results.append(item)
     return results
 
@@ -785,12 +859,15 @@ def main():
             flush=True,
         )
         return
-    source_rows = load_source_rows(service)
+    source_rows = [row for row in load_source_rows(service) if included_as_of(row, as_of)]
     previous_results = load_previous_results() if args.retry_unmatched else []
     if args.retry_unmatched:
         retry_keys = {
             result_key(item) for item in previous_results
-            if item["조회 상태"] != "조회완료"
+            if (item["조회 상태"] != "조회완료"
+                or item.get("기준일") != as_of
+                or item.get("formula_version") != FORMULA_VERSION
+                or not _settlement_is_known(item))
         }
         source_rows = [row for row in source_rows if result_key(row) in retry_keys]
     if args.only_name:
@@ -832,6 +909,7 @@ def main():
         results = [retried.get(result_key(item), item) for item in previous_results]
         for index, item in enumerate(results, start=1):
             item["No."] = index
+    results = [item for item in results if included_as_of(item, as_of)]
     for item in results:
         if item["조회 상태"] == "조회완료":
             item["비고"] = ""

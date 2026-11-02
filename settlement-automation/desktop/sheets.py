@@ -3,13 +3,18 @@ from .metrics import army_metrics
 from .errors import ValidationIssue
 
 OWNER = 'newacts-settlement-desktop-v1'
-CURRENT_TAB = '군별 정착 현황'
-HISTORY_TAB = '정착률 월별 이력'
+CURRENT_TAB = '군별 정착 현황 v2'
+HISTORY_TAB = '정착률 월별 이력 v2'
 CARE_TAB = '새가족 돌봄 기록'
-METRIC_FIELDS = ('army','member_count','completion_rate','rate','recent_rate','member_count_delta','rate_delta_pp','recent_rate_delta_pp')
+METRIC_FIELDS = ('army','member_count','completion_rate','rate','settlement_rate','recent3_attended',
+                 'settled_count','observing_count','unsettled_count','settlement_review_count',
+                 'settlement_provisional','member_count_delta','rate_delta_pp','settlement_rate_delta_pp')
+_METRIC_HEADERS = ('군','인원','조회 완료율','누적 출석률','정착률','최근 3개월 출석 횟수',
+                   '정착 인원','관찰 중 인원','미정착 인원','확인필요 인원','잠정 집계',
+                   '전월 인원 차이','출석률 전월 차이(pp)','정착률 전월 차이(pp)')
 TAB_HEADERS = {
-    CURRENT_TAB: ('실행 번호','기준일','군','인원','조회 완료율','누적 출석률','최근 4주 출석률','전월 인원 차이','누적 차이(pp)','최근 차이(pp)'),
-    HISTORY_TAB: ('월','산식 버전','실행 번호','기준일','군','인원','조회 완료율','누적 출석률','최근 4주 출석률','전월 인원 차이','누적 차이(pp)','최근 차이(pp)'),
+    CURRENT_TAB: ('실행 번호','기준일') + _METRIC_HEADERS,
+    HISTORY_TAB: ('월','산식 버전','실행 번호','기준일') + _METRIC_HEADERS,
     CARE_TAB: ('디모데 ID','이름','군','담당자','연락일','진행 상태','다음 확인일','메모'),
 }
 

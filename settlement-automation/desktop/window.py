@@ -15,6 +15,27 @@ from .runtime import RuntimePaths, SecretStore, write_private_file, resource_pat
 from .settings import AppSettings, load_settings, save_settings
 from .service import RunRequest, RunOutcome, ProgressEvent, ReportPreview
 from .errors import ValidationIssue, diagnose
+from .metrics import FORMULA_VERSION
+
+def _metric_text(summary, key):
+    value = summary.get(key)
+    if summary.get('status') == '미실행':
+        return '' if value is None else str(value)
+    settlement_fields = ('settlement_rate','recent3_attended','settled_count','observing_count',
+                         'unsettled_count','settlement_review_count','settlement_provisional')
+    old_version = summary.get('formula_version', FORMULA_VERSION) != FORMULA_VERSION
+    if key in settlement_fields and (old_version or value is None):
+        return '잠정·확인필요' if key == 'settlement_provisional' else '확인필요'
+    if key == 'settlement_provisional':
+        return '잠정·확인필요' if value else '확정'
+    if key in ('settlement_rate','recent3_attended') and summary.get('settlement_provisional'):
+        if summary.get('settlement_review_count') == summary.get('member_count'):
+            return '확인필요 (잠정)'
+        return (f'{value:.1%}' if key == 'settlement_rate' else str(value)) + ' (잠정·확인필요)'
+    if value is None:
+        return ''
+    return f'{value:.1%}' if key in ('completion_rate','rate','settlement_rate') else str(value)
+
 
 def initial_settings(paths):
     try:
@@ -201,23 +222,27 @@ class MainWindow(QMainWindow):
         self.status_label.setText(outcome.error or labels.get(outcome.status,'작업 상태를 확인해 주세요.'))
         if outcome.failure and outcome.failure.code=='google_reauthorize': self._reauthorize=True
         if outcome.status in ('authentication_required','setup_required'): self.setup_panel.show()
-        names={'army':'군','as_of':'기준일','member_count':'인원','completed_count':'조회 완료','review_count':'확인 대상','completion_rate':'조회 완료율','rate':'누적 출석률','recent_rate':'최근 4주 출석률','member_count_delta':'전월 인원 차이','rate_delta_pp':'누적 전월 차이 (퍼센트포인트)','recent_rate_delta_pp':'최근 4주 전월 차이 (퍼센트포인트)','insufficient_count':'관찰 기간 부족','no_target_count':'계산 대상 없음'}
-        columns=[key for key in names if any(key in summary for summary in outcome.summaries)]
+        names={'army':'군','as_of':'기준일','member_count':'인원','completed_count':'조회 완료',
+            'review_count':'조회 확인 대상','completion_rate':'조회 완료율','rate':'누적 출석률',
+            'settlement_rate':'정착률','recent3_attended':'최근 3개월 출석 횟수',
+            'settled_count':'정착 인원','observing_count':'관찰 중 인원','unsettled_count':'미정착 인원',
+            'settlement_review_count':'확인필요 인원','settlement_provisional':'잠정 집계',
+            'member_count_delta':'전월 인원 차이','rate_delta_pp':'출석률 전월 차이 (퍼센트포인트)',
+            'settlement_rate_delta_pp':'정착률 전월 차이 (퍼센트포인트)'}
+        columns=[key for key in names if any(key in summary for summary in outcome.summaries) or (outcome.summaries and key in ('settlement_rate','recent3_attended','settlement_provisional'))]
         self.table.setColumnCount(len(columns)); self.table.setHorizontalHeaderLabels([names[key] for key in columns]); self.table.setRowCount(len(outcome.summaries))
         for row,summary in enumerate(outcome.summaries):
             for col,key in enumerate(columns):
-                value=summary.get(key)
-                text='' if value is None else (f'{value*100:.1f}%' if key in ('completion_rate','rate','recent_rate') else str(value))
+                text=_metric_text(summary,key)
                 self.table.setItem(row,col,QTableWidgetItem(text))
         self.table.resizeColumnsToContents()
-        history_columns=('month','status','army','formula_version','member_count','completion_rate','rate','recent_rate','member_count_delta','rate_delta_pp','recent_rate_delta_pp')
+        history_columns=('month','status','army','formula_version','member_count','completion_rate','rate','settlement_rate','recent3_attended','settled_count','observing_count','unsettled_count','settlement_review_count','settlement_provisional','member_count_delta','rate_delta_pp','settlement_rate_delta_pp')
         self.history_table.setColumnCount(len(history_columns))
         self.history_table.setHorizontalHeaderLabels(['월','상태']+[names.get(key,'산식 버전') for key in history_columns[2:]])
         self.history_table.setRowCount(len(outcome.monthly_history))
         for row,summary in enumerate(outcome.monthly_history):
             for col,key in enumerate(history_columns):
-                value=summary.get(key)
-                text='' if value is None else (f'{value*100:.1f}%' if key in ('completion_rate','rate','recent_rate') else str(value))
+                text=_metric_text(summary,key)
                 self.history_table.setItem(row,col,QTableWidgetItem(text))
         self.history_table.resizeColumnsToContents()
         self.progress_bar.setRange(0,1); self.progress_bar.setValue(1 if outcome.status in ('completed','test') else 0)

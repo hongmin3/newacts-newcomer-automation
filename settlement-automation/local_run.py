@@ -21,7 +21,15 @@ def totals(results):
     complete = [r for r in results if r['조회 상태'] == '조회완료']
     possible = sum(r['대상 일요일'] for r in complete)
     attended = sum(r['출석 일요일'] for r in complete)
-    return dict(total=len(results), eligible=sum(r['대상 일요일'] > 0 for r in results), complete=len(complete), possible=possible,
+    from desktop.metrics import army_metrics
+    summaries = army_metrics(results)
+    settled = sum(item['settled_count'] for item in summaries)
+    return dict(settled_count=settled, settlement_rate=settled/len(results) if results else None,
+                observing_count=sum(item['observing_count'] for item in summaries),
+                unsettled_count=sum(item['unsettled_count'] for item in summaries),
+                settlement_review_count=sum(item['settlement_review_count'] for item in summaries),
+                attendance_rate=attended/possible if possible else None,
+                total=len(results), eligible=sum(r['대상 일요일'] > 0 for r in results), complete=len(complete), possible=possible,
                 attended=attended, rate=attended / possible if possible else None)
 
 
@@ -48,6 +56,17 @@ def verify_summary(values, results):
         for actual, value in zip(cells[1:6], expected):
             if not isinstance(actual, (int, float)) or abs(actual-value) > 1e-9:
                 raise RuntimeError('군별 요약값이 계산 결과와 다릅니다.')
+    if len(values) < 11 or len(values[10]) < 9:
+        raise RuntimeError('새 정착률 요약 칸이 없습니다.')
+    for actual, expected in ((values[9][8], info['settled_count']), (values[10][8], info['settlement_rate'] or 0)):
+        if not isinstance(actual, (int, float)) or abs(actual-expected)>1e-9:
+            raise RuntimeError('정착률 요약값이 계산 결과와 다릅니다.')
+    for offset, summary in enumerate(summary_rows(results), 4):
+        members=[r for r in results if (r.get('군') or '미배정')==summary[0]]
+        settled=sum(r.get('정착상태', r.get('settlement_status'))=='정착' for r in members)
+        actual=values[offset][6]
+        if not isinstance(actual, (int,float)) or abs(actual-settled/len(members))>1e-9:
+            raise RuntimeError('군별 정착률이 계산 결과와 다릅니다.')
     return info
 
 
@@ -152,15 +171,15 @@ def run():
         current = api.get(spreadsheetId=ident, range=source_range).execute().get('values', [])
         if current != before:
             raise RuntimeError('조회 중 원본 명단이 변경되어 시트를 갱신하지 않았습니다.')
-        backup = api.get(spreadsheetId=ident, range="'정착률'!A:O").execute()
+        backup = api.get(spreadsheetId=ident, range="'정착률'!A:P").execute()
         write_private_file(output / 'previous-sheet.json', json.dumps(backup, ensure_ascii=False))
         legacy.write_result_sheet(service, results, as_of)
-        readback = api.get(spreadsheetId=ident, range="'정착률'!A1:O1200", valueRenderOption="UNFORMATTED_VALUE").execute().get('values', [])
+        readback = api.get(spreadsheetId=ident, range="'정착률'!A1:P1200", valueRenderOption="UNFORMATTED_VALUE").execute().get('values', [])
         assert readback[1][1] == as_of.isoformat(), '결과 기준일이 다릅니다.'
         actual = [r for r in readback if len(r) >= 13 and str(r[0]).isdigit()]
         assert len(actual) == len(results), '결과 인원이 다릅니다.'
         for actual_row, expected in zip(actual, results):
-            assert (actual_row + [''] * (15-len(actual_row)))[:15] == [legacy.cell_value(expected[h]) for h in legacy.DETAIL_HEADERS], '상세 결과가 다릅니다.'
+            assert (actual_row + [''] * (len(legacy.DETAIL_HEADERS)-len(actual_row)))[:len(legacy.DETAIL_HEADERS)] == [legacy.cell_value(expected[h]) for h in legacy.DETAIL_HEADERS], '상세 결과가 다릅니다.'
         assert api.get(spreadsheetId=ident, range=source_range).execute().get('values', []) == before, '원본 명단이 변경되었습니다.'
         verify_summary(readback, results)
         summary = {'as_of': str(as_of), **info, 'published': True}

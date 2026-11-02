@@ -6,8 +6,8 @@
 |---|---|
 | 상위 사양 | [SPEC.md](../SPEC.md) |
 | 기능 ID | `settlement-desktop` |
-| Document Version | 0.1.0 |
-| Last Updated | 2026-10-05 |
+| Document Version | 0.2.0 |
+| Last Updated | 2026-11-02 |
 | Status | implemented |
 
 먼저 목적과 사용 순서를 읽고 필요한 요구사항을 찾는다.
@@ -21,7 +21,8 @@
 | 용어 | 뜻 |
 |---|---|
 | 누적 출석률 | 등록일 이후 출석한 주일 수를 대상 주일 수로 나눈 값 |
-| 최근 4주 | 계산 기준일까지 지난 일요일 4개 |
+| 최근 3개월 | 조회일의 달력상 3개월 전 같은 날부터 조회일까지 |
+| 정착률 | 최근 3개월에 1회 이상 출석한 새가족 수 ÷ 전체 새가족 수 |
 | 퍼센트포인트 | 두 비율의 차이. 50%에서 60%가 되면 10퍼센트포인트 |
 
 ## 2. 범위
@@ -65,13 +66,13 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 ### REQ-RATEDESKTOP-002 같은 기간으로 출석 현황 계산
 
 #### 하는 일
-기존 누적 출석률과 군별 최근 4주 출석률·조회 완료율을 함께 보여준다.
+누적 출석률과 군별 최근 3개월 정착 현황·조회 완료율을 함께 보여준다. 현재 표시·집계는 REQ-RATEDESKTOP-008을 따른다.
 
 #### 순서
-1. 최근 4번 주일 중 개인 등록일 이후의 날짜만 개인별 분모로 사용한다.
+1. 누적 출석률은 등록일부터 기준일까지의 주일을 분모로 사용한다. 최근 3개월 출석 횟수와 정착 판정은 REQ-RATEDESKTOP-008을 따른다.
 2. 군별 출석률은 조회 완료자의 출석·대상 주일 합계로 계산한다.
-3. 대상 주일 4개 미만은 `관찰 기간 부족`, 0개는 `계산 대상 없음`으로 표시한다.
-4. 조회 실패·동일인 미확정은 계산에서 제외하고 확인 대상 인원을 표시한다.
+3. 내부 과거 4주 지표는 이전 이력을 읽는 용도로만 유지한다. 현재 화면의 3개월 상태는 REQ-RATEDESKTOP-008을 따른다.
+4. 누적 출석률에서는 조회 실패·동일인 미확정의 주일 수를 제외하고 미확인 인원을 표시한다. 정착률의 전체 인원 분모는 REQ-RATEDESKTOP-008을 따른다.
 5. 군이 없으면 `미배정`, 지원하지 않는 군이면 `군 정보 검토`로 분류한다.
 
 #### 지킬 것
@@ -98,11 +99,11 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 ### REQ-RATEDESKTOP-004 군별 화면과 돌봄 기록 보존
 
 #### 하는 일
-`군별 정착 현황`, `정착률 월별 이력`, `새가족 돌봄 기록`에서 현황과 담당자 기록을 연결한다.
+`군별 정착 현황 v2`, `정착률 월별 이력 v2`, `새가족 돌봄 기록`에서 현황과 담당자 기록을 연결한다.
 기존 `정착률`과 원본 명단의 이름·열 위치는 유지한다.
 
 #### 순서
-1. 군별 현황에 기준일·인원·조회 완료율·누적·최근 4주 출석률·전월 차이를 표시한다.
+1. 군별 현황에 기준일·인원·조회 완료율·누적 출석률·정착률·최근 3개월 출석 횟수·전월 차이를 표시한다.
 2. 돌봄 기록은 확정된 디모데 ID로 사람을 연결한다.
 3. 담당자·연락일·진행 상태·다음 확인일·짧은 메모는 자동화가 덮어쓰지 않는다.
 4. 군 이동은 같은 사람의 돌봄 기록을 이어가고, ID가 없거나 복수 일치하면 확인 대상으로 남긴다.
@@ -161,6 +162,32 @@ Mac에서 `오늘 정착률 실행.command`를 더블클릭하면 한국 날짜�
 #### 안 될 때
 다른 실행이 진행 중이면 시작하지 않는다. 오류 종류를 안내하고 종료하며 비밀값이나 개인 명단은 터미널에 출력하지 않는다.
 
+### REQ-RATEDESKTOP-008 출석률과 최근 3개월 정착률 구분
+
+#### 하는 일
+새가족이 얼마나 꾸준히 출석했는지는 출석률로, 최근 3개월에 한 번이라도 출석했는지는 정착 여부로 구분한다.
+
+#### 순서
+1. 기존 등록 이후 주일 출석 비율의 표시 이름을 `출석률`로 바꾼다. 이 비율을 정착률이라고 표시하지 않는다.
+2. 최근 3개월은 조회일에서 달력상 3개월 전 같은 날부터 조회일까지이며 양 끝 날짜를 포함한다. 같은 날이 없는 달은 그 달의 마지막 날을 쓴다. 개인 등록일 이전 출석은 제외한다.
+3. 이 기간에 주일 출석이 1회 이상이면 `정착`이다. 출석이 없고 등록 후 3개월이 안 됐으면 `관찰 중`, 그 밖에는 `미정착`이다.
+4. 정착률은 `정착 인원 ÷ 전체 새가족 인원`이다. 사용자의 최종 요청에 따라 관찰 중인 신규 등록자도 분모에 포함한다. 기준일 이후 등록자는 명단 집계에서 제외한다.
+5. 개인별 `최근 4주` 표시는 `최근 3개월 출석 횟수`로 바꾼다. 전체·군별 화면과 보고서에는 정착 인원·관찰 중·미정착·미확인 인원과 출석률·정착률을 구분한다.
+6. 조회 실패자는 미확인으로 남긴다. 전체 명단 분모는 유지하며, 미확인이 있으면 알려진 정착 인원 기준 잠정치라고 표시한다. 과거 합계만으로 최근 3개월 출석을 추정하지 않는다.
+7. 새 산식 버전으로 이력을 구분하여 예전 산식과 전월 차이를 계산하지 않는다. 관리 시트의 기존 담당자 입력과 과거 이력은 보존하며 새 열 구성이 필요한 현황·이력은 새 버전 탭을 사용한다.
+
+### REQ-RATEDESKTOP-009 청년 우선 조회와 교인 전체 재검색
+
+#### 하는 일
+교인구분의 청년 범위에서 찾지 못한 새가족을 교인 전체에서 한 번 더 찾는다.
+
+#### 순서
+1. 각 사람의 조회 시작 시 교인구분 첫 선택은 `교인`, 두 번째 선택은 `청년`으로 설정한다.
+2. 기존 전화번호·이름 조회와 동일인 판정을 먼저 수행한다.
+3. 일치하는 사람을 찾지 못한 경우에만 첫 선택 `교인`을 유지하고 두 번째 선택을 빈 값으로 바꾼다. 같은 전화번호·이름 조회와 동일인 판정을 다시 수행한다.
+4. 여러 사람이 일치하면 임의로 한 사람을 고르지 않는다. 다른 사람 조회를 시작할 때는 다시 `청년`으로 되돌린다.
+5. 검색 범위 변경이 실패하면 미확인 상태로 남긴다. 디모데 교적·출결은 수정하지 않는다.
+
 ## 11. 테스트 사양
 
 각 테스트는 비밀 없는 가짜 설정·명단·외부 서비스로 자동 검증한다.
@@ -212,3 +239,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 | REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/desktop/errors.py` | `settlement-automation/tests/test_desktop_final_fixes.py`, `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | verified |
 
 | REQ-RATEDESKTOP-007 | `settlement-automation/local_run.py`, `settlement-automation/오늘 정착률 실행.command` | `settlement-automation/tests/test_local_run.py` | implemented |
+
+| REQ-RATEDESKTOP-008 | `settlement-automation/desktop/metrics.py`, `settlement-automation/settlement_automation.py`, `settlement-automation/settlement_email.py`, `settlement-automation/desktop/window.py`, `settlement-automation/desktop/sheets.py`, `settlement-automation/desktop/history.py`, `settlement-automation/local_run.py` | `settlement-automation/tests/test_settlement_definition.py`, `settlement-automation/tests/test_settlement_views.py`, `settlement-automation/tests/test_definition_compat.py` | verified |
+
+| REQ-RATEDESKTOP-009 | `settlement-automation/desktop/search.py`, `settlement-automation/settlement_automation.py` | `settlement-automation/tests/test_search_scope.py` | verified |

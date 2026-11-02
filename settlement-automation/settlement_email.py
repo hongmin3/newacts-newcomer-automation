@@ -7,6 +7,7 @@ from email.message import EmailMessage
 from pathlib import Path
 
 from desktop.legacy_config import config
+from desktop.metrics import army_metrics, _settlement_is_known
 
 
 ARMY_ORDER = ["신", "조", "명", "총", "석", "전", "영", "슬", "임"]
@@ -44,16 +45,38 @@ def _format_date(value):
 
 
 def _summary(items):
-    completed = [item for item in items if item["조회 상태"] == "조회완료"]
-    possible = sum(item["대상 일요일"] for item in completed)
-    attended = sum(item["출석 일요일"] for item in completed)
+    metrics = army_metrics(items)
+    total = sum(item['member_count'] for item in metrics)
+    possible = sum(item['possible'] for item in metrics)
+    attended = sum(item['attended'] for item in metrics)
+    settled = sum(item['settled_count'] for item in metrics)
+    review = sum(item['settlement_review_count'] for item in metrics)
     return {
-        "total": len(items),
-        "completed": len(completed),
-        "possible": possible,
-        "attended": attended,
-        "rate": _rate(attended, possible),
+        'total': total, 'completed': sum(item['completed_count'] for item in metrics),
+        'possible': possible, 'attended': attended, 'rate': _rate(attended, possible),
+        'settlement_rate': settled / total if total else None,
+        'settled_count': settled,
+        'observing_count': sum(item['observing_count'] for item in metrics),
+        'unsettled_count': sum(item['unsettled_count'] for item in metrics),
+        'settlement_review_count': review, 'settlement_provisional': bool(review),
+        'recent3_attended': sum(item['recent3_attended'] for item in metrics),
     }
+
+
+def _settlement_text(summary):
+    if not summary['total']:
+        return '-'
+    if summary['settlement_review_count'] == summary['total']:
+        return '확인필요 (잠정)'
+    value = f"{summary['settlement_rate']:.1%}"
+    return value + (' (잠정·확인필요)' if summary['settlement_provisional'] else '')
+
+
+def _recent3_text(summary):
+    if summary['settlement_provisional'] and summary['settlement_review_count'] == summary['total']:
+        return '확인필요 (잠정)'
+    value = str(summary['recent3_attended'])
+    return value + (' (잠정·확인필요)' if summary['settlement_provisional'] else '')
 
 
 def _cell(value):
@@ -69,7 +92,11 @@ def _summary_cards(summary):
         ("조회 완료", f'{summary["completed"]}명', "#dbeafe"),
         ("대상 주일", f'{summary["possible"]}회', "#fef3c7"),
         ("출석 주일", f'{summary["attended"]}회', "#dcfce7"),
-        ("정착률", f'{summary["rate"]:.1%}', "#ede9fe"),
+        ("출석률", f'{summary["rate"]:.1%}', "#ede9fe"),
+        ("정착률", _settlement_text(summary), "#ede9fe"),
+        ("최근 3개월 출석 횟수", _recent3_text(summary), "#dcfce7"),
+        ("정착 / 관찰 중 / 미정착 / 확인필요",
+         f"{summary['settled_count']} / {summary['observing_count']} / {summary['unsettled_count']} / {summary['settlement_review_count']}", "#f3f4f6"),
     ]
     cells = "".join(
         '<td style="padding:12px 8px;text-align:center;background:' + color +
@@ -86,15 +113,19 @@ def _summary_cards(summary):
 
 def _member_table(items):
     head = "".join(_cell(value) for value in [
-        "이름", "팀", "등록일", "대상 주일", "출석 주일", "정착률", "최근 4주", "조회 상태"
+        "이름", "팀", "등록일", "대상 주일", "출석 주일", "출석률", "최근 3개월 출석 횟수", "정착상태", "조회 상태"
     ])
     rows = []
     for item in items:
-        rate = "-" if item["정착률"] is None else f'{item["정착률"]:.1%}'
+        attendance_rate = item.get('출석률', item.get('rate', item.get('정착률')))
+        rate = '-' if attendance_rate is None else f'{attendance_rate:.1%}'
+        known = _settlement_is_known(item)
+        recent = item['recent3_attended'] if known else '확인필요'
+        state = item['settlement_status'] if known else ('대상외' if item.get('settlement_status') == '대상외' else '확인필요')
         values = [
             item["이름"], item["팀"] or "-", _format_date(item["등록일"]),
             item["대상 일요일"], item["출석 일요일"] if item["출석 일요일"] is not None else "-",
-            rate, item["최근 4주"] or "-", item["조회 상태"],
+            rate, recent, state, item["조회 상태"],
         ]
         rows.append("<tr>" + "".join(_cell(value) for value in values) + "</tr>")
     return (
@@ -106,13 +137,15 @@ def _member_table(items):
 
 
 def _army_summary_table(grouped):
-    headers = ["군", "명단", "조회 완료", "대상 주일", "출석 주일", "정착률"]
+    headers = ["군", "명단", "조회 완료", "대상 주일", "출석 주일", "출석률", "정착률", "최근 3개월 출석 횟수", "정착", "관찰 중", "미정착", "확인필요"]
     head = "".join(_cell(value) for value in headers)
     rows = []
     for army in ARMY_ORDER:
         summary = _summary(grouped.get(army, []))
         values = [army + "군", summary["total"], summary["completed"],
-                  summary["possible"], summary["attended"], f'{summary["rate"]:.1%}']
+                  summary["possible"], summary["attended"], f'{summary["rate"]:.1%}',
+                  _settlement_text(summary), _recent3_text(summary), summary['settled_count'],
+                  summary['observing_count'], summary['unsettled_count'], summary['settlement_review_count']]
         rows.append("<tr>" + "".join(_cell(value) for value in values) + "</tr>")
     return (
         '<h3 style="margin:24px 0 8px;text-align:center">군별 정착률 현황</h3>'
@@ -152,7 +185,10 @@ def _plain_text(title, items, as_of, sheet_url):
         f'조회 완료: {summary["completed"]}명',
         f'대상 주일: {summary["possible"]}회',
         f'출석 주일: {summary["attended"]}회',
-        f'정착률: {summary["rate"]:.1%}',
+        f'출석률: {summary["rate"]:.1%}',
+        f'정착률: {_settlement_text(summary)}',
+        f'최근 3개월 출석 횟수: {_recent3_text(summary)}',
+        f"정착: {summary['settled_count']}명 / 관찰 중: {summary['observing_count']}명 / 미정착: {summary['unsettled_count']}명 / 확인필요: {summary['settlement_review_count']}명",
         "", sheet_url,
     ])
 

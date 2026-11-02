@@ -82,7 +82,7 @@ class ServiceTests(unittest.TestCase):
         prior=self.run_service(); cancel=Event(); self.adapter.after_query=cancel.set
         current=self.service.run(RunRequest(as_of=date(2026,10,4)),self.settings,self.paths,lambda e:None,cancel)
         self.assertEqual(current.status,'cancelled'); self.assertFalse(current.sheet_published)
-        selected=HistoryStore(self.paths.data_root).monthly_summary('2026-10','recent4-v1')
+        selected=HistoryStore(self.paths.data_root).monthly_summary('2026-10','recent3-v2')
         self.assertEqual(selected[0]['run_id'],prior.run_id); self.assertEqual(len(self.adapter.legacy),1)
     def test_second_process_cannot_write(self):
         with ProcessLock(self.paths.data_root/'execution.lock'):
@@ -105,12 +105,12 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(self.service.send_selected(outcome.run_id,['overall'],resend=True)['overall'],'uncertain')
         self.assertEqual(len(self.adapter.send_calls),calls)
     def test_partial_publication_resume_does_not_repeat_completed_stages(self):
-        self.adapter.sheets.fail='정착률 월별 이력'; outcome=self.run_service()
-        self.assertEqual(outcome.status,'publication_failed'); self.assertEqual(self.adapter.sheets.writes,['군별 정착 현황'])
+        self.adapter.sheets.fail='정착률 월별 이력 v2'; outcome=self.run_service()
+        self.assertEqual(outcome.status,'publication_failed'); self.assertEqual(self.adapter.sheets.writes,['군별 정착 현황 v2'])
         self.adapter.sheets.fail=None
         recovered=self.service.resume(outcome.run_id,self.settings,self.paths,lambda e:None,Event())
         self.assertEqual(recovered.status,'completed'); self.assertEqual(len(self.adapter.legacy),1)
-        self.assertEqual(self.adapter.sheets.writes.count('군별 정착 현황'),1)
+        self.assertEqual(self.adapter.sheets.writes.count('군별 정착 현황 v2'),1)
         self.assertEqual(len(self.adapter.queries),1)
     def test_authentication_and_period_block_writes(self):
         self.adapter.auth=False; outcome=self.run_service(); self.assertEqual(outcome.status,'authentication_required'); self.assertEqual(self.adapter.legacy,[])
@@ -261,7 +261,7 @@ class AtomicGoogleAPI:
             return {'sheets':[{k:copy.deepcopy(v) for k,v in tab.items() if k!='rows'} for tab in self.tabs.values()]}
         return ExecutedCall(read)
     def _target(self,name,kind):
-        return bool(self.failure and self.failure[0]==kind and (kind=='create' or name=='정착률 월별 이력'))
+        return bool(self.failure and self.failure[0]==kind and (kind=='create' or name=='정착률 월별 이력 v2'))
     def update(self,**kwargs):
         def write():
             self.calls.append(('values.update',kwargs))
@@ -335,10 +335,11 @@ class AtomicPublicationTests(unittest.TestCase):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
                 api=AtomicGoogleAPI()
                 old=['2026-09','recent4-v1','previous','2026-09-27','신',1,1,.6,.5,'','','']
+                old += [''] * (len(TAB_HEADERS[HISTORY_TAB])-len(old))
                 for name in TAB_HEADERS: api.seed(name,[old] if name==HISTORY_TAB else [])
                 store=HistoryStore(Path(tmp)); publisher=SheetPublisher(GoogleSheetsAdapter(api,'fake'),store)
-                data=[row()]; store.save_snapshot('new',date(2026,10,4),data,'recent4-v1','completed')
-                summary=store.monthly_summary('2026-10','recent4-v1'); api.failure=('monthly',mode)
+                data=[row()]; store.save_snapshot('new',date(2026,10,4),data,'recent3-v2','completed')
+                summary=store.monthly_summary('2026-10','recent3-v2'); api.failure=('monthly',mode)
                 with self.assertRaises(OSError): publisher.publish('new',data,summary)
                 self.assertIn(old,api.tabs[HISTORY_TAB]['rows'])
                 self.assertFalse(store.stage_done('new','monthly'))

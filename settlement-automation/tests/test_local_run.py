@@ -27,12 +27,14 @@ class LocalRunTests(unittest.TestCase):
 
     def test_sheet_summary_corruption_is_rejected(self):
         rows=[{'군':'신','조회 상태':'조회완료','대상 일요일':4,'출석 일요일':3}]
-        sheet=[[] for _ in range(9)]
-        sheet[4]=['신',1,1,4,3,.75,'','전체 인원',1]
+        sheet=[[] for _ in range(11)]
+        sheet[4]=['신',1,1,4,3,.75,0,'전체 인원',1]
         sheet[5]=['']*8+[1]
         sheet[6]=['']*8+[4]
         sheet[7]=['']*8+[3]
         sheet[8]=['']*8+[.75]
+        sheet[9]=['']*8+[0]
+        sheet[10]=['']*8+[0]
         self.assertEqual(verify_summary(sheet,rows)['attended'],3)
         sheet[7][8]=2
         with self.assertRaises(RuntimeError): verify_summary(sheet,rows)
@@ -43,9 +45,11 @@ class LocalRunTests(unittest.TestCase):
     def test_missing_army_summary_cells_are_rejected(self):
         armies=['신','조','명','총','석','전']
         rows=[{'군':army,'조회 상태':'조회완료','대상 일요일':4,'출석 일요일':3} for army in armies]
-        sheet=[[] for _ in range(10)]
-        for index, army in enumerate(armies,4): sheet[index]=[army,1,1,4,3,.75]
-        for index,value in enumerate([6,6,24,18,.75],4): sheet[index]+=['','요약',value]
+        sheet=[[] for _ in range(11)]
+        for index, army in enumerate(armies,4): sheet[index]=[army,1,1,4,3,.75,0]
+        for index,value in enumerate([6,6,24,18,.75],4): sheet[index]+=['요약',value]
+        sheet[9]+=['요약',0]
+        sheet[10]=['']*8+[0]
         verify_summary(sheet,rows)
         sheet[9]=['전']
         with self.assertRaises(RuntimeError): verify_summary(sheet,rows)

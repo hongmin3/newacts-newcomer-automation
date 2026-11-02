@@ -26,7 +26,7 @@ class ValidationIssue(ValueError):
         if code not in GUIDANCE: code='validation'
         self.code=code
         # Only constant product tab names may be shown, never arbitrary data.
-        self.tab=tab if tab in ('군별 정착 현황','정착률 월별 이력','새가족 돌봄 기록') else None
+        self.tab=tab if tab in ('군별 정착 현황','정착률 월별 이력','군별 정착 현황 v2','정착률 월별 이력 v2','새가족 돌봄 기록') else None
         super().__init__(GUIDANCE[code])
 
 @dataclass(frozen=True)

@@ -92,9 +92,10 @@ class HistoryStore:
             item = dict(item)
             item['previous_run_id'] = prior['run_id'] if prior else None
             item['member_count_delta'] = item['member_count'] - prior['member_count'] if prior else None
-            for field in ('rate','recent_rate'):
+            for field in ('rate','recent_rate','settlement_rate'):
                 item[field + '_delta_pp'] = ((item[field]-prior[field])*100
-                    if prior and item[field] is not None and prior[field] is not None else None)
+                    if prior and item.get(field) is not None and prior.get(field) is not None
+                    and not (field == 'settlement_rate' and (item.get('settlement_provisional') or prior.get('settlement_provisional'))) else None)
             summaries.append(item)
         return summaries
 
@@ -112,8 +113,8 @@ class HistoryStore:
             versions = [version for period,version in periods if period == month]
             if not versions:
                 timeline.append(dict(month=month,status='미실행',army='',run_id=None,
-                    rate=None,recent_rate=None,completion_rate=None,member_count=None,
-                    member_count_delta=None,rate_delta_pp=None,recent_rate_delta_pp=None))
+                    rate=None,recent_rate=None,settlement_rate=None,recent3_attended=None,completion_rate=None,member_count=None,
+                    member_count_delta=None,rate_delta_pp=None,recent_rate_delta_pp=None,settlement_rate_delta_pp=None))
             for version in versions:
                 timeline.extend(dict(item,status='완료') for item in self.monthly_summary(month,version))
             current = date(current.year + (current.month == 12),1 if current.month == 12 else current.month+1,1)
