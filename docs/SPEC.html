@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="generator" content="botyard render-spec-html v8">
 <meta name="spec-html-renderer" content="v8">
-<meta name="spec-source-sha256" content="87d7e4fa65a5a8f456f7cfa5f29130098772c68b3a81c006cfd16e72def75e77">
+<meta name="spec-source-sha256" content="8a46be4eaa28af5f9887a557b007a819a50893df40cdaef219c59920454d703d">
 <title>뉴액츠 새가족·교육 통합 자동화 사양서</title>
 <style>:root{--bg:#f7f8fa;--panel:#fff;--text:#1d2330;--muted:#5d6678;--line:#e2e6ee;--accent:#2f6fde;--code:#f1f3f7;
 --req:#2f6fde;--nfr:#8a4fd8;--test:#15907a;--draft:#8a93a6;--implemented:#c98a12;--verified:#1f9d55;--deprecated:#c2413a;--active:#2f6fde;
@@ -93,7 +93,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <header class="top">
 <h1>뉴액츠 새가족·교육 통합 자동화 사양서</h1>
 <div class="chips"><span class="chip"><span>Document Version</span><b>1.1.0</b></span><span class="chip"><span>Project Version</span><b>1.0.0</b></span><span class="chip"><span>Last Updated</span><b>2026-10-29</b></span><span class="chip"><span>Status</span><b><span class="badge st-active">active</span></b></span><span class="chip"><span>Owner</span><b>새가족부 운영 담당자 (역할명)</b></span></div>
-<div class="stats"><div class="stat"><b>52</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>38</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>27</b><span>verified</span></div></div>
+<div class="stats"><div class="stat"><b>53</b><span>기능 요구사항 REQ</span></div><div class="stat"><b>5</b><span>비기능 NFR</span></div><div class="stat"><b>38</b><span>테스트 TEST</span></div><div class="stat st-implemented"><b>25</b><span>implemented</span></div><div class="stat st-verified"><b>27</b><span>verified</span></div></div>
 </header>
 <div class="layout">
 <nav class="toc" aria-label="목차">
@@ -183,6 +183,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004 <span>군별 화면과 돌봄 기록 보존</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005 <span>결과 확인 후 보고서 발송</span></a></li>
 <li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006 <span>중복 실행과 중단 복구</span></a></li>
+<li class="toc-id kind-req"><a href="#REQ-RATEDESKTOP-007">REQ-RATEDESKTOP-007 <span>프로젝트 폴더에서 오늘 기준 실행</span></a></li>
 <li class="toc-2"><a href="#doc-settlement-desktop-sec-11">11. 테스트 사양</a></li>
 <li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-001">TEST-RATEDESKTOP-001 <span>앱 실행과 인증</span></a></li>
 <li class="toc-id kind-test"><a href="#TEST-RATEDESKTOP-002">TEST-RATEDESKTOP-002 <span>출석 계산 경계</span></a></li>
@@ -290,6 +291,7 @@ footer{max-width:1800px;margin:0 auto;padding:8px 24px 40px;color:var(--muted);f
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-004">REQ-RATEDESKTOP-004</a></td><td data-label="이름">군별 화면과 돌봄 기록 보존</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/desktop/sheets.py</code>, <code>settlement-automation/desktop/window.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_sheets.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-004">TEST-RATEDESKTOP-004</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-005">REQ-RATEDESKTOP-005</a></td><td data-label="이름">결과 확인 후 보고서 발송</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/settlement_email.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-005">TEST-RATEDESKTOP-005</a></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="이름">중복 실행과 중단 복구</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/desktop/errors.py</code></td><td data-label="테스트"><code>settlement-automation/tests/test_desktop_final_fixes.py</code>, <code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td></tr>
+<tr><td data-label="ID"><a class="idref" href="#REQ-RATEDESKTOP-007">REQ-RATEDESKTOP-007</a></td><td data-label="이름">프로젝트 폴더에서 오늘 기준 실행</td><td data-label="상태"></td><td data-label="구현"></td><td data-label="테스트"></td></tr>
 <tr class="group"><th colspan="5"><span class="gcode">EVENTDAYWORKBOOK</span> 행축 당일 방문·등록 양방향 입력</th></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-001">REQ-EVENTDAYWORKBOOK-001</a></td><td data-label="이름">행사 당일 빈 명단과 군별 구성</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code>, <code>event-day-workbook/layout.cjs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code></td></tr>
 <tr><td data-label="ID"><a class="idref" href="#REQ-EVENTDAYWORKBOOK-002">REQ-EVENTDAYWORKBOOK-002</a></td><td data-label="이름">전체와 군별 명단의 양방향 입력</td><td data-label="상태"><span class="badge st-verified">verified</span></td><td data-label="구현"><code>event-day-workbook/Code.gs</code></td><td data-label="테스트"><code>tests/event-day-workbook.test.js</code>, <code>tests/event-day-concurrency.test.js</code>, <code>tests/event-day-group-move.test.js</code></td></tr>
@@ -2797,6 +2799,30 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 운영 전환 시 기존 Windows 실행·발송 상태를 확인하며 Windows 예약 작업을 자동 변경하지 않는다.</p>
 </div></section>
 </section>
+<section class="card kind-req" id="REQ-RATEDESKTOP-007">
+<h3><span class="idtag">REQ-RATEDESKTOP-007</span> 프로젝트 폴더에서 오늘 기준 실행</h3>
+<details class="history"><summary>변경 이력 1</summary>
+<ul>
+<li><span class="hist">2026-11-02 프로젝트 안에서 정착률 실행</span> <a class="idref" href="#REQ-RATEDESKTOP-007">REQ-RATEDESKTOP-007</a>: 더블클릭하면 한국 날짜 기준으로 전체 등록자의 출결을 조회하는 Mac 실행 파일을 추가했다. 인증·브라우저·결과는 프로젝트 안의 Git 제외 폴더에 모으며, Google Sheets 인증과 기존 디모데 키체인을 사용한다. 조회 완료율 95% 이상일 때 결과 탭을 갱신하고 원본 명단 보존과 결과를 다시 읽어 확인한다. 메일은 보내지 않는다. 등록 이후 아직 주일이 없는 사람은 미래 등록자로 표시하지 않고 계산 대상에서 구분한다.</li>
+</ul>
+</details>
+<section class="field"><h4>하는 일</h4><div class="field-body">
+<p>Mac에서 <code>오늘 정착률 실행.command</code>를 더블클릭하면 한국 날짜를 기준으로 전체 등록자의 출결을 조회하고 기존 <code>정착률</code> 탭을 갱신한다.</p>
+</div></section>
+<section class="field"><h4>순서</h4><div class="field-body">
+<ol>
+<li>프로젝트의 Python 실행 환경과 Chromium을 사용한다. 없으면 설치가 필요한 항목을 안내하고 멈춘다.</li>
+<li>인증 파일·실행 결과·잠금 파일은 <code>settlement-automation/local/</code>에 보관하며 Git에 넣지 않는다. 인증 파일은 소유자만 읽고 쓸 수 있게 한다.</li>
+<li>Google Sheets 권한으로 인증한다. 디모데 암호는 기존 키체인 조회 도구가 직접 읽으며 로그인 실패는 다시 시도하지 않는다.</li>
+<li>기존 동일인 확인과 출결 계산을 사용한다. 등록일이 기준일 이후인 사람은 제외한다.</li>
+<li>전체 결과를 새 CSV에 보관한다. 등록 이후 대상 주일이 없는 사람은 <code>계산대상없음</code>으로 표시하고 조회 완료율의 분모에서 제외한다. 나머지 대상자의 조회 완료율이 95% 미만이면 시트를 갱신하지 않는다.</li>
+<li>정상 결과의 기존 결과 탭을 갱신하고 기준일·인원·출석 합계와 원본 명단 보존을 다시 읽어 확인한다. 메일은 보내지 않는다.</li>
+</ol>
+</div></section>
+<section class="field"><h4>안 될 때</h4><div class="field-body">
+<p>다른 실행이 진행 중이면 시작하지 않는다. 오류 종류를 안내하고 종료하며 비밀값이나 개인 명단은 터미널에 출력하지 않는다.</p>
+</div></section>
+</section>
 </section>
 <section class="chapter" id="doc-settlement-desktop-sec-11">
 <h2>11. 테스트 사양</h2>
@@ -2849,6 +2875,7 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 <tr><td data-label="Requirement"><a class="idref" href="#REQ-RATEDESKTOP-006">REQ-RATEDESKTOP-006</a></td><td data-label="Implementation"><code>settlement-automation/desktop/service.py</code>, <code>settlement-automation/desktop/adapters.py</code>, <code>settlement-automation/desktop/errors.py</code></td><td data-label="Test"><code>settlement-automation/tests/test_desktop_final_fixes.py</code>, <code>settlement-automation/tests/test_desktop_service.py</code>, <code>settlement-automation/tests/test_desktop_window.py</code>, <a class="idref" href="#TEST-RATEDESKTOP-006">TEST-RATEDESKTOP-006</a></td><td data-label="Status"><span class="badge st-verified">verified</span></td></tr>
 </tbody>
 </table></div>
+<p>| <a class="idref" href="#REQ-RATEDESKTOP-007">REQ-RATEDESKTOP-007</a> | <code>settlement-automation/local_run.py</code>, <code>settlement-automation/오늘 정착률 실행.command</code> | <code>settlement-automation/tests/test_local_run.py</code> | implemented |</p>
 </section>
 <section class="chapter" id="doc-event-day-workbook">
 <h2>행축 당일 방문·등록 시트</h2>

@@ -145,6 +145,22 @@ Python·Chromium을 앱에 포함하며 사용자가 매번 터미널을 열거�
 Mac 잠금이 다른 컴퓨터까지 막는다고 가정하지 않는다.
 운영 전환 시 기존 Windows 실행·발송 상태를 확인하며 Windows 예약 작업을 자동 변경하지 않는다.
 
+### REQ-RATEDESKTOP-007 프로젝트 폴더에서 오늘 기준 실행
+
+#### 하는 일
+Mac에서 `오늘 정착률 실행.command`를 더블클릭하면 한국 날짜를 기준으로 전체 등록자의 출결을 조회하고 기존 `정착률` 탭을 갱신한다.
+
+#### 순서
+1. 프로젝트의 Python 실행 환경과 Chromium을 사용한다. 없으면 설치가 필요한 항목을 안내하고 멈춘다.
+2. 인증 파일·실행 결과·잠금 파일은 `settlement-automation/local/`에 보관하며 Git에 넣지 않는다. 인증 파일은 소유자만 읽고 쓸 수 있게 한다.
+3. Google Sheets 권한으로 인증한다. 디모데 암호는 기존 키체인 조회 도구가 직접 읽으며 로그인 실패는 다시 시도하지 않는다.
+4. 기존 동일인 확인과 출결 계산을 사용한다. 등록일이 기준일 이후인 사람은 제외한다.
+5. 전체 결과를 새 CSV에 보관한다. 등록 이후 대상 주일이 없는 사람은 `계산대상없음`으로 표시하고 조회 완료율의 분모에서 제외한다. 나머지 대상자의 조회 완료율이 95% 미만이면 시트를 갱신하지 않는다.
+6. 정상 결과의 기존 결과 탭을 갱신하고 기준일·인원·출석 합계와 원본 명단 보존을 다시 읽어 확인한다. 메일은 보내지 않는다.
+
+#### 안 될 때
+다른 실행이 진행 중이면 시작하지 않는다. 오류 종류를 안내하고 종료하며 비밀값이나 개인 명단은 터미널에 출력하지 않는다.
+
 ## 11. 테스트 사양
 
 각 테스트는 비밀 없는 가짜 설정·명단·외부 서비스로 자동 검증한다.
@@ -194,3 +210,5 @@ Mac 앱과 운영 데이터 확인은 자동 테스트 뒤 승인된 범위에�
 | REQ-RATEDESKTOP-004 | `settlement-automation/desktop/sheets.py`, `settlement-automation/desktop/window.py` | `settlement-automation/tests/test_desktop_sheets.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-004 | verified |
 | REQ-RATEDESKTOP-005 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/settlement_email.py` | `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-005 | verified |
 | REQ-RATEDESKTOP-006 | `settlement-automation/desktop/service.py`, `settlement-automation/desktop/adapters.py`, `settlement-automation/desktop/errors.py` | `settlement-automation/tests/test_desktop_final_fixes.py`, `settlement-automation/tests/test_desktop_service.py`, `settlement-automation/tests/test_desktop_window.py`, TEST-RATEDESKTOP-006 | verified |
+
+| REQ-RATEDESKTOP-007 | `settlement-automation/local_run.py`, `settlement-automation/오늘 정착률 실행.command` | `settlement-automation/tests/test_local_run.py` | implemented |
