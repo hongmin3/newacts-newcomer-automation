@@ -146,7 +146,7 @@ const normalized=ss.sheets[ctx.EVENT.raw];normalized.getRange(2,14).setValue('tr
 const normalizedRow=ctx.eventData_(normalized)[0];assert.equal(normalizedRow[13],true);assert.equal(normalizedRow[14],false);assert.equal(normalizedRow[21],false);
 
 // 실제 단순 명단 열 배치를 통과한다. 등록만 입력하면 방문 쪽에는 추가하지 않는다.
-Range.prototype.setDataValidation=function(){return this;};
+Range.prototype.setDataValidation=function(){return this;};Range.prototype.getDataValidations=function(){return [[null]];};
 Sheet.prototype.getConditionalFormatRules=function(){return [];};Sheet.prototype.setConditionalFormatRules=function(){};ctx.SpreadsheetApp.newConditionalFormatRule=()=>({whenFormulaSatisfied(){return this;},setBackground(){return this;},setRanges(){return this;},build(){return {};}});
 ctx.SpreadsheetApp.newDataValidation=()=>({requireValueInList(){return this;},setAllowInvalid(){return this;},build(){return {};}});
 Range.prototype.getFormulas=function(){return Array.from({length:this.nr},()=>Array(this.nc).fill(''));};
