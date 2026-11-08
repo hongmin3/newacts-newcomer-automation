@@ -1,0 +1,10 @@
+{
+  "source_kind": "registration_sheet",
+  "sheet_name": "등록 새가족",
+  "source_period_start": "",
+  "source_period_end": "",
+  "bulletin_date": "",
+  "existing_member_policy": "include_in_bulletin_number_and_credit",
+  "production_dimode_write_enabled": false,
+  "template_profile_confirmed": false
+}

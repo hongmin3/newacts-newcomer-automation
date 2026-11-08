@@ -791,6 +791,7 @@ TEST-RATE-003
 | Mac 정착률 관리 앱 | [specs/settlement-desktop.md](specs/settlement-desktop.md) | draft |
 | 행축 당일 방문·등록 시트 | [specs/event-day-workbook.md](specs/event-day-workbook.md) | verified |
 | 디모데 자동 로그인 조회 | [specs/dimode-lookup.md](specs/dimode-lookup.md) | verified |
+| Windows 교적·주보 업무 | [specs/newcomer-administration.md](specs/newcomer-administration.md) | draft |
 
 <!-- spec-index: end -->
 
@@ -1609,7 +1610,7 @@ Status 값: `draft` (사양만 있음) / `implemented` / `verified` (실제 실�
 
 ## 13. 미확정 사항
 
-- **교적 등록·주보 자동화 계획 검토 (TBD).** [상세 구현 계획](docs/superpowers/plans/2026-10-26-newcomer-administration.md)의 확인 항목을 확정한 뒤 신규 기능 사양을 등록한다. 아직 현재 기능에 포함하지 않는다. REQ-VISITOR-001의 만 나이 기준과 최신 명단 입력 지침의 세는나이 기준은 적용 범위를 확인해야 한다.
+- **교적 등록·주보 자동화 운영 연결 (TBD).** [신규 기능 사양](specs/newcomer-administration.md)은 draft다. 사용자가 시트 입력을 마친 뒤 직접 실행하며, 일반 등록 시트와 기등록자의 주보·번호·실적 포함을 확정했다. 계정 연결·고정 관리번호·교적 저장·실제 한글 양식과 공유 저장 검증이 남아 있다. 기존 나이 열의 적용 범위는 별도로 확인한다.
 
 - **REQ-SETTLE-001 산출 기준의 소유자 확인.** 2026-09-19에 코드를 근거로 사양을 확정했다. 확정한 기준은 군 9개 행 매핑, `3/8` 행축 기준, 유입 경로 `관계`·`설문지`, 일반·행축 목표 열이다. 운영 기준이 다르면 코드보다 이 사양을 먼저 고친다.
 - **정착률 자동화의 운영 검증 범위.** 동일인 판정, 출석 계산, 시트 갱신, 실제 메일 전송은 추적성과 운영 검증이 확인 필요다(REQ-RATE-001~003은 메일 안전 기준과 날짜 판정만 다룬다).

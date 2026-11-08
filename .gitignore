@@ -9,3 +9,6 @@ coverage/
 .akela/
 akela/.cache/
 akela/learnings-log.jsonl
+.superpowers/
+newcomer-administration/.venv/
+**/__pycache__/
