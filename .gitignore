@@ -9,3 +9,6 @@ coverage/
 .akela/
 akela/.cache/
 akela/learnings-log.jsonl
+
+# 독립 Git 저장소(hongmin3/hansung-youth-completion-automation)로 관리하는 하위 프로젝트
+dimode-completion-input/

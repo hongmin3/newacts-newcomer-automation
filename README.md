@@ -320,6 +320,8 @@ npm test
 
 이 저장소는 작업별 AI 컨텍스트 관리를 위해 Akela를 사용합니다. Akela는 Apps Script Runtime Dependency가 아닙니다.
 
+Apps Script 역할 확인은 `gas-role-lookup`, 트리거 조사는 `trigger-debug`, 변경 승인 규칙은 `policy-change`, 운영 전환 검토는 `production-cutover` 활동으로 compile합니다. 이 이름들은 `akela.json`의 활동 목록에 선언되어 있습니다.
+
 - Knowledge: `knowledge/`
 - Agent Protocol: `akela/PROTOCOL.md`
 - Configuration: `akela.json`
