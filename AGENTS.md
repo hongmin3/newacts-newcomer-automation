@@ -63,6 +63,8 @@ python3 -I settlement-automation/dimode_lookup.py search --name 홍길동 --all-
 printf 'name\tphone\tbirth\tarmy\tteam\n홍길동\t\t\t조\t보배\n' | python3 -I settlement-automation/dimode_lookup.py match -
 ```
 
+- 실행 위치: 이 도구는 macOS 키체인(`security` 명령)이 있는 Mac에서만 동작한다. Windows 세션에서는 계획을 세우기 전에 `command -v security`로 먼저 확인하고, 없으면 조회를 Mac에서 하도록 사용자에게 알린다.
+- REST 미리보기(`npm run preview -- registration ...`)는 `~/.config/newacts-apps-script` 인증 파일이 필요하며 이 파일은 Mac에만 있다. 시작 전에 `npm run preview -- registration doctor`로 확인한다. Windows의 `~/.clasprc.json`은 `spreadsheets` 권한이 없어 시트 값을 읽지 못한다.
 - 계정과 암호는 Mac 키체인 `kr.newacts.settlement`에서 도구가 직접 읽는다. AI는 암호를 묻거나 출력하거나 로그인 칸에 입력하지 않는다. 계정 이름도 저장소에 쓰지 않는다.
 - 키체인 항목이 없거나 로그인에 실패하면 다시 시도하지 않고, 사용자가 `security add-generic-password -s kr.newacts.settlement -a <계정> -U -w`로 직접 저장·수정하도록 안내한다.
 - 브라우저나 Chromium 자동화를 새로 띄우지 않는다. 디모데 교적은 읽기만 하며 수정 화면을 열거나 저장하지 않는다.
