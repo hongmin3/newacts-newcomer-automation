@@ -272,12 +272,19 @@ function buildAndSendWeeklyReports_(options) {
 
   // 미리보기에서는 방금 계산한 결과가 아직 시트에 없으므로 현재 통계를 사용합니다.
   const total = createCompletionStats_();
-  const byGroup = {};
+  const byGroup = Object.create(null);
+  const configuration = readRegistrationOrg_();
+  const groups = configuration ? registrationGroups_(configuration) :
+    Object.keys(REGISTRATION_AUTOMATION.groupRecipients).map(function (key) {
+      return { key: key, label: key + '군', recipient: REGISTRATION_AUTOMATION.groupRecipients[key] };
+    });
 
   rows.forEach(function (row) {
-    const group = String(row[1] || '').trim().charAt(0);
+    if (!String(row[4] || '').trim() && !normalizeRegistrationPhone_(row[6])) return;
+    const group = configuration ? registrationGroupKey_(row[1], configuration) || '미배정' :
+      String(row[1] || '').trim().charAt(0);
     if (!byGroup[group]) byGroup[group] = createCompletionStats_();
-    updateCompletionStats_(total, row, false);
+    updateCompletionStats_(total, row, Boolean(configuration && group === '미배정'));
     updateCompletionStats_(byGroup[group], row, true);
   });
 
@@ -295,7 +302,8 @@ function buildAndSendWeeklyReports_(options) {
     '전체',
     total,
     options.syncResult,
-    byGroup
+    byGroup,
+    configuration ? groups.concat([{ key: '미배정', label: '미배정' }]) : groups
   );
   sendRegistrationEmail_({
     recipients: REGISTRATION_AUTOMATION.productionAdminRecipients,
@@ -305,17 +313,15 @@ function buildAndSendWeeklyReports_(options) {
     forceTestRecipient: Boolean(options.forceTestRecipient)
   });
 
-  Object.keys(REGISTRATION_AUTOMATION.groupRecipients).forEach(function (group) {
-    const stats = byGroup[group];
+  if (options.forceTestRecipient || REGISTRATION_AUTOMATION.mode !== 'PRODUCTION') return report;
+  groups.forEach(function (group) {
+    const stats = byGroup[group.key];
     if (!stats || stats.registered === 0) return;
-    // 테스트 실행에서 군 리더 9명에게 실제 통계가 나가지 않도록 첫 군만 보냅니다.
-    if (options.forceTestRecipient && report.testGroupMailSent) return;
-    report.testGroupMailSent = Boolean(options.forceTestRecipient);
     sendRegistrationEmail_({
-      recipients: [REGISTRATION_AUTOMATION.groupRecipients[group]],
-      subject: '[새가족부] ' + group + '군 새가족교육 수료 통계',
-      body: createCompletionReportText_(group + '군', stats, null),
-      htmlBody: createCompletionReportHtml_(group + '군', stats, null, null),
+      recipients: [group.recipient],
+      subject: '[새가족부] ' + group.label + ' 새가족교육 수료 통계',
+      body: createCompletionReportText_(group.label, stats, null),
+      htmlBody: createCompletionReportHtml_(group.label, stats, null, null),
       forceTestRecipient: Boolean(options.forceTestRecipient)
     });
   });
@@ -421,7 +427,7 @@ function createCompletionReportText_(title, stats, syncResult) {
   return text;
 }
 
-function createCompletionReportHtml_(title, stats, syncResult, groupStats) {
+function createCompletionReportHtml_(title, stats, syncResult, groupStats, groups) {
   const participationRate = stats.registered
     ? (stats.participated / stats.registered * 100).toFixed(1)
     : '0.0';
@@ -443,7 +449,7 @@ function createCompletionReportHtml_(title, stats, syncResult, groupStats) {
     '</tr></table>';
 
   if (groupStats) {
-    html += createCompletionGroupSummaryTable_(groupStats);
+    html += createCompletionGroupSummaryTable_(groupStats, groups);
   }
 
   const memberCount = stats.members
@@ -492,7 +498,7 @@ function createCompletionSummaryCell_(label, value, background) {
     escapeRegistrationHtml_(value) + '</div></td>';
 }
 
-function createCompletionGroupSummaryTable_(groupStats) {
+function createCompletionGroupSummaryTable_(groupStats, groups) {
   let html = '<h3 style="margin:24px 0 8px;color:#1f2937;text-align:center">군별 교육 현황</h3>';
   html += '<table style="width:100%;margin:0 auto;border-collapse:collapse;font-size:13px;text-align:center">';
   html += '<thead><tr style="background:#eef2ff">' +
@@ -505,8 +511,8 @@ function createCompletionGroupSummaryTable_(groupStats) {
     '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">미시작</th>' +
     '<th style="padding:9px;border:1px solid #c7d2fe;text-align:center">수료율</th>' +
     '</tr></thead><tbody>';
-  Object.keys(REGISTRATION_AUTOMATION.groupRecipients).forEach(function (group) {
-    const item = groupStats[group] || createCompletionStats_();
+  groups.forEach(function (group) {
+    const item = groupStats[group.key] || createCompletionStats_();
     const participationRate = item.registered
       ? (item.participated / item.registered * 100).toFixed(1) + '%'
       : '0.0%';
@@ -514,7 +520,7 @@ function createCompletionGroupSummaryTable_(groupStats) {
       ? (item.completed / item.registered * 100).toFixed(1) + '%'
       : '0.0%';
     html += '<tr>' +
-      createCompletionTableCell_(group + '군', 'center') +
+      createCompletionTableCell_(group.label, 'center') +
       createCompletionTableCell_(item.registered, 'center') +
       createCompletionTableCell_(item.participated, 'center') +
       createCompletionTableCell_(participationRate, 'center') +

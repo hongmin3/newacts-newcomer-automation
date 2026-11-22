@@ -60,7 +60,7 @@ function visitorAge_(value, dateKey) {
 }
 
 /** 행 위치는 원본 그대로 유지한다. 같은 이름/번호가 있으면 새 줄을 추측해서 만들지 않는다. */
-function buildVisitorSyncPlan_(registrations, visitors, formulas, period) {
+function buildVisitorSyncPlan_(registrations, visitors, formulas, period, configuration = readRegistrationOrg_()) {
   const byName = new Map(); const byPhone = new Map();
   visitors.forEach(function (row, index) {
     const record = { row: row, index: index,
@@ -133,24 +133,27 @@ function buildVisitorSyncPlan_(registrations, visitors, formulas, period) {
   return { added: addedRows.length, updated: updates.length, review: review,
     addedDetails: addedDetails, updatedDetails: updatedDetails,
     addedRows: addedRows, updates: updates, appendRow: lastUsed + 3,
-    period: period, summary: summarizeVisitorRows_(after),
-    campaign: summarizeVisitorCampaign_(after, period) };
+    period: period, summary: summarizeVisitorRows_(after, configuration),
+    campaign: summarizeVisitorCampaign_(after, period, configuration) };
 }
 
-function summarizeVisitorRows_(rows) {
-  const result = { records: 0, registered: 0, unregistered: 0, groups: {} };
+function summarizeVisitorRows_(rows, configuration = readRegistrationOrg_()) {
+  const result = { records: 0, registered: 0, unregistered: 0,
+    groups: configuration ? Object.create(null) : {} };
   rows.forEach(function (row) {
     if (!visitorNameKey_(row[5])) return;
     result.records++;
     if (String(row[13] || '').trim() === 'O') result.registered++;
     else result.unregistered++;
-    const group = String(row[3] || '').trim() || '미배정';
+    const group = (configuration ? registrationGroupKey_(row[3], configuration) :
+      String(row[3] || '').trim()) || '미배정';
     result.groups[group] = (result.groups[group] || 0) + 1;
   });
   return result;
 }
 
 function readAndSyncVisitors_(options) {
+  const configuration = readRegistrationOrg_();
   const period = getVisitorPeriod_(); const ss = getRegistrationSpreadsheet_();
   const source = ss.getSheetByName(REGISTRATION_AUTOMATION.registrationSheetName);
   const target = ss.getSheetByName(REGISTRATION_AUTOMATION.visitedSheetName);
@@ -172,8 +175,8 @@ function readAndSyncVisitors_(options) {
   const range = target.getLastRow() > 1
     ? target.getRange(2, 1, target.getLastRow() - 1, 15) : null;
   const plan = buildVisitorSyncPlan_(sourceRows, range ? range.getValues() : [],
-    range ? range.getFormulas() : [], period);
-  const campaignFormulas = prepareVisitorCampaignSummary_(target, period);
+    range ? range.getFormulas() : [], period, configuration);
+  const campaignFormulas = prepareVisitorCampaignSummary_(target, period, configuration);
   if (!options.dryRun) {
     let appliedAdded = 0; let appliedUpdated = 0;
     try {
@@ -196,7 +199,7 @@ function readAndSyncVisitors_(options) {
     // 그리드가 늘었으면 집계 범위도 늘린다.
     const finalFormulas = buildVisitorCampaignFormulaRows_(
       target.getRange(2, 17, campaignFormulas.length, 1).getValues().map(function (row) { return String(row[0]).trim(); }),
-      target.getMaxRows(), period);
+      target.getMaxRows(), period, configuration);
     target.getRange(2, 18, finalFormulas.length, 3).setValues(finalFormulas);
     } catch (error) {
       error.visitorResult = { added: appliedAdded, updated: appliedUpdated,
@@ -298,13 +301,15 @@ const VISITOR_CAMPAIGN = Object.freeze({
   firstDate: '2026-10-31', secondDate: '2026-11-01'
 });
 
-function summarizeVisitorCampaign_(rows, period) {
+function summarizeVisitorCampaign_(rows, period, configuration = readRegistrationOrg_()) {
   const result = { previsit: 0, culture: 0, event: 0, unassigned: 0 };
   rows.forEach(function (row) {
     if (!visitorNameKey_(row[5]) || String(row[12] || '').trim().toUpperCase() === 'O') return;
     const date = visitorDateKey_(row[1], 2026);
     if (!date || date < period.start || (period.end && date > period.end)) return;
-    if (REGISTRATION_AUTOMATION.groups.indexOf(String(row[3] || '').trim()) < 0) {
+    const group = configuration ? registrationGroupKey_(row[3], configuration) :
+      String(row[3] || '').trim();
+    if (!group || (!configuration && !REGISTRATION_AUTOMATION.groups.includes(group))) {
       result.unassigned++; return;
     }
     if (date < VISITOR_CAMPAIGN.firstDate) result.previsit++;
@@ -320,17 +325,26 @@ function visitorFormulaDate_(key) {
 }
 
 /** 날짜 셀과 텍스트 날짜를 같은 날짜 번호로 읽는다. 기존 그리드 안에서 계산한다. */
-function buildVisitorCampaignFormulaRows_(groupRows, maxRows, period) {
+function buildVisitorCampaignFormulaRows_(groupRows, maxRows, period, configuration = readRegistrationOrg_()) {
   const col = function (letter) { return '$' + letter + '$2:$' + letter + '$' + maxRows; };
   const b = col('B');
   const day = 'IFERROR(IF(ISNUMBER(' + b + '),INT(' + b + '),DATEVALUE(IF(REGEXMATCH(TO_TEXT(' + b +
     '),"^\\d{1,2}/\\d{1,2}$"),"2026/"&' + b + ',' + b + '))),0)';
   return groupRows.map(function (group, index) {
     const sheetRow = index + 2;
-    if (group === '합계') return ['R', 'S', 'T'].map(function (letter) {
+    if (group === '합계' && !configuration) return ['R', 'S', 'T'].map(function (letter) {
       return '=SUM(' + letter + '2:' + letter + (sheetRow - 1) + ')';
     });
-    const common = '(TRIM(' + col('D') + ')=TRIM($Q' + sheetRow + '))*(TRIM(' + col('F') + ')<>"")*' +
+    const rowGroup = configuration && group !== '합계' ? findOrgGroup_(configuration, group) : null;
+    if (configuration && !rowGroup && group !== '합계') return ['=0', '=0', '=0'];
+    const groups = configuration ? (rowGroup ? [rowGroup] : configuration.groups) : [];
+    const values = Array.from(new Set(groups.flatMap(function (item) {
+      return [item.key, item.label].concat(item.aliases || []);
+    })));
+    const groupFilter = configuration ? '(' + values.map(function (value) {
+      return '(TRIM(' + col('D') + ')="' + value.replace(/"/g, '""') + '")';
+    }).join('+') + '>0)' : '(TRIM(' + col('D') + ')=TRIM($Q' + sheetRow + '))';
+    const common = groupFilter + '*(TRIM(' + col('F') + ')<>"")*' +
       '(UPPER(TRIM(' + col('M') + '))<>"O")*(' + day + '>=' + visitorFormulaDate_(period.start) + ')' +
       (period.end ? '*(' + day + '<=' + visitorFormulaDate_(period.end) + ')' : '');
     const count = function (condition) { return '=SUM(ARRAYFORMULA(' + common + '*' + condition + '))'; };
@@ -341,18 +355,29 @@ function buildVisitorCampaignFormulaRows_(groupRows, maxRows, period) {
   });
 }
 
-function prepareVisitorCampaignSummary_(target, period) {
+function prepareVisitorCampaignSummary_(target, period, configuration = readRegistrationOrg_()) {
   const headers = target.getRange(1, 18, 1, 3).getValues()[0];
   ['선방문', '문화행축', '행축당일방문'].forEach(function (expected, index) {
     if (String(headers[index] || '').trim() !== expected) throw new Error('하반기 행사 집계 머리글 확인 필요: ' + expected);
   });
   const count = REGISTRATION_AUTOMATION.groups.length;
-  const groups = target.getRange(2, 17, count + 1, 1).getValues().map(function (row) { return String(row[0] || '').trim(); });
-  if (groups[count] !== '합계' || new Set(groups.slice(0, count)).size !== count ||
-      groups.slice(0, count).some(function (group) { return REGISTRATION_AUTOMATION.groups.indexOf(group) < 0; })) {
+  const height = configuration ? Math.max(1, target.getLastRow() - 1) : count + 1;
+  const labels = target.getRange(2, 17, height, 1).getValues().map(function (row) { return String(row[0] || '').trim(); });
+  const total = configuration ? labels.indexOf('합계') : count;
+  const groups = labels.slice(0, total + 1);
+  const detail = groups.slice(0, total);
+  if (groups[total] !== '합계' || detail.some(function (group) { return !group; }) ||
+      new Set(detail).size !== detail.length ||
+      (!configuration && detail.some(function (group) { return !REGISTRATION_AUTOMATION.groups.includes(group); }))) {
     throw new Error('하반기 행사 집계 Q열의 군 목록·합계 행을 확인해 주세요.');
   }
-  return buildVisitorCampaignFormulaRows_(groups, target.getMaxRows(), period);
+  if (configuration) {
+    const activeKeys = detail.map(function (label) { return registrationGroupKey_(label, configuration); }).filter(Boolean);
+    if (new Set(activeKeys).size !== activeKeys.length) {
+      throw new Error('하반기 행사 집계 Q열에 같은 군이 두 번 있습니다.');
+    }
+  }
+  return buildVisitorCampaignFormulaRows_(groups, target.getMaxRows(), period, configuration);
 }
 
 function updateVisitorCampaignSummaryMenu() {

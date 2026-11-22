@@ -73,6 +73,7 @@ function setupSystem() {
   let createdFolder = null;
 
   try {
+  const groups = intensiveGroupChoices_(readIntensiveOrgConfiguration_());
   // 1) 세 파일을 담을 비공개 시스템 폴더 생성
   // 공개 폴더 아래에 관리자 파일을 두면 링크 공개 권한이 상속될 수 있으므로
   // 반드시 My Drive 루트에 새 비공개 폴더를 만듭니다.
@@ -109,22 +110,22 @@ function setupSystem() {
   // ---- 군별 팀 선택 Section (임시 선택지로 먼저 생성) ----
   const groupPageMap = {};
   const teamItemMap = {};
-  GROUPS.forEach(function (g) {
-    const pageBreak = form.addPageBreakItem().setTitle(g + ' - 팀 선택');
+  groups.forEach(function (group) {
+    const pageBreak = form.addPageBreakItem().setTitle(group.label + ' - 팀 선택');
     const teamItem = form.addMultipleChoiceItem().setTitle(Q.TEAM).setRequired(true);
     teamItem.setChoices(
-      TEAMS_BY_GROUP[g].map(function (t) {
+      group.teams.map(function (t) {
         return teamItem.createChoice(t);
       })
     );
-    groupPageMap[g] = pageBreak;
-    teamItemMap[g] = teamItem;
+    groupPageMap[group.key] = pageBreak;
+    teamItemMap[group.key] = teamItem;
   });
 
   // 군 선택지에 분기(해당 군 Section으로 이동) 연결
   groupItem.setChoices(
-    GROUPS.map(function (g) {
-      return groupItem.createChoice(g, groupPageMap[g]);
+    groups.map(function (group) {
+      return groupItem.createChoice(group.label, groupPageMap[group.key]);
     })
   );
 
@@ -152,10 +153,10 @@ function setupSystem() {
   consentItem.setChoices([consentItem.createChoice('개인정보 수집 및 이용에 동의합니다.')]);
 
   // 각 군의 팀 선택지가 마지막 Section으로 이동하도록 재설정
-  GROUPS.forEach(function (g) {
-    const teamItem = teamItemMap[g];
+  groups.forEach(function (group) {
+    const teamItem = teamItemMap[group.key];
     teamItem.setChoices(
-      TEAMS_BY_GROUP[g].map(function (t) {
+      group.teams.map(function (t) {
         return teamItem.createChoice(t, finalPage);
       })
     );
@@ -241,7 +242,7 @@ function setupSystem() {
   printSystemInfo();
   } catch (err) {
     // 이번 설치 시도에서 만든 항목만 휴지통으로 보내 중복/반쪽 설치를 방지합니다.
-    props.deleteAllProperties();
+    clearIntensiveInstallation_(props);
     ScriptApp.getProjectTriggers().forEach(function (trigger) {
       if (trigger.getHandlerFunction() === 'onFormSubmitHandler') {
         ScriptApp.deleteTrigger(trigger);
@@ -299,29 +300,36 @@ function onFormSubmitHandler(e) {
     if (matchingRows.length !== 1) throw new Error('제출 응답을 하나로 찾을 수 없습니다. 원본 시각을 확인하세요.');
     const sourceRow = matchingRows[0];
 
-    const headers = responseSheet
-      .getRange(1, 1, 1, e.values.length)
-      .getDisplayValues()[0];
-    const values = e.values;
+    const width = responseSheet.getLastColumn();
+    const headers = responseSheet.getRange(1, 1, 1, width).getDisplayValues()[0];
+    // 군별 팀 분기가 추가되면 새 응답 열이 생깁니다. 그 전에 전달된 이벤트는 현재 원본 열로 읽습니다.
+    const values = e.values.length === width ? e.values :
+      responseSheet.getRange(sourceRow, 1, 1, width).getDisplayValues()[0];
 
     const applicantName = pickResponseValue(headers, values, Q.APPLICANT);
-    const group = canonicalGroupName(pickResponseValue(headers, values, Q.GROUP));
+    const submittedGroup = pickResponseValue(headers, values, Q.GROUP);
     // Form Section마다 같은 제목의 '팀' 문항이 있으므로, 같은 헤더 중 값이 있는 항목을 선택합니다.
     const team = pickResponseValue(headers, values, Q.TEAM);
     const attendeeName = pickResponseValue(headers, values, Q.ATTENDEE);
     const rawPhone = pickResponseValue(headers, values, Q.PHONE);
     const timestamp = responseSheet.getRange(sourceRow, 1).getValue();
+    const timestampMs = new Date(timestamp).getTime();
+    if (!Number.isFinite(timestampMs)) throw new Error('제출 시각이 올바르지 않습니다.');
+    const configuration = readIntensiveOrgConfiguration_(timestamp);
+    const group = configuration ? findOrgGroup_(configuration, submittedGroup) :
+      intensiveGroupChoices_(null).find(candidate => candidate.label === canonicalGroupName(submittedGroup));
 
     const phone = normalizePhone(rawPhone);
-    const groupValid = GROUPS.indexOf(group) !== -1;
-    const teamValid = groupValid && (TEAMS_BY_GROUP[group] || []).indexOf(team) !== -1;
+    const groupValid = Boolean(group);
+    const teamValid = groupValid && group.teams.includes(team);
     const phoneValid = PHONE_REGEX.test(phone);
     const requiredValuesValid = Boolean(applicantName && attendeeName);
-    const storedGroup = displayGroupName(group);
+    const storedGroup = group ? group.key : configuration ? submittedGroup : displayGroupName(submittedGroup);
 
-    // Form에서는 '명군/총군/전군'처럼 안내하되 시트에는 '명/총/전'만 저장합니다.
+    // 회기 설정을 쓰는 원본 응답에는 제출했을 때의 군 표기를 보존합니다.
     const groupColumn = headers.indexOf(Q.GROUP) + 1;
-    if (groupColumn > 0 && groupValid) {
+    const activeConfiguration = configuration || readIntensiveOrgConfiguration_();
+    if (groupColumn > 0 && groupValid && !activeConfiguration) {
       responseSheet.getRange(sourceRow, groupColumn).setValue(storedGroup);
     }
 
@@ -337,8 +345,6 @@ function onFormSubmitHandler(e) {
     const adminView = adminSs.getSheetByName(CONFIG.ADMIN_VIEW_SHEET_NAME);
     if (!adminView) throw new Error(CONFIG.ADMIN_VIEW_SHEET_NAME + ' 시트를 찾을 수 없습니다.');
 
-    const timestampMs = timestamp instanceof Date ? timestamp.getTime() : new Date(timestamp).getTime();
-    if (!Number.isFinite(timestampMs)) throw new Error('제출 시각이 올바르지 않습니다.');
     const sameTime = responseSheet.getRange(2, 1, responseSheet.getLastRow() - 1, 1).getValues()
       .filter(function (r) {return new Date(r[0]).getTime() === timestampMs;});
     if (sameTime.length !== 1) throw new Error('같은 제출 시각의 응답이 여러 개입니다. 담당자 확인이 필요합니다.');
@@ -518,17 +524,23 @@ function resortPublicSheet(sheet) {
   if (lastRow < 2) return;
   const numRows = lastRow - 1;
   const data = sheet.getRange(2, 1, numRows, 5).getValues();
+  const configuration = readIntensiveOrgConfiguration_();
+  const groups = intensiveGroupChoices_(configuration);
+  function rank(value) {
+    const name = String(value || '').trim();
+    const group = configuration ? findOrgGroup_(configuration, name) :
+      groups.find(candidate => candidate.key === name || candidate.label === name);
+    return groups.indexOf(group);
+  }
 
   data.sort(function (a, b) {
-    const canonicalGroupA = canonicalGroupName(a[1]);
-    const canonicalGroupB = canonicalGroupName(b[1]);
-    const ga = GROUPS.indexOf(canonicalGroupA);
-    const gb = GROUPS.indexOf(canonicalGroupB);
+    const ga = rank(a[1]);
+    const gb = rank(b[1]);
+    if (configuration && (ga < 0 || gb < 0) && ga !== gb) return gb < 0 ? -1 : 1;
     if (ga !== gb) return ga - gb;
-    const teamsA = TEAMS_BY_GROUP[canonicalGroupA] || [];
-    const teamsB = TEAMS_BY_GROUP[canonicalGroupB] || [];
-    const ta = teamsA.indexOf(a[2]);
-    const tb = teamsB.indexOf(b[2]);
+    const teams = groups[ga]?.teams || [];
+    const ta = teams.indexOf(a[2]);
+    const tb = teams.indexOf(b[2]);
     if (ta !== tb) return ta - tb;
     return String(a[3]).localeCompare(String(b[3]), 'ko');
   });
@@ -559,6 +571,23 @@ function canonicalGroupName(group) {
   if (GROUPS.indexOf(value) !== -1) return value;
   const candidate = value + '군';
   return GROUPS.indexOf(candidate) !== -1 ? candidate : value;
+}
+
+function readIntensiveOrgConfiguration_(at) {
+  // Code.gs 단독 설치는 기존 군·팀을 사용합니다. 설정을 연결한 환경에는 공통 읽기 파일이 필요합니다.
+  if (typeof readOrgConfiguration_ !== 'function' &&
+      !PropertiesService.getScriptProperties().getProperty('ORG_SETTINGS_SPREADSHEET_ID')) return null;
+  return readOrgConfiguration_(at);
+}
+
+function intensiveGroupChoices_(configuration) {
+  return configuration ? configuration.groups : GROUPS.map(function (label) {
+    return {key: displayGroupName(label), label, teams: TEAMS_BY_GROUP[label]};
+  });
+}
+
+function clearIntensiveInstallation_(properties) {
+  ['SYSTEM_FOLDER_ID', 'FORM_ID', 'ADMIN_SS_ID', 'PUBLIC_SS_ID'].forEach(key => properties.deleteProperty(key));
 }
 
 function moveFileToFolder(fileId, folder) {
@@ -667,38 +696,37 @@ function verifySystem() {
   }
 
   const form = FormApp.openById(formId);
-  const groupItems = form.getItems(FormApp.ItemType.MULTIPLE_CHOICE).map(function (item) {
-    return item.asMultipleChoiceItem();
-  });
-  if (groupItems.length !== GROUPS.length + 1) {
-    throw new Error('검증 실패: 군/팀 선택 문항 수가 올바르지 않습니다.');
+  const groups = intensiveGroupChoices_(readIntensiveOrgConfiguration_());
+  const items = form.getItems();
+  const groupItems = items.filter(item => item.getTitle() === Q.GROUP &&
+    item.getType() === FormApp.ItemType.MULTIPLE_CHOICE);
+  if (groupItems.length !== 1) {
+    throw new Error('검증 실패: 군 선택 문항을 하나로 확인할 수 없습니다.');
   }
-  const actualGroups = groupItems[0].getChoices().map(function (choice) {
-    return choice.getValue();
-  });
-  if (!arraysEqual(actualGroups, GROUPS)) {
+  const groupChoices = groupItems[0].asMultipleChoiceItem().getChoices();
+  if (!arraysEqual(groupChoices.map(choice => choice.getValue()), groups.map(group => group.label))) {
     throw new Error('검증 실패: 군 선택지가 올바르지 않습니다.');
   }
-  groupItems[0].getChoices().forEach(function (choice) {
+  groupChoices.forEach(function (choice, index) {
+    const group = groups[index];
     const destination = choice.getGotoPage();
-    if (!destination || destination.getTitle() !== choice.getValue() + ' - 팀 선택') {
-      throw new Error('검증 실패: ' + choice.getValue() + ' 군→팀 Section 분기가 올바르지 않습니다.');
+    if (!destination || destination.getTitle() !== group.label + ' - 팀 선택') {
+      throw new Error('검증 실패: ' + group.label + ' 군→팀 Section 분기가 올바르지 않습니다.');
     }
-  });
-  GROUPS.forEach(function (group, index) {
-    const teamChoices = groupItems[index + 1].getChoices();
-    const actualTeams = teamChoices.map(function (choice) {
-      return choice.getValue();
-    });
-    if (!arraysEqual(actualTeams, TEAMS_BY_GROUP[group])) {
-      throw new Error('검증 실패: ' + group + ' 팀 선택지가 올바르지 않습니다.');
-    }
-    teamChoices.forEach(function (choice) {
-      const destination = choice.getGotoPage();
-      if (!destination || destination.getTitle() !== '참석자 정보 입력') {
-        throw new Error('검증 실패: ' + group + '/' + choice.getValue() + ' 팀→참석자 Section 분기가 올바르지 않습니다.');
+    const branchItems = [];
+    for (let i = destination.getIndex() + 1; i < items.length && items[i].getType() !== FormApp.ItemType.PAGE_BREAK; i++) {
+      if (items[i].getTitle() === Q.TEAM && items[i].getType() === FormApp.ItemType.MULTIPLE_CHOICE) {
+        branchItems.push(items[i].asMultipleChoiceItem());
       }
-    });
+    }
+    if (branchItems.length !== 1) throw new Error('검증 실패: ' + group.label + ' 팀 문항을 확인할 수 없습니다.');
+    const teamChoices = branchItems[0].getChoices();
+    if (!arraysEqual(teamChoices.map(team => team.getValue()), group.teams)) {
+      throw new Error('검증 실패: ' + group.label + ' 팀 선택지가 올바르지 않습니다.');
+    }
+    if (!teamChoices.every(team => team.getGotoPage()?.getTitle() === '참석자 정보 입력')) {
+      throw new Error('검증 실패: ' + group.label + ' 팀→참석자 Section 분기가 올바르지 않습니다.');
+    }
   });
 
   const triggerOk = ScriptApp.getProjectTriggers().some(function (trigger) {
@@ -735,7 +763,7 @@ function printSystemInfo() {
 }
 
 function resetSystemProperties() {
-  PropertiesService.getScriptProperties().deleteAllProperties();
+  clearIntensiveInstallation_(PropertiesService.getScriptProperties());
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'onFormSubmitHandler') ScriptApp.deleteTrigger(t);
   });

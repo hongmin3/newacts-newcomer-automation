@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body { margin: 20px; color: #1d2b41; font: 14px/1.55 system-ui, sans-serif; }
+    h2, h3 { margin: 1rem 0 .4rem; }
+    figure { margin: 0; }
+    img { width: 100%; height: auto; display: block; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+    .controls { display: flex; align-items: center; gap: 10px; margin-top: 1rem; }
+    button { padding: .55em .9em; cursor: pointer; }
+    #result { margin: .5rem 0; min-height: 1.55em; }
+    #result.error { color: #a12620; }
+  </style>
+</head>
+<body>
+  <h2><?= preview.draft.term ?> 회기</h2>
+  <p>이어갈 미수료 기록 <?= preview.incomplete ?>건</p>
+
+  <h3>변경 내용</h3>
+  <? if (preview.changes.length) { ?>
+    <ul>
+      <? for (const change of preview.changes) { ?>
+        <li><?= change.label ?> · <?= change.text ?></li>
+      <? } ?>
+    </ul>
+  <? } else { ?>
+    <p>군·팀과 담당자 변경이 없습니다. 아래 표시 순서를 확인해 주세요.</p>
+  <? } ?>
+
+  <h3>출석 화면·집중교육 신청 선택지</h3>
+  <table>
+    <thead><tr><th scope="col">군</th><th scope="col">팀</th><th scope="col">보고 담당자</th></tr></thead>
+    <tbody>
+      <? for (const group of preview.draft.groups) { ?>
+        <tr><th scope="row"><?= group.label ?></th><td><?= group.teams.join(', ') ?></td><td><?= group.recipient ?></td></tr>
+      <? } ?>
+    </tbody>
+  </table>
+
+  <h3>층별안내도</h3>
+  <figure><img src="<?!= preview.guide ?>" alt="적용될 층별 시설과 군·팀 안내도 미리보기"></figure>
+  <div class="controls">
+    <button id="apply" type="button" data-confirmation="<?= preview.confirmation ?>">적용</button>
+    <button id="close" type="button">닫기</button>
+  </div>
+  <p id="result" role="status" aria-live="polite"></p>
+  <script>
+    const apply = document.getElementById('apply');
+    const close = document.getElementById('close');
+    const result = document.getElementById('result');
+    close.addEventListener('click', () => google.script.host.close());
+    apply.addEventListener('click', () => {
+      apply.disabled = true;
+      result.className = '';
+      result.textContent = '안내도와 집중교육 폼을 확인하며 적용하고 있습니다.';
+      google.script.run
+        .withSuccessHandler(message => { result.textContent = message; })
+        .withFailureHandler(error => {
+          result.className = 'error';
+          result.textContent = error.message;
+          apply.disabled = false;
+        })
+        .applyOrgSettings(apply.dataset.confirmation);
+    });
+  </script>
+</body>
+</html>

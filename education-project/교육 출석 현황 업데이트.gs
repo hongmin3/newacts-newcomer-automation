@@ -275,7 +275,10 @@ function resumeEducationBatch_(batch, options) {
     });
     // 복구 사이에 명단이 바뀌었으면 실제 검토 결과가 최초 예상 성공보다 우선합니다.
     if (actual.review.length) {
-      const rejected = new Set(actual.review.map(function (r) {return r.sourceRow;}));
+      const rejected = new Set(actual.review.filter(function (r) {
+        return !r.attendancePreserved;
+      }).map(function (r) {return r.sourceRow;}));
+      const reviewed = new Set(actual.review.map(function (r) {return r.sourceRow;}));
       const result = batch.data.result;
       result.addedDetails = result.addedDetails.filter(function (r) {return !rejected.has(r.sourceRow);});
       result.updatedDetails = result.updatedDetails.filter(function (r) {return !rejected.has(r.sourceRow);});
@@ -283,7 +286,7 @@ function resumeEducationBatch_(batch, options) {
       result.updated = result.updatedDetails.length;
       result.infoChanges = result.infoChanges.filter(function (r) {return !rejected.has(r.sourceRow);});
       result.duplicates = result.duplicates.filter(function (r) {return !rejected.has(r.sourceRow);});
-      result.review = result.review.filter(function (r) {return !rejected.has(r.sourceRow);}).concat(actual.review);
+      result.review = result.review.filter(function (r) {return !reviewed.has(r.sourceRow);}).concat(actual.review);
       appendEducationRecord_({parent: batch.row, result: result}, 'RESULT');
     }
     stage('APPLIED');
@@ -438,6 +441,10 @@ function processAttendanceRows_(sourceRows, options) {
 
   const phoneIndex = new Map();
   const nameIndex = new Map();
+  const currentOrg = typeof readOrgConfiguration_ === 'function' ? readOrgConfiguration_() : null;
+  const affiliationHistory = currentOrg ? readEducationAffiliationHistory_() : new Map();
+  const affiliationChanges = [];
+  let previousByPhone;
   let maxNo = 0;
 
   masterRows.forEach(function (row, index) {
@@ -457,8 +464,10 @@ function processAttendanceRows_(sourceRows, options) {
     const phoneDisplay = formatEducationPhone_(row[5]);
     const phoneKey = normalizeEducationPhone_(row[5]);
     const gender = transformEducationGender_(row[6]);
-    const group = transformEducationGroup_(row[8]);
-    const team = transformEducationTeam_(row[9]);
+    const historicalOrg = currentOrg && timestamp ? readOrgConfiguration_(timestamp) : null;
+    const pair = educationAffiliationPair_(row[8], row[9], historicalOrg);
+    const group = pair.group;
+    const team = pair.team;
 
     const issueBase = {
       sourceRow: source.sourceRow,
@@ -489,8 +498,44 @@ function processAttendanceRows_(sourceRows, options) {
     }
 
     let masterIndex = phoneMatches.length === 1 ? phoneMatches[0] : -1;
+    const nameKey = normalizeEducationName_(name);
+    if (currentOrg && masterIndex >= 0 &&
+        normalizeEducationName_(masterRows[masterIndex][4]) !== nameKey) {
+      result.review.push(Object.assign({}, issueBase, { reason: '전화번호는 같지만 교육 명단의 이름이 다름' }));
+      return;
+    }
 
-    if (masterIndex < 0 && week > 1) {
+    const targetColumnIndex = 7 + (week - 1);
+    const needsPriorWeeks = masterIndex < 0 || masterRows[masterIndex].slice(7, targetColumnIndex).some(function (value) {
+      return !String(value || '').trim();
+    });
+    let previous = null;
+    if (currentOrg && week > 1 && needsPriorWeeks) {
+      if (!previousByPhone) previousByPhone = readPreviousEducationRows_();
+      const candidates = previousByPhone.get(phoneKey) || [];
+      if (candidates.length > 1 || (candidates.length === 1 &&
+          normalizeEducationName_(candidates[0][4]) !== nameKey)) {
+        result.review.push(Object.assign({}, issueBase, { reason: '이전 회기의 이름·전화번호 후보가 모호함' }));
+        return;
+      }
+      if (candidates.length === 1) {
+        const candidate = candidates[0];
+        const unfinished = !String(candidate[10] || '').trim();
+        const dates = candidate.slice(7, 10).map(function (value) {
+          const date = verifiedEducationDate_(value);
+          return date && date.getTime() <= timestamp.getTime() ? value : '';
+        });
+        const latestWeek = dates.map(Boolean).lastIndexOf(true) + 1;
+        if (unfinished && latestWeek && (masterIndex >= 0 || latestWeek === week - 1)) {
+          previous = { row: candidate, dates: dates };
+        } else if (masterIndex < 0) {
+          result.review.push(Object.assign({}, issueBase, { reason: '이전 회기의 주차를 이어 갈 수 있는지 확인 필요' }));
+          return;
+        }
+      }
+    }
+
+    if (masterIndex < 0 && week > 1 && !previous) {
       const nameMatches = nameIndex.get(normalizeEducationName_(name)) || [];
       result.review.push(Object.assign({}, issueBase, {
         reason: nameMatches.length === 1
@@ -502,9 +547,21 @@ function processAttendanceRows_(sourceRows, options) {
 
     const sessionSunday = getMostRecentSunday_(timestamp);
     const attendanceDate = formatEducationDate_(sessionSunday);
-
+    if (currentOrg && !pair.confirmed) {
+      result.review.push(Object.assign({}, issueBase, {
+        reason: '응답을 제출한 시점의 군·팀 조합 확인 필요',
+        attendancePreserved: true
+      }));
+    }
+    if (currentOrg && masterIndex >= 0 &&
+        String(masterRows[masterIndex][targetColumnIndex] || '').trim()) {
+      result.duplicates.push(Object.assign({}, issueBase, {
+        existing: formatEducationCell_(masterRows[masterIndex][targetColumnIndex])
+      }));
+      return;
+    }
     if (masterIndex < 0) {
-      if (timestamp.getDay() !== 0) {
+      if (!previous && timestamp.getDay() !== 0) {
         result.review.push(Object.assign({}, issueBase, {
           reason: '늦은 1주차 제출은 예배 구분을 알 수 없어 자동 추가하지 않음'
         }));
@@ -512,16 +569,26 @@ function processAttendanceRows_(sourceRows, options) {
       }
 
       maxNo += 1;
-      const service = getEducationServiceFromTimestamp_(timestamp);
+      const service = previous ? previous.row[1] : getEducationServiceFromTimestamp_(timestamp);
       const newRow = new Array(width).fill('');
       newRow[0] = maxNo;
       newRow[1] = service;
-      newRow[2] = isValidEducationGroup_(group) ? group : '';
-      newRow[3] = isValidEducationTeam_(team) ? team : '';
+      newRow[2] = previous ? previous.row[2] : '';
+      newRow[3] = previous ? previous.row[3] : '';
       newRow[4] = name;
-      newRow[5] = gender;
+      newRow[5] = gender || (previous ? previous.row[5] : '');
       newRow[6] = phoneDisplay;
-      newRow[7] = attendanceDate;
+      if (previous) {
+        for (let column = 7; column < targetColumnIndex; column++) newRow[column] = previous.dates[column - 7];
+      }
+      if (currentOrg && previous) {
+        updateEducationAffiliation_(newRow, pair, timestamp, issueBase, result,
+          affiliationHistory, affiliationChanges, options);
+      } else if (!currentOrg || pair.confirmed) {
+        newRow[2] = group;
+        newRow[3] = team;
+      }
+      newRow[targetColumnIndex] = attendanceDate;
       masterRows.push(newRow);
       masterIndex = masterRows.length - 1;
       addIndexValue_(phoneIndex, phoneKey, masterIndex);
@@ -540,32 +607,18 @@ function processAttendanceRows_(sourceRows, options) {
     } else {
       const target = masterRows[masterIndex];
 
-      if (!options.preserveIdentity && isValidEducationGroup_(group) && target[2] !== group) {
-        result.infoChanges.push({
-          sourceRow: source.sourceRow,
-          name: name,
-          phone: issueBase.phone,
-          week: week,
-          field: '군',
-          before: String(target[2] || '(빈값)'),
-          after: group
-        });
-        target[2] = group;
-      }
-      if (!options.preserveIdentity && isValidEducationTeam_(team) && target[3] !== team) {
-        result.infoChanges.push({
-          sourceRow: source.sourceRow,
-          name: name,
-          phone: issueBase.phone,
-          week: week,
-          field: '팀',
-          before: String(target[3] || '(빈값)'),
-          after: team
-        });
-        target[3] = team;
+      if (currentOrg) {
+        if (previous) {
+          for (let column = 7; column < targetColumnIndex; column++) {
+            if (!String(target[column] || '').trim()) target[column] = previous.dates[column - 7];
+          }
+        }
+        updateEducationAffiliation_(target, pair, timestamp, issueBase, result,
+          affiliationHistory, affiliationChanges, options);
+      } else if (!options.preserveIdentity) {
+        setEducationAffiliation_(target, pair, issueBase, result);
       }
 
-      const targetColumnIndex = 7 + (week - 1);
       if (String(target[targetColumnIndex] || '').trim() !== '') {
         result.duplicates.push(Object.assign({}, issueBase, {
           existing: formatEducationCell_(target[targetColumnIndex])
@@ -585,6 +638,7 @@ function processAttendanceRows_(sourceRows, options) {
   });
 
   if (!options.dryRun && (result.added > 0 || result.updated > 0 || result.infoChanges.length > 0)) {
+    writeEducationAffiliationHistory_(affiliationChanges);
     sortEducationMasterRows_(masterRows);
     ensureEducationRows_(masterSheet, masterRows.length + 1);
     if (masterRows.length > 0) {
@@ -594,6 +648,122 @@ function processAttendanceRows_(sourceRows, options) {
 
   result.dryRun = Boolean(options.dryRun);
   return result;
+}
+
+function educationAffiliationPair_(rawGroup, rawTeam, configuration) {
+  if (!configuration) {
+    const group = transformEducationGroup_(rawGroup);
+    const team = transformEducationTeam_(rawTeam);
+    return {
+      group: isValidEducationGroup_(group) ? group : '',
+      team: isValidEducationTeam_(team) ? team : '',
+      confirmed: isValidEducationGroup_(group) && isValidEducationTeam_(team)
+    };
+  }
+  const group = findOrgGroup_(configuration, rawGroup);
+  const supplied = String(rawTeam || '').trim().normalize('NFC');
+  const team = group && group.teams.find(function (name) {
+    return name === supplied || name + '(' + group.label + ')' === supplied;
+  });
+  const confirmed = Boolean(team);
+  return { group: confirmed ? group.key : '', team: confirmed ? team : '', confirmed: confirmed };
+}
+
+function verifiedEducationDate_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  const text = String(value || '').trim();
+  const match = text.match(/^(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})\s*\.?$/);
+  if (!match) return /^\d{4}-\d{2}-\d{2}T/.test(text) ? parseEducationDate_(text) : null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, month, day);
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day ? date : null;
+}
+
+function readPreviousEducationRows_() {
+  const priorId = PropertiesService.getScriptProperties().getProperty('ORG_PREVIOUS_EDUCATION_SPREADSHEET_ID');
+  const byPhone = new Map();
+  if (!priorId || priorId === EDUCATION_AUTOMATION.masterSpreadsheetId) return byPhone;
+  const prior = SpreadsheetApp.openById(priorId).getSheetByName(EDUCATION_AUTOMATION.masterSheetName);
+  if (!prior) throw new Error('이전 회기의 교육 출석 현황 시트를 찾을 수 없습니다.');
+  if (prior.getLastRow() < 2) return byPhone;
+  prior.getRange(2, 1, prior.getLastRow() - 1, 11).getValues().forEach(function (row) {
+    addIndexValue_(byPhone, normalizeEducationPhone_(row[6]), row);
+  });
+  return byPhone;
+}
+
+function educationAffiliationKey_(row) {
+  return JSON.stringify([normalizeEducationName_(row[4]), normalizeEducationPhone_(row[6])]);
+}
+
+function readEducationAffiliationHistory_() {
+  const book = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = book.getSheetByName('교육 소속 변경 이력');
+  const latest = new Map();
+  if (!sheet || sheet.getLastRow() < 2) return latest;
+  sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues().forEach(function (row) {
+    const at = Number(row[1]);
+    const saved = latest.get(row[0]);
+    if (!saved || at >= saved.at) latest.set(row[0], { at: at, sourceRow: Number(row[2]) });
+  });
+  return latest;
+}
+
+function setEducationAffiliation_(target, pair, issue, result) {
+  [[2, '군', pair.group], [3, '팀', pair.team]].forEach(function (fields) {
+    const column = fields[0];
+    if (!fields[2] || target[column] === fields[2]) return;
+    result.infoChanges.push(Object.assign({}, issue, {
+      field: fields[1], before: String(target[column] || '(빈값)'), after: fields[2]
+    }));
+    target[column] = fields[2];
+  });
+}
+
+function updateEducationAffiliation_(target, pair, timestamp, issue, result, latest, changes, options) {
+  if (options.preserveIdentity || !pair.confirmed) return;
+  const key = educationAffiliationKey_(target);
+  const seen = latest.get(key);
+  const at = timestamp.getTime();
+  const newerAttendance = target.slice(7, 11).some(function (value) {
+    const date = verifiedEducationDate_(value);
+    return date && date.getTime() > at;
+  });
+  if ((seen && at < seen.at) || newerAttendance) return;
+  if (seen && at === seen.at && issue.sourceRow !== seen.sourceRow) {
+    result.review.push(Object.assign({}, issue, {
+      reason: '같은 시각의 응답이 둘 이상 있어 군·팀 확인 필요',
+      attendancePreserved: true
+    }));
+    return;
+  }
+  const oldGroup = String(target[2] || '');
+  const oldTeam = String(target[3] || '');
+  if (oldGroup === pair.group && oldTeam === pair.team) return;
+  setEducationAffiliation_(target, pair, issue, result);
+  // 시트 반영이 중간에 실패하면 같은 응답 시각의 기록을 재사용합니다.
+  if (!seen || at !== seen.at) {
+    changes.push([key, at, issue.sourceRow, oldGroup, oldTeam, pair.group, pair.team]);
+  }
+  latest.set(key, { at: at, sourceRow: issue.sourceRow });
+}
+
+function writeEducationAffiliationHistory_(changes) {
+  if (!changes.length) return;
+  const book = SpreadsheetApp.openById(EDUCATION_AUTOMATION.masterSpreadsheetId);
+  const sheet = getHiddenLogSheet_(book, '교육 소속 변경 이력',
+    ['교육 대상 식별값', '응답 시각(ms)', '응답 행', '이전 군', '이전 팀', '새 군', '새 팀']);
+  const start = sheet.getLastRow() + 1;
+  ensureEducationRows_(sheet, start + changes.length - 1);
+  sheet.getRange(start, 1, changes.length, 7).setValues(changes.map(function (row) {
+    return row.map(function (value) {
+      return typeof value === 'string' && /^[=+@]/.test(value) ? "'" + value : value;
+    });
+  }));
 }
 
 function createEducationResult_() {
@@ -637,7 +807,7 @@ function createEducationReportMessage_(result, label, options) {
   body += '- 1주차 신규 응답: 교육 대상자 행을 새로 만듭니다.\n';
   body += '- 2~4주차 응답: 해당 주차 출석일을 기록합니다.\n';
   body += '- 이미 출석일이 있는 응답: 중복으로 분류하며 덮어쓰지 않습니다.\n';
-  body += '- 군·팀이 달라진 응답: 최신 응답 기준으로 갱신합니다.\n\n';
+  body += '- 군·팀이 달라진 응답: 제출 당시 확인된 최신 소속을 반영합니다.\n\n';
 
   body += '[실행 요약]\n';
   body += '실행 구분: ' + label + '\n';
@@ -662,7 +832,7 @@ function createEducationReportMessage_(result, label, options) {
   html += '<b>무엇을 정리했나요?</b><br>';
   html += '출석 웹페이지의 새 응답을 교육 출석 현황 시트에 연결했습니다. ' +
     '1주차는 대상자를 추가하고, 2~4주차는 해당 주차 출석일을 기록합니다. ' +
-    '이미 기록된 응답은 덮어쓰지 않고 중복으로 분류하며, 군·팀은 최신 응답으로 갱신합니다.';
+    '이미 기록된 응답은 덮어쓰지 않고 중복으로 분류하며, 군·팀은 제출 당시 확인된 최신 소속을 반영합니다.';
   html += '</div>';
   html += createEducationSummaryTable_([
     ['확인 응답', result.scanned + '건'],
@@ -1063,7 +1233,7 @@ function maskEducationPhone_(value) {
 }
 
 function normalizeEducationName_(value) {
-  return String(value || '').trim().replace(/\s+/g, '');
+  return String(value || '').trim().normalize('NFC').replace(/\s+/g, '');
 }
 
 function transformEducationGender_(value) {

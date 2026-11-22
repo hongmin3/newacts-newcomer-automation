@@ -220,6 +220,7 @@ ID 규칙: `REQ-<CATEGORY>-NNN`. CATEGORY는 대문자·숫자, NNN은 세 자�
 
 #### 동작
 - 조회할 때는 이름과 휴대폰 번호가 **모두** 맞는 기존 응답을 찾아, 그 가운데 가장 높은 주차를 알려 준다.
+- 군·팀 설정을 연결한 뒤에는 교육관리 시트의 확인된 주차와 이전 회기에서 이어받은 미수료 기록도 확인한다(REQ-ORGSETTINGS-003).
 - 제출 값은 화면 쪽에서 한 확인을 믿지 않고 서버에서 다시 확인한다. 확인하는 값은 다음과 같다.
   - 이름: 30자 이하
   - 휴대폰 번호: 10~11자리
@@ -304,6 +305,7 @@ TEST-ATTEND-002
   이유: 예배 구분을 알 수 없다.
 - 해당 주차 칸에 이미 값이 있으면 덮어쓰지 않고 중복으로 분류한다.
 - 군·팀은 가장 최근 응답 값으로 바꾸고, 바뀐 내용을 정보변경으로 기록한다.
+- 군·팀 설정을 연결한 뒤에는 응답 당시 배치로 소속을 확인한다. 확인할 수 없는 소속은 따로 검토하고 출석을 보존한다(REQ-ORGSETTINGS-003, REQ-ORGSETTINGS-004).
 - 실행 결과는 다섯 가지로 나눠 메일로 보고한다: 신규 추가 / 출석 반영 / 중복 / 정보변경 / 검토 필요.
 
 #### 예외 처리
@@ -791,6 +793,7 @@ TEST-RATE-003
 | Mac 정착률 관리 앱 | [specs/settlement-desktop.md](specs/settlement-desktop.md) | draft |
 | 행축 당일 방문·등록 시트 | [specs/event-day-workbook.md](specs/event-day-workbook.md) | verified |
 | 디모데 자동 로그인 조회 | [specs/dimode-lookup.md](specs/dimode-lookup.md) | verified |
+| 회기별 군·팀 설정 | [specs/org-settings.md](specs/org-settings.md) | implemented |
 
 <!-- spec-index: end -->
 
@@ -960,6 +963,8 @@ TEST-PERF-001
 ### 8.1 회기 전환 시 군 구성 변경 절차
 
 군 구성은 **회기(3월 시작)마다 바뀐다.** 새 회기는 이전 회기 스프레드시트를 복사해 시작한다. 이전 회기 스프레드시트와 그 데이터는 그대로 남겨 둔다.
+
+군·팀 설정을 설치한 운영 환경에서는 [회기별 군·팀 설정](specs/org-settings.md)으로 배치를 변경한다. 아래 절차는 기존 운영 파일을 새 설정으로 전환하기 전의 기준이다.
 
 군 이름은 네 Apps Script 프로젝트에 걸쳐 있다. 그래서 **아래 순서대로 전부 고친다.**
 

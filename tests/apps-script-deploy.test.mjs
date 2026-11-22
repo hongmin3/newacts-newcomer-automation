@@ -2,8 +2,16 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {runPush, runDeploy, readLocalFiles, readGitFiles} from '../scripts/apps-script.mjs';
-assert.equal((await readGitFiles({dir: 'education-project'}, 'HEAD')).size, 4, '한글 파일명을 포함한 기준 원본을 모두 읽는다');
-assert.deepEqual([...(await readGitFiles({dir: 'education-project'}, 'HEAD')).keys()].sort(), [...(await readLocalFiles('education-project')).keys()].sort());
+const baselineEducation = await readGitFiles({dir: 'education-project'}, 'HEAD');
+const localEducation = await readLocalFiles('education-project');
+for (const name of [
+  'appsscript.json', '교육 출석 현황 업데이트.gs', '문자 명단 리스트.gs', '집중교육 출석 현황 업데이트.gs'
+]) {
+  assert.ok(baselineEducation.has(name), `기준 원본을 읽지 못했습니다: ${name}`);
+}
+assert.ok([...baselineEducation.keys()].every(name => localEducation.has(name)),
+  '작업 중 파일을 추가하더라도 배포에 필요한 기준 원본을 읽는다');
+assert.ok(localEducation.has('OrgConfig.gs'), '교육 프로젝트의 군·팀 설정 읽기 파일을 배포에 포함한다');
 const project = {name: 'sample', dir: 'intensive-training-application', scriptId: 'sample', webApp: true};
 const local = await readLocalFiles(project.dir);
 const baseline = new Map([...local].map(([name, source], i) => [name, source + (i ? '' : '\n// previous')]));

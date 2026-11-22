@@ -110,28 +110,19 @@
       </div>
 
       <div class="form-group">
-        <label>소속 군</label>
+        <label for="gun">소속 군</label>
         <select id="gun" onchange="updateTeamOptions()">
           <option value="">군을 선택해주세요</option>
-          <option value="신군">신군</option>
-          <option value="조군">조군</option>
-          <option value="명군">명군</option>
-          <option value="총군">총군</option>
-          <option value="영군">영군</option>
-          <option value="석군">석군</option>
-          <option value="임군">임군</option>
-          <option value="전군">전군</option>
-          <option value="슬군">슬군</option>
-          <option value="군을 잘 모르겠어요">군을 잘 모르겠어요</option>
         </select>
       </div>
 
       <div class="form-group" id="teamGroup">
-        <label>소속 팀</label>
+        <label for="team">소속 팀</label>
         <select id="team">
           <option value="">먼저 군을 선택해주세요</option>
         </select>
       </div>
+      <p id="affiliationNotice" role="status" hidden></p>
 
       <div class="btn-group">
         <button onclick="goBack()" class="btn-secondary">뒤로 가기</button>
@@ -156,6 +147,7 @@
   <script>
     let userData = {};
     let requestInFlight = false;
+    let organization;
 
     function escapeHtml(value) {
       return String(value || '')
@@ -186,49 +178,48 @@
       input.value = phone;
     }
 
-    const teamData = {
-      "신군": ["가예", "하임", "아가", "예하"],
-      "조군": ["보배"],
-      "명군": ["예슈아", "에덴", "열매", "주전", "하이"],
-      "총군": ["예비", "주품", "서사", "여신", "진리", "동행"],
-      "영군": ["진토", "힐러", "하나", "주인", "새빛", "그날", "존귀"],
-      "석군": ["두유", "퓨어", "여기", "구름", "솔라", "기회"],
-      "임군": ["주하", "푸릇", "나무"],
-      "전군": ["샤인", "나라", "로뎀", "여름", "이음"],
-      "슬군": ["오예", "샘물", "보라", "하루"]
-    };
+    function addOption(select, value, label) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      select.appendChild(option);
+    }
 
-    function updateTeamOptions(defaultTeamValue = "") {
-      const gunSelect = document.getElementById('gun').value;
+    function setAttendanceOptions(options, record) {
+      organization = options;
+      const gunSelect = document.getElementById('gun');
+      gunSelect.replaceChildren();
+      addOption(gunSelect, '', '군을 선택해주세요');
+      organization.groups.forEach(group => addOption(gunSelect, group.label, group.label));
+      addOption(gunSelect, organization.unknownGroup, organization.unknownGroup);
+      gunSelect.value = record ? record.gun : '';
+      updateTeamOptions(record ? record.team : '');
+    }
+
+    function updateTeamOptions(defaultTeamValue = '') {
+      const gun = document.getElementById('gun').value;
       const teamSelect = document.getElementById('team');
       const teamGroup = document.getElementById('teamGroup');
-      
-      teamSelect.innerHTML = '<option value="">팀을 선택해주세요</option>'; 
-
-      if (gunSelect === "군을 잘 모르겠어요") {
+      teamSelect.replaceChildren();
+      if (gun === organization.unknownGroup) {
         teamGroup.classList.add('hidden');
-        teamSelect.innerHTML = '<option value="팀을 잘모르겠어요(새가족부원에게 문의주세요)">팀을 잘모르겠어요</option>';
-        teamSelect.value = "팀을 잘모르겠어요(새가족부원에게 문의주세요)";
+        addOption(teamSelect, organization.unknownTeam, '팀을 잘 모르겠어요');
+        teamSelect.value = organization.unknownTeam;
         return;
-      } 
-      
-      teamGroup.classList.remove('hidden');
-      
-      if (teamData[gunSelect]) {
-        teamData[gunSelect].forEach(function(teamName) {
-          const option = document.createElement('option');
-          option.value = teamName + "(" + gunSelect + ")"; 
-          option.text = teamName;
-          teamSelect.appendChild(option);
-        });
       }
-      
-      const unknownOption = document.createElement('option');
-      unknownOption.value = "팀을 잘모르겠어요(새가족부원에게 문의주세요)";
-      unknownOption.text = "팀을 잘 모르겠어요";
-      teamSelect.appendChild(unknownOption);
+      teamGroup.classList.remove('hidden');
+      const group = organization.groups.find(item => item.label === gun);
+      addOption(teamSelect, '', group ? '팀을 선택해주세요' : '먼저 군을 선택해주세요');
+      if (!group) return;
+      group.teams.forEach(team => addOption(teamSelect, team + '(' + gun + ')', team));
+      addOption(teamSelect, organization.unknownTeam, '팀을 잘 모르겠어요');
+      teamSelect.value = defaultTeamValue;
+    }
 
-      if (defaultTeamValue) { teamSelect.value = defaultTeamValue; }
+    function showAffiliationNotice(message) {
+      const notice = document.getElementById('affiliationNotice');
+      notice.textContent = message;
+      notice.hidden = !message;
     }
 
     // 뒤로 가기 함수
@@ -255,63 +246,48 @@
       }
 
       document.getElementById('searchSection').classList.add('hidden');
+      document.getElementById('loading').textContent = '이전 출석을 확인하고 있습니다...';
       document.getElementById('loading').classList.remove('hidden');
       requestInFlight = true;
 
       google.script.run
         .withSuccessHandler(handleSearchResult)
         .withFailureHandler(showRequestError)
-        .searchUser(name, phone);
+        .loadAttendanceForm(name, phone);
     }
 
-    function handleSearchResult(record) {
+    function handleSearchResult(result) {
       requestInFlight = false;
       document.getElementById('loading').classList.add('hidden');
+      const record = result.record;
 
       userData.name = document.getElementById('searchName').value;
       userData.phone = document.getElementById('searchPhone').value;
 
-      if (record) {
-        // 기존 참석자 (2주차 이상)
-        userData.week = record.week + 1;
-        
-        // ★ 수정된 부분: 4주차 초과 시 경고창 대신 수료 안내 화면 띄움
-        if(userData.week > 4) {
-          document.getElementById('alreadyCompletedSection').classList.remove('hidden');
-          return;
-        }
+      userData.week = record ? record.week + 1 : 1;
+      if (userData.week > 4) {
+        document.getElementById('alreadyCompletedSection').classList.remove('hidden');
+        return;
+      }
 
-        // 4주차 이하인 경우에만 입력 폼 표시
-        document.getElementById('formSection').classList.remove('hidden');
-        
+      setAttendanceOptions(result.organization, record);
+      showAffiliationNotice(record && (!record.gun || !record.team) ? '현재 소속 군과 팀을 선택해 주세요.' : '');
+      document.getElementById('formSection').classList.remove('hidden');
+      const firstWeek = !record;
+      ['genderGroup', 'ageGroup', 'routeGroup'].forEach(id => {
+        const group = document.getElementById(id);
+        if (firstWeek) group.classList.remove('hidden');
+        else group.classList.add('hidden');
+      });
+      document.getElementById('submitBtn').textContent = `${userData.week}주차 출석 완료`;
+
+      if (record) {
         document.getElementById('welcomeMessage').innerHTML = 
           `<strong>${escapeHtml(userData.name)}</strong>님 환영합니다!<br>오늘은 <strong>${userData.week}주차</strong> 교육입니다.<br><span style="font-size:13px; color:#555;">소속 군/팀이 변경되었다면 아래에서 수정해 주세요.</span>`;
-        
-        // 기존 데이터 세팅 및 불필요 항목 숨기기
-        document.getElementById('gender').value = record.gender;
-        document.getElementById('age').value = record.age;
-        
-        document.getElementById('genderGroup').classList.add('hidden');
-        document.getElementById('ageGroup').classList.add('hidden');
-        document.getElementById('routeGroup').classList.add('hidden');
-        
-        document.getElementById('gun').value = record.gun;
-        updateTeamOptions(record.team); 
-        
-        document.getElementById('submitBtn').innerText = `${userData.week}주차 출석 완료`;
-        
       } else {
-        // 신규 참석자 (1주차)
-        userData.week = 1;
-        document.getElementById('formSection').classList.remove('hidden');
+        ['route', 'gender', 'age'].forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('welcomeMessage').innerHTML = 
           `<strong>${escapeHtml(userData.name)}</strong>님 첫 방문을 진심으로 환영합니다!<br>오늘은 <strong>1주차</strong> 교육입니다.<br>아래 정보를 꼼꼼히 입력해 주세요.`;
-        
-        // 1주차는 모든 입력칸 노출
-        document.getElementById('genderGroup').classList.remove('hidden');
-        document.getElementById('ageGroup').classList.remove('hidden');
-        document.getElementById('routeGroup').classList.remove('hidden');
-        document.getElementById('submitBtn').innerText = `1주차 출석 완료`;
       }
     }
 
@@ -343,13 +319,21 @@
         gender: document.getElementById('gender').value,
         age: document.getElementById('age').value,
         gun: document.getElementById('gun').value,
-        team: document.getElementById('team').value
+        team: document.getElementById('team').value,
+        orgConfigId: organization.id
       };
 
       google.script.run
         .withSuccessHandler(function(result) {
           requestInFlight = false;
           document.getElementById('loading').classList.add('hidden');
+          if (result.configurationChanged) {
+            setAttendanceOptions(result.organization);
+            showAffiliationNotice('군·팀 배치가 바뀌었습니다. 현재 소속 군과 팀을 다시 선택해 주세요.');
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('formSection').classList.remove('hidden');
+            return;
+          }
           const message = result.duplicate
             ? result.week + "주차 출석이 이미 접수되어 있습니다."
             : result.week + "주차 출석이 완료되었습니다.";

@@ -12,10 +12,7 @@ const REGISTRATION_AUTOMATION = Object.freeze({
     'wnehdrms123@naver.com',
     'whduswn94@naver.com'
   ],
-  // === 회기마다 바뀌는 값: 군 목록 ===========================================
-  // 이 배열이 이 프로젝트에서 군을 정의하는 유일한 자리입니다.
-  // 순서가 곧 군 현황판의 열 순서이고, 군을 더하거나 빼면 열 수도 따라 바뀝니다.
-  // 바꿀 때는 아래 groupRecipients의 키도 같은 목록으로 맞춥니다.
+  // 첫 군·팀 설정이 적용되기 전까지 사용할 운영 배치와 보고 대상입니다.
   groups: ['신', '조', '명', '총', '영', '석', '전', '슬', '임'],
   groupRecipients: {
     '신': 'smk941129@gmail.com',
@@ -48,26 +45,50 @@ const REGISTRATION_AUTOMATION = Object.freeze({
  * "스스로"만 4부·5부 열로 나눠 한눈에 구분되게 합니다.
  * 열 번호는 0부터 세며 시트 열 번호는 +1 입니다.
  */
-const DASHBOARD_LAYOUT = (function () {
-  // 열 번호를 손으로 세지 않습니다 - 군이 늘거나 줄면 여기서 다시 계산됩니다.
-  const groups = REGISTRATION_AUTOMATION.groups;
+function readRegistrationOrg_() {
+  return typeof readOrgConfiguration_ === 'function' ? readOrgConfiguration_() : null;
+}
+
+function registrationGroups_(configuration) {
+  if (configuration) return configuration.groups;
+  return REGISTRATION_AUTOMATION.groups.map(function (key) {
+    return { key: key, label: key, recipient: REGISTRATION_AUTOMATION.groupRecipients[key] };
+  });
+}
+
+function registrationGroupKey_(value, configuration) {
+  if (!configuration) return normalizeAttendanceGroupForRegistration_(value);
+  const group = findOrgGroup_(configuration, value);
+  return group ? group.key : '';
+}
+
+function createDashboardLayout_(configuration) {
+  const groups = registrationGroups_(configuration);
   const groupStartColumn = 1;
   const self4 = groupStartColumn + groups.length;
   return Object.freeze({
+    configuration: configuration,
     headerRows: 2,
     totalsRow: 3,
     startRow: 4,
-    // 날짜 + 군 + 스스로(4부·5부) + 미배정 + 합계
     columns: groups.length + 5,
     legacyColumns: 20,
     dateColumn: 0,
     groupStartColumn: groupStartColumn,
-    groupOrder: Object.freeze(groups.slice()),
+    groupOrder: Object.freeze(groups.map(function (group) { return group.key; })),
+    groupLabels: Object.freeze(groups.map(function (group) { return group.label; })),
     selfColumns: Object.freeze({ '4': self4, '5': self4 + 1 }),
     unassignedColumn: self4 + 2,
     totalColumn: self4 + 3
   });
-})();
+}
+
+const DASHBOARD_LAYOUT = createDashboardLayout_(null);
+
+function registrationDashboardLayout_() {
+  const configuration = readRegistrationOrg_();
+  return configuration ? createDashboardLayout_(configuration) : DASHBOARD_LAYOUT;
+}
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -243,17 +264,17 @@ function syncRegisteredToVisitedMenu() {
  * 어떤 입력에서도 열 번호 없는 결과를 돌려주지 않습니다 - 확정하지 못하면
  * '미배정' 열로 보내고 assigned:false 로 검토 대상임을 알립니다.
  */
-function resolveDashboardGroupColumn_(group, introducer, service) {
+function resolveDashboardGroupColumn_(group, introducer, service, layout = registrationDashboardLayout_()) {
   const raw = String(group || '').trim();
   const intro = String(introducer || '').trim();
   const isSelf = raw === '스스로' || raw === '군배정필요' ||
     (!raw && intro === '스스로');
 
   if (isSelf) {
-    const selfColumn = DASHBOARD_LAYOUT.selfColumns[String(service)];
+    const selfColumn = layout.selfColumns[String(service)];
     if (selfColumn === undefined) {
       return {
-        column: DASHBOARD_LAYOUT.unassignedColumn,
+        column: layout.unassignedColumn,
         assigned: false,
         reason: '스스로 등록인데 예배 구분(4/5)이 없어 미배정 열로 배치: ' +
           (String(service || '').trim() || '빈값')
@@ -262,18 +283,18 @@ function resolveDashboardGroupColumn_(group, introducer, service) {
     return { column: selfColumn, assigned: true, reason: '' };
   }
 
-  const index = DASHBOARD_LAYOUT.groupOrder.indexOf(
-    normalizeAttendanceGroupForRegistration_(raw)
+  const index = layout.groupOrder.indexOf(
+    registrationGroupKey_(raw, layout.configuration)
   );
   if (index === -1) {
     return {
-      column: DASHBOARD_LAYOUT.unassignedColumn,
+      column: layout.unassignedColumn,
       assigned: false,
       reason: '군을 확인할 수 없어 미배정 열로 배치: ' + (raw || '빈값')
     };
   }
   return {
-    column: DASHBOARD_LAYOUT.groupStartColumn + index,
+    column: layout.groupStartColumn + index,
     assigned: true,
     reason: ''
   };
@@ -282,26 +303,26 @@ function resolveDashboardGroupColumn_(group, introducer, service) {
 /**
  * 1~2행 머리글 값을 만듭니다. 시트를 건드리지 않는 순수 함수라 테스트가 쉽습니다.
  */
-function buildNewFamilyStatusHeader_() {
-  const width = DASHBOARD_LAYOUT.columns;
+function buildNewFamilyStatusHeader_(layout = registrationDashboardLayout_()) {
+  const width = layout.columns;
   const top = new Array(width).fill('');
   const bottom = new Array(width).fill('');
 
   // 1행은 여러 열을 묶는 이름만 담습니다. 필터가 걸린 시트에서는 1행이 필터
   // 머리글이라 세로 병합이 거부되므로, 한 열짜리 제목을 1행에도 적으면 2행과
   // 같은 글자가 두 번 나와 겹쳐 보입니다. 그래서 1행은 묶음 전용으로 둡니다.
-  top[DASHBOARD_LAYOUT.groupStartColumn] = '군 배정 (4·5부 통합)';
-  top[DASHBOARD_LAYOUT.selfColumns['4']] = '스스로';
+  top[layout.groupStartColumn] = '군 배정 (4·5부 통합)';
+  top[layout.selfColumns['4']] = '스스로';
 
   // 2행이 열 이름 행입니다. 모든 열의 이름이 여기 한 줄에 모입니다.
-  bottom[DASHBOARD_LAYOUT.dateColumn] = '날짜';
-  DASHBOARD_LAYOUT.groupOrder.forEach(function (group, index) {
-    bottom[DASHBOARD_LAYOUT.groupStartColumn + index] = group;
+  bottom[layout.dateColumn] = '날짜';
+  layout.groupLabels.forEach(function (group, index) {
+    bottom[layout.groupStartColumn + index] = group;
   });
-  bottom[DASHBOARD_LAYOUT.selfColumns['4']] = '4부';
-  bottom[DASHBOARD_LAYOUT.selfColumns['5']] = '5부';
-  bottom[DASHBOARD_LAYOUT.unassignedColumn] = '미배정';
-  bottom[DASHBOARD_LAYOUT.totalColumn] = '합계';
+  bottom[layout.selfColumns['4']] = '4부';
+  bottom[layout.selfColumns['5']] = '5부';
+  bottom[layout.unassignedColumn] = '미배정';
+  bottom[layout.totalColumn] = '합계';
 
   return [top, bottom];
 }
@@ -321,15 +342,11 @@ function tryMergeHeaderRange_(sheet, row, column, numRows, numColumns) {
   }
 }
 
-function writeNewFamilyStatusHeader_(sheet) {
-  const width = DASHBOARD_LAYOUT.columns;
+function writeNewFamilyStatusHeader_(sheet, layout = registrationDashboardLayout_(), clearWidth = dashboardClearWidth_(sheet, layout)) {
+  const width = layout.columns;
 
   // 이전 배치(20열)의 머리글이 오른쪽에 남지 않도록 먼저 넓게 지웁니다.
-  const staleWidth = Math.min(
-    Math.max(DASHBOARD_LAYOUT.legacyColumns, width),
-    sheet.getMaxColumns()
-  );
-  const stale = sheet.getRange(1, 1, DASHBOARD_LAYOUT.headerRows, staleWidth);
+  const stale = sheet.getRange(1, 1, layout.headerRows, clearWidth);
   try {
     stale.breakApart();
   } catch (error) {
@@ -338,8 +355,8 @@ function writeNewFamilyStatusHeader_(sheet) {
   stale.clearContent();
   stale.setBackground(null);
 
-  const header = sheet.getRange(1, 1, DASHBOARD_LAYOUT.headerRows, width);
-  header.setValues(buildNewFamilyStatusHeader_())
+  const header = sheet.getRange(1, 1, layout.headerRows, width);
+  header.setValues(buildNewFamilyStatusHeader_(layout))
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle')
     .setFontWeight('bold')
@@ -347,11 +364,23 @@ function writeNewFamilyStatusHeader_(sheet) {
 
   // 가로 병합(1행짜리 여러 열)만 시도합니다. 세로 병합은 필터가 걸린 시트에서
   // 항상 거부되므로 아예 하지 않고, 대신 단일 열 제목을 두 행에 모두 씁니다.
-  const merged =
-    tryMergeHeaderRange_(sheet, 1, DASHBOARD_LAYOUT.groupStartColumn + 1,
-      1, DASHBOARD_LAYOUT.groupOrder.length) &&
-    tryMergeHeaderRange_(sheet, 1, DASHBOARD_LAYOUT.selfColumns['4'] + 1, 1, 2);
-  return merged;
+  const groupMerged = layout.groupOrder.length <= 1 ||
+    tryMergeHeaderRange_(sheet, 1, layout.groupStartColumn + 1,
+      1, layout.groupOrder.length);
+  const selfMerged = tryMergeHeaderRange_(sheet, 1, layout.selfColumns['4'] + 1, 1, 2);
+  return groupMerged && selfMerged;
+}
+
+function dashboardClearWidth_(sheet, layout) {
+  let managedWidth = layout.legacyColumns;
+  if (layout.configuration && sheet.getLastColumn() > managedWidth) {
+    const previousHeader = sheet.getRange(2, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const previousTotal = previousHeader.indexOf('합계');
+    if (previousTotal >= 0 && previousHeader[previousTotal - 1] === '미배정') {
+      managedWidth = Math.max(managedWidth, previousTotal + 1);
+    }
+  }
+  return Math.min(Math.max(managedWidth, layout.columns), sheet.getMaxColumns());
 }
 
 function ensureRegistrationColumns_(sheet, requiredColumns) {
@@ -360,6 +389,7 @@ function ensureRegistrationColumns_(sheet, requiredColumns) {
 }
 
 function updateNewFamilyStatus_(options) {
+  const layout = registrationDashboardLayout_();
   const ss = getRegistrationSpreadsheet_();
   const sourceSheet = ss.getSheetByName(
     REGISTRATION_AUTOMATION.registrationSheetName
@@ -412,7 +442,7 @@ function updateNewFamilyStatus_(options) {
     }
 
     const placement = resolveDashboardGroupColumn_(
-      row[3], row[10], Number(row[2])
+      row[3], row[10], Number(row[2]), layout
     );
     if (!placement.assigned) {
       unassigned += 1;
@@ -420,8 +450,8 @@ function updateNewFamilyStatus_(options) {
     }
 
     const isSelfColumn =
-      placement.column === DASHBOARD_LAYOUT.selfColumns['4'] ||
-      placement.column === DASHBOARD_LAYOUT.selfColumns['5'];
+      placement.column === layout.selfColumns['4'] ||
+      placement.column === layout.selfColumns['5'];
     if (isSelfColumn || !placement.assigned) {
       attention.push({
         kind: placement.assigned ? '스스로' : '미배정',
@@ -452,7 +482,7 @@ function updateNewFamilyStatus_(options) {
   const days = Array.from(grouped.values()).sort(function (a, b) {
     return a.date.getTime() - b.date.getTime();
   });
-  const width = DASHBOARD_LAYOUT.columns;
+  const width = layout.columns;
   const output = [];
   const backgrounds = [];
 
@@ -470,7 +500,7 @@ function updateNewFamilyStatus_(options) {
       backgrounds.push(new Array(width).fill(color));
     }
 
-    output[start][DASHBOARD_LAYOUT.dateColumn] = day.display;
+    output[start][layout.dateColumn] = day.display;
     let dayTotal = 0;
 
     columnKeys.forEach(function (column) {
@@ -480,31 +510,31 @@ function updateNewFamilyStatus_(options) {
         output[start + offset][Number(column)] = name;
       });
     });
-    output[start][DASHBOARD_LAYOUT.totalColumn] = dayTotal;
+    output[start][layout.totalColumn] = dayTotal;
   });
 
   // --- 합계 행 -------------------------------------------------------------
   // 명단이 다 그려진 뒤, 출력 배열에서 직접 세어 만듭니다. 집계 변수를 다시
   // 쓰지 않는 이유는 그러면 같은 수를 두 번 적는 것일 뿐 대조가 되지 않기
   // 때문입니다. 아래 검증이 이 둘을 실제로 맞춰 봅니다.
-  const columnTotals = countDashboardColumns_(output);
+  const columnTotals = countDashboardColumns_(output, layout);
   const totalsRow = new Array(width).fill('');
-  totalsRow[DASHBOARD_LAYOUT.dateColumn] = '합계';
+  totalsRow[layout.dateColumn] = '합계';
   let renderedNames = 0;
   // 인원이 없는 군도 빈칸이 아니라 0으로 적습니다. 합계 행의 빈칸은
   // "없음"과 "세지 않음"을 구분하지 못합니다.
   for (let column = 0; column < width; column++) {
-    if (column === DASHBOARD_LAYOUT.dateColumn) continue;
-    if (column === DASHBOARD_LAYOUT.totalColumn) continue;
+    if (column === layout.dateColumn) continue;
+    if (column === layout.totalColumn) continue;
     const count = columnTotals[column] || 0;
     totalsRow[column] = count;
     renderedNames += count;
   }
-  totalsRow[DASHBOARD_LAYOUT.totalColumn] = renderedNames;
+  totalsRow[layout.totalColumn] = renderedNames;
 
   // 주별 합계 열을 따로 더해 본 값. 위와 다른 경로로 얻은 같은 수여야 합니다.
   const weeklyTotalSum = output.reduce(function (sum, row) {
-    const value = Number(row[DASHBOARD_LAYOUT.totalColumn]);
+    const value = Number(row[layout.totalColumn]);
     return sum + (isNaN(value) ? 0 : value);
   }, 0);
 
@@ -535,15 +565,12 @@ function updateNewFamilyStatus_(options) {
   }
 
   if (!options.dryRun) {
-    const totalsRowIndex = DASHBOARD_LAYOUT.totalsRow;
-    const startRow = DASHBOARD_LAYOUT.startRow;
+    const totalsRowIndex = layout.totalsRow;
+    const startRow = layout.startRow;
     ensureRegistrationColumns_(targetSheet, width);
 
     // 합계 행부터 아래로, 이전 배치가 남긴 내용과 배경색을 먼저 지웁니다.
-    const clearWidth = Math.min(
-      Math.max(DASHBOARD_LAYOUT.legacyColumns, width),
-      targetSheet.getMaxColumns()
-    );
+    const clearWidth = dashboardClearWidth_(targetSheet, layout);
     const oldRows = Math.max(
       targetSheet.getLastRow() - totalsRowIndex + 1, 0
     );
@@ -574,7 +601,7 @@ function updateNewFamilyStatus_(options) {
 
     // 머리글은 마지막에 씁니다. 머리글 쪽 문제로 명단 기록이 막히면 안 됩니다
     // (필터가 걸린 시트에서 병합이 거부되던 실제 사고).
-    writeNewFamilyStatusHeader_(targetSheet);
+    writeNewFamilyStatusHeader_(targetSheet, layout, clearWidth);
   }
 
   return {
@@ -592,12 +619,12 @@ function updateNewFamilyStatus_(options) {
  * 출력 배열에서 이름이 들어간 칸을 열별로 셉니다.
  * 날짜 열과 합계 열은 이름이 아니므로 세지 않습니다.
  */
-function countDashboardColumns_(output) {
+function countDashboardColumns_(output, layout = registrationDashboardLayout_()) {
   const totals = {};
   output.forEach(function (row) {
-    for (let column = 0; column < DASHBOARD_LAYOUT.columns; column++) {
-      if (column === DASHBOARD_LAYOUT.dateColumn) continue;
-      if (column === DASHBOARD_LAYOUT.totalColumn) continue;
+    for (let column = 0; column < layout.columns; column++) {
+      if (column === layout.dateColumn) continue;
+      if (column === layout.totalColumn) continue;
       if (!String(row[column] || '').trim()) continue;
       totals[column] = (totals[column] || 0) + 1;
     }
@@ -645,6 +672,7 @@ function createRegistrationMaintenanceText_(result) {
 }
 
 function reconcileRegistrationWithLatestAttendance_(options) {
+  const configuration = readRegistrationOrg_();
   const registrationSS = getRegistrationSpreadsheet_();
   const attendanceSS = SpreadsheetApp.openById(
     REGISTRATION_AUTOMATION.attendanceSpreadsheetId
@@ -688,16 +716,34 @@ function reconcileRegistrationWithLatestAttendance_(options) {
 
   const attendanceRecords = attendanceRows.map(function (row, index) {
     const timestamp = parseRegistrationDate_(row[0]);
+    const timestampMs = timestamp ? timestamp.getTime() : 0;
+    let group = normalizeAttendanceGroupForRegistration_(row[8]);
+    let team = normalizeAttendanceTeamForRegistration_(row[9]);
+    if (configuration && timestamp) {
+      const historical = readOrgConfiguration_(timestamp);
+      const submittedGroup = findOrgGroup_(historical, row[8]);
+      const currentGroup = submittedGroup && (submittedGroup.id ?
+        configuration.groups.find(function (group) { return group.id === submittedGroup.id; }) :
+        findOrgGroup_(configuration, submittedGroup.key));
+      const suppliedTeam = String(row[9] || '').trim().normalize('NFC');
+      const submittedTeam = submittedGroup && submittedGroup.teams.find(function (name) {
+        return name === suppliedTeam || name + '(' + submittedGroup.label + ')' === suppliedTeam;
+      });
+      const confirmed = currentGroup && submittedTeam && currentGroup.teams.includes(submittedTeam);
+      group = confirmed ? currentGroup.key : '';
+      team = confirmed ? submittedTeam : '';
+    }
     return {
       sourceRow: index + 2,
       timestamp: timestamp,
-      timestampMs: timestamp ? timestamp.getTime() : 0,
+      timestampMs: timestampMs,
+      week: Number(String(row[2] || '').replace(/[^0-9]/g, '')),
       name: String(row[4] || '').trim(),
-      nameKey: normalizeRegistrationName_(row[4]),
+      nameKey: configuration ? fullRegistrationNameKey_(row[4]) : normalizeRegistrationName_(row[4]),
       phone: formatRegistrationPhone_(row[5]),
       phoneKey: normalizeRegistrationPhone_(row[5]),
-      group: normalizeAttendanceGroupForRegistration_(row[8]),
-      team: normalizeAttendanceTeamForRegistration_(row[9])
+      group: group,
+      team: team
     };
   }).filter(function (item) {
     return item.timestamp && item.nameKey;
@@ -737,7 +783,7 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     const registrationRow = index + 2;
     const no = String(row[0] || '').trim();
     const currentName = String(row[5] || '').trim();
-    const currentNameKey = normalizeRegistrationName_(currentName);
+    const currentNameKey = configuration ? fullRegistrationNameKey_(currentName) : normalizeRegistrationName_(currentName);
     const currentPhoneKey = normalizeRegistrationPhone_(row[9]);
     if (!currentNameKey && !currentPhoneKey) return;
     result.registrations += 1;
@@ -756,7 +802,36 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     let match = null;
     let strategy = '';
 
-    if (savedState.sourceNameKey &&
+    if (configuration) {
+      const exact = (attendanceByName.get(currentNameKey) || []).filter(function (item) {
+        return currentPhoneKey && currentPhoneKey === item.phoneKey && [1, 2, 3, 4].includes(item.week);
+      });
+      const firstWeekResponses = new Map();
+      exact.slice().sort(function (a, b) {
+        return a.timestampMs - b.timestampMs || a.sourceRow - b.sourceRow;
+      }).forEach(function (item) {
+        if (!firstWeekResponses.has(item.week)) firstWeekResponses.set(item.week, item);
+      });
+      const eligible = exact.filter(function (item) {
+        return firstWeekResponses.get(item.week) === item;
+      });
+      match = eligible.find(function (item) { return item.group && item.team; }) || null;
+      if (eligible[0] && (!eligible[0].group || !eligible[0].team)) {
+        result.review.push({
+          registrationRow: registrationRow,
+          name: currentName,
+          reason: '가장 최근 응답의 군·팀 조합을 확인할 수 없음'
+        });
+      }
+      if (!exact.length && (attendanceByName.has(currentNameKey) || attendanceByPhone.has(currentPhoneKey))) {
+        result.review.push({
+          registrationRow: registrationRow,
+          name: currentName,
+          reason: '이름·전화번호가 모두 일치하는 교육 출석을 찾지 못함'
+        });
+      }
+      strategy = '이름+전화번호와 확인된 군·팀';
+    } else if (savedState.sourceNameKey &&
         attendanceByName.has(savedState.sourceNameKey)) {
       match = attendanceByName.get(savedState.sourceNameKey)[0];
       strategy = '이전 자동매칭 이름';
@@ -810,7 +885,13 @@ function reconcileRegistrationWithLatestAttendance_(options) {
       });
     }
 
-    const fields = registrationCorrectionFields_(row, match);
+    const fields = registrationCorrectionFields_(row, match, configuration);
+    const affiliationProtected = configuration && fields.slice(0, 2).some(function (field) {
+      const previous = savedState.fields[field.key];
+      return previous && field.latest &&
+        field.normalize(field.current) !== field.normalize(field.latest) &&
+        (previous.protected || field.normalize(field.current) !== field.normalize(previous.lastAutoValue));
+    });
 
     let stateChanged = state.migrated;
     fields.forEach(function (field) {
@@ -853,6 +934,18 @@ function reconcileRegistrationWithLatestAttendance_(options) {
         return;
       }
 
+      if (affiliationProtected && field.key !== 'phone') {
+        result.protected.push({
+          registrationRow: registrationRow,
+          name: currentName,
+          field: field.label,
+          currentValue: field.current,
+          educationValue: field.latest,
+          reason: '군·팀 중 보호된 값이 있어 조합을 함께 보존함'
+        });
+        return;
+      }
+
       result.changes.push({
         registrationRow: registrationRow,
         no: no,
@@ -888,7 +981,7 @@ function reconcileRegistrationWithLatestAttendance_(options) {
     });
 
     if (!options.dryRun && stateChanged) {
-      savedState.sourceNameKey = match.nameKey;
+      savedState.sourceNameKey = normalizeRegistrationName_(match.name);
       savedState.sourcePhoneKey = match.phoneKey;
       pendingStates[stateKey] = JSON.stringify(savedState);
     }
@@ -909,12 +1002,14 @@ function reconcileRegistrationWithLatestAttendance_(options) {
  * 이름은 여기에 넣지 않는다 — 이름이 다르면 사람이 확인해야 하므로
  * `reconcileRegistrationWithLatestAttendance_`가 검토 내역으로 보고한다(REQ-REG-001).
  */
-function registrationCorrectionFields_(row, match) {
+function registrationCorrectionFields_(row, match, configuration) {
   return [
       {
         key: 'group', label: '군', column: 4,
         current: String(row[3] || '').trim(), latest: match.group,
-        normalize: function (value) { return String(value || '').trim(); }
+        normalize: function (value) {
+          return (configuration ? registrationGroupKey_(value, configuration) : '') || String(value || '').trim();
+        }
       },
       {
         key: 'team', label: '팀', column: 5,
@@ -1230,7 +1325,6 @@ function createDetailedRegistrationMaintenanceHtml_(result, label) {
     '<a href="https://docs.google.com/spreadsheets/d/' +
     REGISTRATION_AUTOMATION.attendanceSpreadsheetId +
     '/edit#gid=679249123">교육 출석 시트 열기</a></p>';
-  html += '<p style="color:#6b7280;font-size:12px">수료현황·군별 통계 메일 수신자 설정은 변경하지 않았습니다.</p>';
   return html + '</div>';
 }
 
@@ -1357,6 +1451,10 @@ function addRegistrationIndex_(map, key, value) {
 
 function normalizeRegistrationPhone_(value) {
   return String(value || '').replace(/[^0-9]/g, '');
+}
+
+function fullRegistrationNameKey_(value) {
+  return String(value || '').trim().normalize('NFC').replace(/\s+/g, '');
 }
 
 function normalizeRegistrationName_(value) {
