@@ -169,9 +169,17 @@ context.SpreadsheetApp = {
 context.Utilities = {formatDate: date => date.toISOString()};
 let actor = '';
 context.Session = {getActiveUser: () => ({getEmail: () => actor})};
+let isLinkShared = false;
+context.Drive = {Permissions: {list: (_id, options) => options.pageToken
+  ? {permissions: [{type: isLinkShared ? 'anyone' : 'user'}]}
+  : {permissions: [{type: 'user'}], nextPageToken: 'next-page'}}};
 assert.throws(() => call('setupOrgSettings()'), /권한/);
 assert.equal(properties.size, 0);
 actor = 'owner@example.test';
+isLinkShared = true;
+assert.throws(() => call('setupOrgSettings()'), /링크 공개/);
+assert.ok(!tabs.has('_군팀_적용이력'));
+isLinkShared = false;
 assert.throws(() => call('setupOrgSettings()'), /test interruption/);
 assert.ok(tabs.has('_군팀_적용이력'));
 assert.equal(properties.size, 0, '연결은 보호 설정이 끝난 뒤 저장합니다.');

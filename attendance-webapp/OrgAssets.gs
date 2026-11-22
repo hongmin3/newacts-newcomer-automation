@@ -1,15 +1,15 @@
 const ORG_GUIDE_PANEL = 'ORG_TEAM_PANEL';
 const ORG_FORM_PAGE_SUFFIX = ' - 팀 선택';
 const ORG_FORM_FINAL_PAGE = '참석자 정보 입력';
-const ORG_FORM_OPTIONS_MASK = 'questionItem.question.choiceQuestion.options';
 
 function orgCheckAssets_(targets) {
   const formFile = orgAssetFile_(targets.formId);
   if (formFile.mimeType !== 'application/vnd.google-apps.form' || !formFile.capabilities?.canEdit) {
     throw new Error('집중교육 폼을 편집할 권한을 확인하세요.');
   }
-  const form = orgReadFormAsset_(targets);
-  orgFormLayout_(form);
+  const form = FormApp.openById(targets.formId);
+  const layout = orgFormLayout_(form);
+  orgVerifyFormRoutes_(layout);
 
   const guide = orgCheckGuideFile_(targets);
   const template = orgAssetFile_(targets.guideTemplateId);
@@ -23,7 +23,7 @@ function orgCheckAssets_(targets) {
   if (Math.abs(ratio / (png.width / png.height) - 1) > 0.005) {
     throw new Error('안내도 PNG와 Google Slides 원본의 페이지 비율이 다릅니다.');
   }
-  return {form: form.revisionId, guide: guide.headRevisionId, template: template.version};
+  return {form: orgFormFingerprint_(form, layout), guide: guide.headRevisionId, template: template.version};
 }
 
 function orgFormAccepting_(targets) {
@@ -38,162 +38,228 @@ function orgSetFormAccepting_(targets, accepting) {
   }
 }
 
-function orgReadFormAsset_(targets) {
-  return orgAssetJson_('https://forms.googleapis.com/v1/forms/' + encodeURIComponent(targets.formId));
-}
-
-function orgFormOptionValues_(item) {
-  const choice = item?.questionItem?.question?.choiceQuestion;
-  return item?.questionItem?.question?.required && ['RADIO', 'DROP_DOWN'].includes(choice?.type)
-    ? choice.options : null;
+function orgFormChoiceItem_(item) {
+  if (item.getType() === FormApp.ItemType.MULTIPLE_CHOICE) return item.asMultipleChoiceItem();
+  if (item.getType() === FormApp.ItemType.LIST) return item.asListItem();
+  return null;
 }
 
 function orgFormLayout_(form) {
-  if (!form.formId || !form.linkedSheetId || !form.revisionId || !Array.isArray(form.items)) {
+  if (!form.getDestinationId() || form.getDestinationType() !== FormApp.DestinationType.SPREADSHEET) {
     throw new Error('집중교육 폼과 연결된 응답 시트를 확인하세요.');
   }
-  const items = form.items;
-  const firstPageEnd = items.findIndex(item => item.pageBreakItem);
-  const groupItems = items.slice(0, firstPageEnd).filter(item => item.title === '군' && orgFormOptionValues_(item));
-  const finalPages = items.filter(item => item.pageBreakItem && item.title === ORG_FORM_FINAL_PAGE);
+  const items = form.getItems();
+  const pageBreak = item => item.getType() === FormApp.ItemType.PAGE_BREAK;
+  const firstPageEnd = items.findIndex(pageBreak);
+  const groupItems = items.slice(0, firstPageEnd).filter(item => item.getTitle() === '군')
+    .map(orgFormChoiceItem_).filter(item => item?.isRequired());
+  const finalPages = items.filter(item => pageBreak(item) && item.getTitle() === ORG_FORM_FINAL_PAGE);
   if (groupItems.length !== 1 || firstPageEnd < 0 || finalPages.length !== 1) {
     throw new Error('집중교육 폼의 군 문항과 참석자 정보 입력 페이지를 확인하세요.');
   }
-  const finalPage = finalPages[0];
-  const finalIndex = items.indexOf(finalPage);
+  const finalPage = finalPages[0].asPageBreakItem();
+  const finalIndex = finalPage.getIndex();
   const sections = [];
   for (let index = firstPageEnd; index < finalIndex; index++) {
-    const page = items[index];
-    if (!page.pageBreakItem || !page.title?.endsWith(ORG_FORM_PAGE_SUFFIX)) continue;
+    const item = items[index];
+    if (!pageBreak(item) || !String(item.getTitle() || '').endsWith(ORG_FORM_PAGE_SUFFIX)) continue;
     let end = index + 1;
-    while (end < finalIndex && !items[end].pageBreakItem) end++;
-    const teams = items.slice(index + 1, end).filter(item => item.title === '팀' && orgFormOptionValues_(item));
-    if (teams.length === 1) sections.push({page, team: teams[0], index});
+    while (end < finalIndex && !pageBreak(items[end])) end++;
+    const teams = items.slice(index + 1, end).filter(item => item.getTitle() === '팀')
+      .map(orgFormChoiceItem_).filter(team => team?.isRequired());
+    if (teams.length === 1) sections.push({page: item.asPageBreakItem(), team: teams[0]});
   }
-  const group = groupItems[0];
-  const choices = orgFormOptionValues_(group);
-  const destinations = choices.map(option => option.goToSectionId);
-  if (new Set(destinations).size !== choices.length || !choices.every(option => {
-    const section = sections.find(candidate => candidate.page.itemId === option.goToSectionId);
-    return section?.page.title === option.value + ORG_FORM_PAGE_SUFFIX &&
-      orgFormOptionValues_(section.team).every(team => team.goToSectionId === finalPage.itemId);
+  return {items, group: groupItems[0], sections, finalPage};
+}
+
+function orgFormChoiceRoutes_(item) {
+  return item.getChoices().map(choice => [choice.getValue(), choice.getGotoPage()?.getId() ?? null]);
+}
+
+function orgVerifyFormRoutes_(layout) {
+  const routes = orgFormChoiceRoutes_(layout.group);
+  const destinations = routes.map(route => route[1]);
+  if (!routes.length || new Set(destinations).size !== routes.length || !routes.every(([value, id]) => {
+    const branch = layout.sections.find(section => section.page.getId() === id);
+    if (branch?.page.getTitle() !== value + ORG_FORM_PAGE_SUFFIX) return false;
+    const teamRoutes = orgFormChoiceRoutes_(branch.team);
+    return teamRoutes.length && teamRoutes.every(route => route[1] === layout.finalPage.getId());
   })) {
     throw new Error('집중교육 폼의 기존 군→팀→참석자 분기를 확인하세요.');
   }
-  return {items, group, sections, finalPage, finalIndex};
 }
 
-function orgAssetOptions_(values, destination) {
-  return values.map(value => ({value, goToSectionId: destination}));
+function orgFormFingerprint_(form, layout) {
+  const items = layout.items.map(item => {
+    const choice = orgFormChoiceItem_(item);
+    return [item.getId(), String(item.getType()), item.getTitle(), item.getHelpText(),
+      choice ? [choice.isRequired(), orgFormChoiceRoutes_(choice)] : null];
+  });
+  return orgAssetDigest_(Utilities.DigestAlgorithm.SHA_256, JSON.stringify([
+    form.getId(), form.getDestinationId(), form.getPublishedUrl(), form.getTitle(),
+    form.getDescription(), form.isAcceptingResponses(), items
+  ]));
 }
 
-function orgUpdateFormOptions_(item, index, options, requests) {
-  const previous = orgFormOptionValues_(item);
-  if (previous.length === options.length && previous.every((option, i) =>
-    option.value === options[i].value && option.goToSectionId === options[i].goToSectionId && !option.isOther
-  )) return;
-  const next = JSON.parse(JSON.stringify(item));
-  next.questionItem.question.choiceQuestion.options = options;
-  requests.push({updateItem: {item: next, location: {index}, updateMask: ORG_FORM_OPTIONS_MASK}});
-}
-
-function orgPlanForm_(form, configuration, branchIds) {
-  const layout = orgFormLayout_(form);
-  const requests = [];
-  const additions = [];
-  const groupOptions = [];
-  const reservedIds = new Set(branchIds.values());
-  const selectedIds = new Set();
-  for (const group of configuration.groups) {
-    const pageTitle = group.label + ORG_FORM_PAGE_SUFFIX;
-    const identity = group.id || group.key;
-    const names = [group.key, group.label].concat(group.aliases || []);
-    const generatedId = orgAssetDigest_(Utilities.DigestAlgorithm.SHA_256, 'org-team-section:' + identity).slice(0, 8);
-    const priorIds = new Set(names.map(name => branchIds.get(name)).filter(Boolean));
-    const mapped = branchIds.get(identity);
-    if (!mapped && priorIds.size > 1) {
-      throw new Error('집중교육 폼의 이전 군 이름이 서로 다른 페이지에 연결되어 있습니다. ' + group.label);
-    }
-    const knownId = mapped || [...priorIds][0] ||
-      layout.sections.find(section => section.page.itemId === generatedId &&
-        !reservedIds.has(generatedId) && section.page.title === pageTitle)?.page.itemId;
-    const candidates = knownId ? layout.sections.filter(section => section.page.itemId === knownId) :
-      layout.sections.filter(section => !reservedIds.has(section.page.itemId) &&
-        names.includes(section.page.title.slice(0, -ORG_FORM_PAGE_SUFFIX.length)));
-    if (candidates.length > 1 || (knownId && candidates.length !== 1)) {
-      throw new Error('집중교육 폼의 군별 팀 페이지를 하나로 확인할 수 없습니다. ' + group.label);
-    }
-    const section = candidates[0];
-    let pageId = knownId;
-    const options = orgAssetOptions_(group.teams, layout.finalPage.itemId);
-    if (section) {
-      pageId = section.page.itemId;
-      if (section.page.title !== pageTitle) {
-        requests.push({updateItem: {item: {...section.page, title: pageTitle},
-          location: {index: section.index}, updateMask: 'title'}});
-      }
-      orgUpdateFormOptions_(section.team, layout.items.indexOf(section.team), options, requests);
-    } else {
-      pageId = generatedId;
-      if (reservedIds.has(pageId) || layout.items.some(item => item.itemId === pageId)) {
-        throw new Error('집중교육 폼의 새 페이지 ID가 기존 문항과 겹칩니다.');
-      }
-      additions.push({itemId: pageId, title: pageTitle, pageBreakItem: {}}, {
-        title: '팀',
-        questionItem: {question: {required: true, choiceQuestion: {type: 'RADIO', options}}}
-      });
-    }
-    if (selectedIds.has(pageId)) throw new Error('집중교육 폼의 두 군이 같은 페이지에 연결되어 있습니다.');
-    selectedIds.add(pageId);
-    groupOptions.push({value: group.label, goToSectionId: pageId});
-    // 기존 페이지 연결을 보존해야 표시 이름을 바꿔도 예전 응답 열을 계속 쓸 수 있습니다.
-    if (section) branchIds.set(identity, pageId);
+function orgSetFormChoices_(item, options) {
+  const routes = options.map(([label, page]) => [label, page.getId()]);
+  if (JSON.stringify(orgFormChoiceRoutes_(item)) !== JSON.stringify(routes)) {
+    item.setChoices(options.map(([label, page]) => item.createChoice(label, page)));
   }
-  additions.forEach((item, index) => requests.push({
-    createItem: {item, location: {index: layout.finalIndex + index}}
-  }));
-  orgUpdateFormOptions_(layout.group, layout.items.indexOf(layout.group), groupOptions, requests);
-  return requests;
+}
+
+function orgFindFormBranch_(layout, group, branches) {
+  const identity = group.id || group.key;
+  const names = [group.key, group.label].concat(group.aliases || []);
+  const mapped = branches.get(identity);
+  const priorIds = new Set(names.map(name => branches.get(name)).filter(id => id !== undefined));
+  if (mapped === undefined && priorIds.size > 1) {
+    throw new Error('집중교육 폼의 이전 군 이름이 서로 다른 페이지에 연결되어 있습니다. ' + group.label);
+  }
+  const knownId = mapped ?? [...priorIds][0];
+  const reserved = new Set(branches.values());
+  const found = layout.sections.filter(section => knownId !== undefined ? section.page.getId() === knownId :
+    !reserved.has(section.page.getId()) &&
+    names.includes(section.page.getTitle().slice(0, -ORG_FORM_PAGE_SUFFIX.length)));
+  if (found.length > 1 || (knownId !== undefined && found.length !== 1)) {
+    throw new Error('집중교육 폼의 군별 팀 페이지를 하나로 확인할 수 없습니다. ' + group.label);
+  }
+  return found[0];
+}
+
+function orgFormAppendItem_(form, intent, field, type, add, save) {
+  const items = form.getItems();
+  if (intent[field] !== undefined) {
+    const item = items.find(current => current.getId() === intent[field]);
+    if (!item || item.getType() !== type) throw new Error('추가 중인 집중교육 폼 문항을 찾지 못했습니다.');
+    return item;
+  }
+  if (intent.anchor === undefined) {
+    intent.anchor = items[items.length - 1].getId();
+    save();
+  }
+  const anchor = items.findIndex(item => item.getId() === intent.anchor);
+  const appended = items.slice(anchor + 1);
+  if (anchor < 0 || appended.length > 1 ||
+      appended.some(item => item.getType() !== type || item.getTitle() || item.getHelpText())) {
+    throw new Error('추가 중인 집중교육 폼 문항 뒤에 다른 변경이 있어 확인이 필요합니다.');
+  }
+  // 추가 호출만 반영되고 응답이 끊겼다면, 기록해 둔 마지막 항목 뒤의 한 문항을 이어서 씁니다.
+  const item = appended[0] || add();
+  intent[field] = item.getId();
+  delete intent.anchor;
+  save();
+  const recorded = form.getItemById(intent[field]);
+  if (!recorded) throw new Error('추가한 집중교육 폼 문항을 다시 읽지 못했습니다.');
+  return recorded;
+}
+
+function orgMoveFormItemBefore_(form, itemId, finalId) {
+  const items = form.getItems();
+  const from = items.findIndex(item => item.getId() === itemId);
+  const final = items.findIndex(item => item.getId() === finalId);
+  if (from < 0 || final < 0) throw new Error('집중교육 폼의 새 분기 또는 마지막 페이지를 찾지 못했습니다.');
+  if (from !== final - 1) form.moveItem(from, from < final ? final - 1 : final);
+}
+
+function orgCreateFormBranch_(form, group, finalPage, intent, save) {
+  const page = orgFormAppendItem_(form, intent, 'pageId', FormApp.ItemType.PAGE_BREAK,
+    () => form.addPageBreakItem(), save).asPageBreakItem();
+  const team = orgFormAppendItem_(form, intent, 'teamId', FormApp.ItemType.MULTIPLE_CHOICE,
+    () => form.addMultipleChoiceItem(), save).asMultipleChoiceItem();
+  orgMoveFormItemBefore_(form, team.getId(), finalPage.getId());
+  orgMoveFormItemBefore_(form, page.getId(), team.getId());
+  orgUpdateFormBranch_({page, team}, group, finalPage);
+  return {page, team};
+}
+
+function orgUpdateFormBranch_(branch, group, finalPage) {
+  const title = group.label + ORG_FORM_PAGE_SUFFIX;
+  if (branch.page.getTitle() !== title) branch.page.setTitle(title);
+  if (branch.team.getTitle() !== '팀') branch.team.setTitle('팀');
+  if (!branch.team.isRequired()) branch.team.setRequired(true);
+  orgSetFormChoices_(branch.team, group.teams.map(team => [team, finalPage]));
 }
 
 function orgUpdateForm_(configuration, targets) {
-  if (orgFormAccepting_(targets)) throw new Error('집중교육 폼 접수를 중지한 뒤 분기를 적용하세요.');
-  const form = orgReadFormAsset_(targets);
-  if (form.formId !== targets.formId) throw new Error('집중교육 폼 ID가 설정과 다릅니다.');
+  const form = FormApp.openById(targets.formId);
+  if (form.isAcceptingResponses()) throw new Error('집중교육 폼 접수를 중지한 뒤 분기를 적용하세요.');
+  if (form.getId() !== targets.formId) throw new Error('집중교육 폼 ID가 설정과 다릅니다.');
+  const initial = orgFormLayout_(form);
+  const publishedUrl = form.getPublishedUrl();
+  const destination = form.getDestinationId();
   const properties = PropertiesService.getScriptProperties();
   const property = 'ORG_FORM_BRANCH_IDS_' + targets.formId;
-  const stored = properties.getProperty(property) || '[]';
-  const branches = new Map(JSON.parse(stored));
+  const pendingProperty = 'ORG_FORM_BRANCH_PENDING_' + targets.formId;
+  const branches = new Map(JSON.parse(properties.getProperty(property) || '[]'));
+  const saveBranches = () => properties.setProperty(property, JSON.stringify([...branches]));
+  let pending = JSON.parse(properties.getProperty(pendingProperty) || 'null');
+  const savePending = () => properties.setProperty(pendingProperty, JSON.stringify(pending));
   if (!branches.size) {
+    orgVerifyFormRoutes_(initial);
     const current = typeof readOrgConfiguration_ === 'function' ? readOrgConfiguration_() : null;
-    const oldChoices = orgFormOptionValues_(orgFormLayout_(form).group);
-    oldChoices.forEach(choice => {
-      const group = current && findOrgGroup_(current, choice.value);
-      const key = group?.id || group?.key || choice.value.replace(/군$/, '');
+    orgFormChoiceRoutes_(initial.group).forEach(([value, id]) => {
+      const group = current && findOrgGroup_(current, value);
+      const key = group?.id || group?.key || value.replace(/군$/, '');
       if (branches.has(key)) throw new Error('집중교육 폼 기존 군 약칭이 겹칩니다.');
-      branches.set(key, choice.goToSectionId);
+      branches.set(key, id);
     });
+    saveBranches();
   }
-  const requests = orgPlanForm_(form, configuration, branches);
-  const mapped = JSON.stringify([...branches]);
-  if (stored !== mapped) properties.setProperty(property, mapped);
-  if (requests.length) {
-    orgAssetJson_('https://forms.googleapis.com/v1/forms/' + encodeURIComponent(targets.formId) + ':batchUpdate', {
-      method: 'post', contentType: 'application/json',
-      payload: JSON.stringify({writeControl: {requiredRevisionId: form.revisionId}, requests})
-    });
+
+  function completeBranch(group) {
+    const identity = group.id || group.key;
+    const branch = orgCreateFormBranch_(form, group, initial.finalPage, pending, savePending);
+    branches.set(identity, branch.page.getId());
+    saveBranches();
+    properties.deleteProperty(pendingProperty);
+    pending = null;
+    return branch;
   }
-  const result = orgReadFormAsset_(targets);
-  const previous = new Map(form.items.map(item => [item.itemId, item.questionItem?.question?.questionId]));
-  if (result.formId !== form.formId || result.responderUri !== form.responderUri ||
-      result.linkedSheetId !== form.linkedSheetId ||
-      !form.items.every(item => result.items.some(candidate => candidate.itemId === item.itemId &&
-        candidate.questionItem?.question?.questionId === previous.get(item.itemId))) ||
-      orgPlanForm_(result, configuration, branches).length) {
+  let layout = initial;
+  if (pending) {
+    const group = configuration.groups.find(item => (item.id || item.key) === pending.identity);
+    if (!group) throw new Error('집중교육 폼에서 추가를 이어 갈 군을 설정에서 찾지 못했습니다.');
+    completeBranch(group);
+    layout = orgFormLayout_(form);
+  }
+  const selected = new Set();
+  const choices = configuration.groups.map(group => {
+    const identity = group.id || group.key;
+    let branch = orgFindFormBranch_(layout, group, branches);
+    if (branch) {
+      if (selected.has(branch.page.getId())) throw new Error('집중교육 폼의 두 군이 같은 페이지에 연결되어 있습니다.');
+      if (branches.get(identity) !== branch.page.getId()) {
+        branches.set(identity, branch.page.getId());
+        saveBranches();
+      }
+      orgUpdateFormBranch_(branch, group, initial.finalPage);
+    } else {
+      pending = {identity};
+      branch = completeBranch(group);
+      layout.sections.push(branch);
+    }
+    selected.add(branch.page.getId());
+    return [group.label, branch.page];
+  });
+  orgSetFormChoices_(initial.group, choices);
+
+  const result = FormApp.openById(targets.formId);
+  const verified = orgFormLayout_(result);
+  orgVerifyFormRoutes_(verified);
+  const itemIds = new Set(verified.items.map(item => item.getId()));
+  const actualChoices = orgFormChoiceRoutes_(verified.group);
+  const expectedChoices = choices.map(([label, page]) => [label, page.getId()]);
+  if (result.getId() !== targets.formId || result.getPublishedUrl() !== publishedUrl ||
+      result.getDestinationId() !== destination || result.isAcceptingResponses() ||
+      !initial.items.every(item => itemIds.has(item.getId())) ||
+      JSON.stringify(actualChoices) !== JSON.stringify(expectedChoices) ||
+      !configuration.groups.every((group, index) => {
+        const branch = verified.sections.find(section => section.page.getId() === actualChoices[index][1]);
+        return JSON.stringify(orgFormChoiceRoutes_(branch.team).map(route => route[0])) === JSON.stringify(group.teams);
+      })) {
     throw new Error('집중교육 폼 분기, 문항 또는 응답 시트 연결을 확인하지 못했습니다.');
   }
-  const verified = JSON.stringify([...branches]);
-  if (mapped !== verified) properties.setProperty(property, verified);
 }
 
 function orgGuidePanel_(presentation) {
@@ -292,9 +358,9 @@ function orgRenderGuide_(configuration, targets) {
       top += height;
     });
     presentation.saveAndClose();
-    const thumbnail = orgAssetJson_('https://slides.googleapis.com/v1/presentations/' +
-      encodeURIComponent(temporary.getId()) + '/pages/' + encodeURIComponent(slideId) +
-      '/thumbnail?thumbnailProperties.mimeType=PNG&thumbnailProperties.thumbnailSize=LARGE');
+    const thumbnail = Slides.Presentations.Pages.getThumbnail(temporary.getId(), slideId, {
+      'thumbnailProperties.mimeType': 'PNG', 'thumbnailProperties.thumbnailSize': 'LARGE'
+    });
     if (!thumbnail.contentUrl || !/^https:\/\//.test(thumbnail.contentUrl)) {
       throw new Error('안내도 PNG 렌더링 주소를 확인하지 못했습니다.');
     }
@@ -329,8 +395,10 @@ function orgPngDimensions_(bytes) {
 }
 
 function orgAssetFile_(id) {
-  return orgAssetJson_('https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(id) +
-    '?supportsAllDrives=true&fields=id,mimeType,md5Checksum,headRevisionId,version,capabilities(canEdit,canCopy,canModifyContent)');
+  return Drive.Files.get(id, {
+    supportsAllDrives: true,
+    fields: 'id,mimeType,md5Checksum,headRevisionId,version,capabilities(canEdit,canCopy,canModifyContent)'
+  });
 }
 
 function orgCheckGuideFile_(targets) {
@@ -347,24 +415,9 @@ function orgUpdateGuide_(blob, targets) {
   const hash = orgAssetDigest_(Utilities.DigestAlgorithm.MD5, bytes);
   const before = orgCheckGuideFile_(targets);
   if (before.md5Checksum === hash) return;
-  orgAssetJson_('https://www.googleapis.com/upload/drive/v3/files/' + encodeURIComponent(before.id) +
-    '?uploadType=media&supportsAllDrives=true&fields=id,mimeType,md5Checksum,headRevisionId', {
-    method: 'patch', contentType: 'image/png', payload: bytes
-  });
+  Drive.Files.update({}, before.id, blob.setContentType('image/png'), {supportsAllDrives: true});
   const after = orgCheckGuideFile_(targets);
   if (after.md5Checksum !== hash || !after.headRevisionId || after.headRevisionId === before.headRevisionId) {
     throw new Error('기존 안내도 PNG의 새 버전과 내용을 확인하지 못했습니다.');
   }
-}
-
-function orgAssetJson_(url, options) {
-  const response = UrlFetchApp.fetch(url, {
-    method: 'get', headers: {Authorization: 'Bearer ' + ScriptApp.getOAuthToken()},
-    muteHttpExceptions: true, ...options
-  });
-  const status = response.getResponseCode();
-  if (status < 200 || status >= 300) {
-    throw new Error('Google ' + (url.match(/https:\/\/([^/.]+)/)?.[1] || 'API') + ' 요청 실패 (' + status + ')');
-  }
-  return JSON.parse(response.getContentText());
 }

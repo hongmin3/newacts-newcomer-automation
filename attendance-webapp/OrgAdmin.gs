@@ -33,6 +33,18 @@ function orgAdminContext_() {
   if (!email || (email !== ownerEmail && !configuredAdmins.includes(email))) {
     throw new Error('군·팀 설정을 관리할 권한이 없습니다.');
   }
+  let pageToken;
+  do {
+    const page = Drive.Permissions.list(book.getId(), {
+      fields: 'nextPageToken,permissions(type)', supportsAllDrives: true, pageToken: pageToken
+    });
+    if ((page.permissions || []).some(function (permission) {
+      return permission.type === 'anyone' || permission.type === 'domain';
+    })) {
+      throw new Error('군·팀 설정은 링크 공개와 조직 전체 공유가 없는 파일에 연결해 주세요.');
+    }
+    pageToken = page.nextPageToken;
+  } while (pageToken);
   return {book: book, props: props, admins: [ownerEmail].concat(configuredAdmins).filter(Boolean)};
 }
 

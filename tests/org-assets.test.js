@@ -34,7 +34,7 @@ function digest(algorithm, bytes) {
 function assetsFixture() {
   const h = load('attendance-webapp/OrgAssets.gs');
   const data = {formId: 'form', linkedSheetId: 'linked', responderUri: 'https://forms.example/initial',
-    revisionId: 'initial', items: [
+    items: [
       {itemId: 'applicant', title: '신청자 이름'},
       choice('group', '군', [
         {value: '조군', goToSectionId: 'jo-page'},
@@ -47,7 +47,7 @@ function assetsFixture() {
       page('final-page', '참석자 정보 입력'),
       {itemId: 'phone', title: '집중교육 참석자 전화번호'}
     ]};
-  const state = {accepting: true, formWrites: 0, guideWrites: 0, dropNextFormResponse: false};
+  const state = {accepting: true, formWrites: 0, guideWrites: 0, failAfter: '', added: 0};
   const png = [137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82,
     0, 0, 6, 64, 0, 0, 3, 32];
   const guide = {id: 'guide', mimeType: 'image/png', md5Checksum: 'before',
@@ -55,70 +55,97 @@ function assetsFixture() {
   const blob = {getBytes: () => png, getContentType: () => 'image/png',
     setContentType(type) {assert.equal(type, 'image/png'); return this;},
     setName(name) {assert.equal(name, '층별안내도.png'); return this;}};
-  function response(content) {
-    return {getResponseCode: () => 200, getContentText: () => JSON.stringify(content)};
+  function write(action) {
+    state.formWrites++;
+    if (state.failAfter === action) {
+      state.failAfter = '';
+      throw new Error('연결 중단');
+    }
   }
-  h.context.FormApp = {openById(id) {
-    assert.equal(id, 'form');
-    return {isAcceptingResponses: () => state.accepting,
-      setAcceptingResponses(value) {state.accepting = value;}};
-  }};
-  h.context.ScriptApp = {getOAuthToken: () => 'test-token'};
+  function asItem(item) {
+    const generic = {
+      getId: () => item.itemId, getIndex: () => data.items.indexOf(item),
+      getType: () => item.pageBreakItem ? 'PAGE_BREAK' :
+        item.questionItem ? 'MULTIPLE_CHOICE' : 'TEXT',
+      getTitle: () => item.title, getHelpText: () => item.helpText || '',
+      setTitle(title) {item.title = title; write('title:' + item.itemId);}
+    };
+    const mc = {...generic, isRequired: () => Boolean(item.questionItem.question.required),
+      setRequired(required) {item.questionItem.question.required = required; write('required:' + item.itemId);},
+      getChoices: () => readOptions(item).map(option => ({
+        getValue: () => option.value,
+        getGotoPage: () => data.items.find(entry => entry.itemId === option.goToSectionId) ? {
+          getId: () => option.goToSectionId
+        } : null
+      })),
+      createChoice: (value, section) => ({value, goToSectionId: section.getId()}),
+      setChoices(choices) {item.questionItem.question.choiceQuestion.options = Array.from(choices); write('choices:' + item.itemId);}
+    };
+    return {...generic, asPageBreakItem: () => generic, asMultipleChoiceItem: () => mc};
+  }
+  const findItem = id => data.items.find(item => item.itemId === id);
+  h.context.FormApp = {
+    ItemType: {PAGE_BREAK: 'PAGE_BREAK', MULTIPLE_CHOICE: 'MULTIPLE_CHOICE', LIST: 'LIST'},
+    DestinationType: {SPREADSHEET: 'SPREADSHEET'},
+    openById(id) {
+      assert.equal(id, 'form');
+      return {
+        getId: () => data.formId, getPublishedUrl: () => data.responderUri,
+        getDestinationId: () => data.linkedSheetId, getDestinationType: () => 'SPREADSHEET',
+        getTitle: () => '기존 신청', getDescription: () => '기존 안내',
+        isAcceptingResponses: () => state.accepting,
+        setAcceptingResponses(value) {state.accepting = value;},
+        getItems: () => data.items.map(asItem),
+        getItemById: itemId => findItem(itemId) ? asItem(findItem(itemId)) : null,
+        addPageBreakItem() {
+          const item = page('new-' + ++state.added, '');
+          data.items.push(item); write('addPage');
+          return asItem(item).asPageBreakItem();
+        },
+        addMultipleChoiceItem() {
+          const item = choice('new-' + ++state.added, '', []);
+          item.questionItem.question.required = false;
+          data.items.push(item); write('addTeam');
+          return asItem(item).asMultipleChoiceItem();
+        },
+        moveItem(from, to) {
+          const [item] = data.items.splice(from, 1);
+          assert.match(item.itemId, /^new-/, '기존 문항은 이동하지 않는다');
+          data.items.splice(to, 0, item);
+          write('move:' + item.itemId);
+        }
+      };
+    }
+  };
   Object.assign(h.context.Utilities, {DigestAlgorithm: {MD5: 'md5', SHA_256: 'sha256'},
     Charset: {UTF_8: 'UTF-8'}, computeDigest: digest});
-  h.context.UrlFetchApp = {fetch(url, request) {
-    if (url.includes('forms.googleapis.com') && request.method === 'get') {
-      return response(data);
-    }
-    if (url.endsWith('/form:batchUpdate')) {
-      const batch = JSON.parse(request.payload);
-      assert.equal(batch.writeControl.requiredRevisionId, data.revisionId);
-      for (const entry of batch.requests) {
-        assert.ok(!entry.deleteItem && !entry.moveItem);
-        if (entry.createItem) {
-          const {location, item} = entry.createItem;
-          data.items.splice(location.index, 0, item);
-        } else {
-          const {location, item, updateMask} = entry.updateItem;
-          const current = data.items[location.index];
-          assert.equal(current.itemId, item.itemId);
-          if (updateMask === 'title') current.title = item.title;
-          else {
-            assert.equal(updateMask, 'questionItem.question.choiceQuestion.options');
-            current.questionItem.question.choiceQuestion.options = readOptions(item);
-          }
-        }
-      }
-      state.formWrites++;
-      data.revisionId = 'batch-' + state.formWrites;
-      if (state.dropNextFormResponse) {
-        state.dropNextFormResponse = false;
-        throw new Error('연결 중단');
-      }
-      return response({});
-    }
-    if (url.includes('/drive/v3/files/form?')) {
-      return response({id: 'form', mimeType: 'application/vnd.google-apps.form',
-        capabilities: {canEdit: true}});
-    }
-    if (url.includes('/drive/v3/files/template?')) {
-      return response({id: 'template', mimeType: 'application/vnd.google-apps.presentation',
-        capabilities: {canCopy: true}});
-    }
-    if (url.includes('/upload/drive/v3/files/guide?')) {
-      assert.equal(request.method, 'patch');
-      assert.match(url, /uploadType=media/);
-      assert.deepEqual(request.payload, png);
+  h.context.Drive = {Files: {
+    get(id, request) {
+      assert.equal(request.supportsAllDrives, true);
+      if (id === 'form') return {id, mimeType: 'application/vnd.google-apps.form',
+        capabilities: {canEdit: true}};
+      if (id === 'template') return {id, version: 'template-1', mimeType: 'application/vnd.google-apps.presentation',
+        capabilities: {canCopy: true}};
+      assert.equal(id, 'guide');
+      return {...guide};
+    },
+    update(metadata, id, media, request) {
+      assert.equal(id, 'guide');
+      assert.deepEqual(Object.keys(metadata), []);
+      assert.equal(request.supportsAllDrives, true);
+      assert.deepEqual(media.getBytes(), png);
       guide.headRevisionId = 'revision-' + ++state.guideWrites;
       guide.md5Checksum = Buffer.from(digest('md5', png)).toString('hex');
-      return response(guide);
     }
-    if (url.includes('/drive/v3/files/guide?')) return response(guide);
-    if (url.includes('slides.googleapis.com')) {
-      assert.match(url, /slides.googleapis.com\/v1\/presentations\/temporary\/pages\/preserved-map\/thumbnail/);
-      assert.match(url, /thumbnailProperties.thumbnailSize=LARGE/);
-      return response({contentUrl: 'https://preview.example/image'});
-    }
+  }};
+  h.context.Slides = {Presentations: {Pages: {getThumbnail(presentation, slide, request) {
+    assert.equal(presentation, 'temporary');
+    assert.equal(slide, 'preserved-map');
+    assert.equal(request['thumbnailProperties.mimeType'], 'PNG');
+    assert.equal(request['thumbnailProperties.thumbnailSize'], 'LARGE');
+    return {contentUrl: 'https://preview.example/image'};
+  }}}};
+  h.context.UrlFetchApp = {fetch(url) {
     if (url === 'https://preview.example/image') return {getBlob: () => blob};
     throw new Error('예상치 못한 요청 ' + url);
   }};
@@ -130,10 +157,10 @@ function assetsFixture() {
   assert.throws(() => context.orgUpdateForm_(split, targets), /접수/);
   assert.equal(context.orgFormAccepting_(targets), true);
   context.orgSetFormAccepting_(targets, false);
-  state.dropNextFormResponse = true;
-  assert.throws(() => context.orgUpdateForm_(split, targets), /연결 중단/);
   context.orgUpdateForm_(split, targets);
-  assert.equal(state.formWrites, 1, '응답이 끊긴 실행을 재개해도 문항을 추가하지 않는다');
+  const writes = state.formWrites;
+  context.orgUpdateForm_(split, targets);
+  assert.equal(state.formWrites, writes, '같은 배치가 이미 적용되었으면 폼을 다시 쓰지 않는다');
   const group = data.items.find(item => item.itemId === 'group');
   assert.deepEqual(readOptions(group).map(option => option.value), ['보배군', '길군']);
   assert.equal(readOptions(group)[0].goToSectionId, 'jo-page');
@@ -153,6 +180,24 @@ function assetsFixture() {
   ]);
   context.orgSetFormAccepting_(targets, true);
   assert.equal(context.orgFormAccepting_(targets), true);
+}
+
+for (const interrupted of ['title:jo-page', 'addPage', 'addTeam', 'move:new-2', 'move:new-1', 'choices:group']) {
+  const {context, data, state, properties} = assetsFixture();
+  const originalIds = data.items.map(item => item.itemId);
+  context.orgSetFormAccepting_(targets, false);
+  state.failAfter = interrupted;
+  assert.throws(() => context.orgUpdateForm_(split, targets), /연결 중단/, interrupted);
+  const persistedIds = data.items.map(item => item.itemId);
+  assert.equal(context.orgFormAccepting_(targets), false);
+  context.orgUpdateForm_(split, targets);
+  assert.equal(state.added, 2, interrupted + ' 뒤 새 페이지와 팀 문항을 한 번씩만 추가한다');
+  assert.deepEqual(data.items.map(item => item.itemId).filter(id => originalIds.includes(id)), originalIds);
+  assert.ok(persistedIds.every(id => data.items.some(item => item.itemId === id)));
+  assert.deepEqual(readOptions(data.items.find(item => item.itemId === 'group')), [
+    {value: '보배군', goToSectionId: 'jo-page'}, {value: '길군', goToSectionId: 'new-1'}
+  ]);
+  assert.equal(properties.has('ORG_FORM_BRANCH_PENDING_form'), false);
 }
 
 {
@@ -186,7 +231,7 @@ function assetsFixture() {
 }
 
 {
-  const {context, state, blob} = assetsFixture();
+  const {context, state, blob, data} = assetsFixture();
   const drawn = [];
   let templateTouched = false;
   let saved = false;
@@ -227,7 +272,10 @@ function assetsFixture() {
       return {getId: () => 'temporary', setTrashed(value) {trashed = value;}};
     }};
   }};
-  context.orgCheckAssets_(targets);
+  const beforeFingerprint = context.orgCheckAssets_(targets);
+  assert.equal(context.orgCheckAssets_(targets).form, beforeFingerprint.form);
+  data.items.find(item => item.itemId === 'phone').title = '전화번호 변경';
+  assert.notEqual(context.orgCheckAssets_(targets).form, beforeFingerprint.form);
   assert.equal(state.accepting, true, '미리보기는 접수를 일시 중지하지 않는다');
   assert.equal(context.orgRenderGuide_(split, targets), blob);
   assert.equal(templateTouched, false);
