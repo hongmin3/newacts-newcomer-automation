@@ -79,4 +79,58 @@ function countCalls(f,names){const proto=f.sheets['명군'].constructor.prototyp
   for(const [row,value] of Object.entries(expected)){const rid=f.sheets['명군'].getRange(Number(row),29).getValues()[0][0];assert.equal(f.raw().find(r=>r[0]===rid)[10],value,'남긴 대기 행은 자동 확인이 저장한다');}
   console.log('통과: 편집 실행 '+Math.round(took/1000)+'초, 남은 대기 행은 자동 확인에서 저장');
 }
-console.log('실행 시간 한도 재현 4개 시나리오 통과');
+// 마지막 명단의 선택 목록을 재설치하기 전에 2분이 지나도 다음 회차에서 이어 간다.
+{
+  const f=createFixture(),messages=[];
+  f.ctx.console.log=(message)=>messages.push(message);
+  f.input('명군',3,3,[['분할점검','여',30,'01012340002']]);
+  f.repair();
+  const last=f.sheets['기타'];
+  delete last.validations['27,13'];
+  const proto=last.constructor.prototype,readRules=proto.getConditionalFormatRules;
+  proto.getConditionalFormatRules=function(){f.advance(8000);return readRules.call(this);};
+  const previous=f.props.EVENT_SYNC_LAST;
+  f.advance(16*60*1000);
+  assert.ok(elapsed(f,()=>f.repair())<=128000,'느린 명단별 점검은 2분 이후 다음 명단을 시작하지 않는다');
+  assert.equal(f.props.EVENT_SYNC_LAST,previous,'부족한 회차는 전체 완료로 표시하지 않는다');
+  assert.equal(last.validations['27,13'],undefined,'마지막 명단은 다음 회차에 남는다');
+  assert.ok(messages.some(message=>message.includes('다음 회차에 계속')));
+  for(let run=0;run<6&&f.props.EVENT_SYNC_LAST===previous;run++)f.repair();
+  assert.ok(last.validations['27,13'],'다음 회차에 마지막 명단의 선택 목록을 복구한다');
+  assert.notEqual(f.props.EVENT_SYNC_LAST,previous,'마지막 명단까지 본 뒤 전체 완료로 표시한다');
+  console.log('통과: 느린 순번·서식 확인은 마지막 명단까지 나눠 점검');
+}
+
+// 저장 성공 후 응답이 사라져도 다음 실제 예약 실행은 기존 관리번호를 재사용한다.
+{
+  const f=createFixture(),messages=[];
+  f.ctx.console.log=(message)=>messages.push(message);
+  f.input('명군',3,3,[['재개카드','여',30,'01012340003']]);
+  f.repair();
+  const total=f.sheets['총 방문 새가족'];
+  total.getRange(2,1,1,32).clearContent();
+  f.advance(16*60*1000);
+  const previous=f.props.EVENT_SYNC_LAST;
+  let failed=false;
+  f.setHook(e=>{
+    if(!failed&&e.sheet==='총 방문 새가족'&&e.kind==='write'&&e.phase==='after'&&e.col===1&&e.nc===32){
+      failed=true;
+      throw Error('저장 후 응답 유실');
+    }
+  });
+  assert.throws(()=>f.repair(),/저장 후 응답 유실/);
+  assert.equal(f.props.EVENT_SYNC_LAST,previous);
+  assert.ok(messages.some(message=>message.includes('오류 후 재시도')));
+  f.setHook(null);
+  f.hold('busy');
+  f.input('조군',3,3,[['중단사이신규','남',31,'01012340004']]);
+  f.release();
+  for(let run=0;run<6;run++)f.repair();
+  assert.deepEqual(f.raw().filter(row=>!row[21]).map(row=>row[5]).sort(),['재개카드','중단사이신규'].sort());
+  const cards=f.visible('총 방문 새가족');
+  assert.equal(cards.length,2);
+  assert.equal(new Set(cards.map(card=>card.id)).size,2);
+  console.log('통과: 화면 저장 후 응답 유실과 새 입력에도 누락·중복 없이 재개');
+}
+
+console.log('실행 시간 한도 재현 6개 시나리오 통과');

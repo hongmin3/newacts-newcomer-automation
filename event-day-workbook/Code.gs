@@ -232,11 +232,23 @@ function eventProcessRow_(ss,sheet,rowNumber,columns,oneValue,force) {
   if(changed&&after[18].indexOf('방문·등록 각각 입력됨')>=0&&eventText_(candidate[18]).indexOf('방문·등록 각각 입력됨')<0)ss.toast('방문과 등록에 각각 입력되었습니다. 방문 1건·등록 1건으로 따로 집계합니다.','카드별 입력 안내',8);
 
 }
-function eventWithLock_(ss,fn,waitMs,quiet) {
+function eventWithLock_(ss,fn,waitMs,quiet,afterFlush) {
   if(PropertiesService.getScriptProperties().getProperty('EVENT_ARMY_BASIS_REQUEST')&&!EVENT_ARMY_BASIS_EXEC)return false;
   var lock=LockService.getDocumentLock();
-  if(!lock.tryLock(waitMs||5000)){if(!quiet)ss.toast('다른 입력을 처리 중입니다. 입력값을 남겨 두고 자동으로 다시 반영합니다. 잠시 기다려 주세요.','입력 대기',8);return false;}
-  try{if(PropertiesService.getScriptProperties().getProperty('EVENT_ARMY_BASIS_REQUEST')){var real=ss.real||ss;EVENT_STRUCTURE_CONTEXT={expected:{},touched:{},real:real};eventStructureSheets_(real).forEach(function(p){EVENT_STRUCTURE_CONTEXT.expected[p.getSheetId()]=p.getMaxRows();EVENT_STRUCTURE_CONTEXT.touched[p.getSheetId()]=p;});return eventReconcileArmyBasis_(ss);}eventStructureBegin_(ss);var result=fn();SpreadsheetApp.flush();return result!==false;}finally{try{eventStructureFinish_();}finally{lock.releaseLock();}}
+  if(!lock.tryLock(waitMs||5000)){
+    if(afterFlush)console.log('행축 자동 확인: 다른 실행 처리 중');
+    if(!quiet)ss.toast('다른 입력을 처리 중입니다. 입력값을 남겨 두고 자동으로 다시 반영합니다. 잠시 기다려 주세요.','입력 대기',8);
+    return false;
+  }
+  try{
+    if(PropertiesService.getScriptProperties().getProperty('EVENT_ARMY_BASIS_REQUEST')){var real=ss.real||ss;EVENT_STRUCTURE_CONTEXT={expected:{},touched:{},real:real};eventStructureSheets_(real).forEach(function(p){EVENT_STRUCTURE_CONTEXT.expected[p.getSheetId()]=p.getMaxRows();EVENT_STRUCTURE_CONTEXT.touched[p.getSheetId()]=p;});return eventReconcileArmyBasis_(ss);}
+    eventStructureBegin_(ss);
+    var complete=fn()!==false;
+    SpreadsheetApp.flush();
+    eventStructureFinish_();
+    if(afterFlush)afterFlush(complete);
+    return complete;
+  }finally{try{eventStructureFinish_();}finally{lock.releaseLock();}}
 }
 function eventEditInternal_(e) {
   if(!e||!e.range||!e.source)return;
@@ -251,31 +263,94 @@ function eventEditInternal_(e) {
     }
   });}catch(err){sheet.getRange(from,19).setValue('반영 중단: '+err.message+' / 시트를 다시 열기');e.source.toast('입력값을 보존했습니다. 시트를 다시 열어 주세요.','자동 연결 확인',10);}
 }
-function eventRepair(silent,background) {
+function eventRepair(silent,background,recordCompletion) {
   var ss=eventPlainWrap_(SpreadsheetApp.getActive());
-  // 자동 확인은 6분 한도 전에 새 단계를 멈추고 남은 일을 다음 실행에 넘긴다.
-  var late=function(){return !!background&&eventOverBudget_(240000);};
-  return eventWithLock_(ss,function(){
-    eventPlainNumbers_(ss);
-    var urgentProps=PropertiesService.getScriptProperties(),urgent=urgentProps.getProperty('EVENT_UNSAVED_REQUEST');
-    if(urgent){
-      if(urgentProps.getProperty('EVENT_UNSAVED_PHASE')!=='fresh'){
-        var restored=eventRestoreMissing_(ss,20000);
-        if(restored.complete)urgentProps.deleteProperty('EVENT_UNSAVED_MISSING');else urgentProps.setProperty('EVENT_UNSAVED_MISSING','1');
-        if(restored.processed){urgentProps.setProperty('EVENT_UNSAVED_PHASE','fresh');urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());return false;}
-      }
-      var urgentResult=eventDrainUnsaved_(ss,20000);
-      urgentProps.deleteProperty('EVENT_UNSAVED_PHASE');
-      if(urgentResult.complete&&urgentProps.getProperty('EVENT_UNSAVED_MISSING')!=='1'&&urgentProps.getProperty('EVENT_UNSAVED_REQUEST')===urgent)urgentProps.deleteProperty('EVENT_UNSAVED_REQUEST');
-      if(urgentResult.processed||!urgentResult.complete||urgentProps.getProperty('EVENT_UNSAVED_MISSING')==='1'){urgentProps.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());return false;}
+  var props=PropertiesService.getScriptProperties(),state,phase=-1,label='',names=eventViews_(),journal;
+  var startedAt=EVENT_EXEC_STARTED||Date.now();
+  var late=function(){return !!background&&Date.now()-startedAt>=120000;};
+  function step(title,items,work){
+    phase++;
+    if(state.phase>phase)return true;
+    label=title;
+    var started=Date.now();
+    if(background)console.log('행축 자동 확인 단계 시작: '+title+' ('+(state.next+1)+'/'+items.length+')');
+    while(state.next<items.length){
+      if(late()||work(items[state.next])===false)return false;
+      state.next++;
     }
-    eventSeparateCards_(ss);
-    // 군 수정은 전체 화면 복구보다 먼저 저장한다. 느린 전체 확인에 밀리지 않는다.
-    if(eventPendingGroupMoves_(ss,background)){eventPlainLabels_(ss,true);return false;}
-    if(late())return false;
-    eventViews_().forEach(function(name){eventEnsureCapacity_(ss.getSheetByName(name));});
-    var journal=eventReplayEdits_(ss),complete=true,jobs=[],props=PropertiesService.getScriptProperties();
-    if(!eventRefreshProjections_(ss,late)||late())return false;
+    if(background)console.log('행축 자동 확인 단계 완료: '+title+' '+(Date.now()-started)+'ms');
+    state.phase++;state.next=0;
+    return true;
+  }
+  function projection(title){
+    if(!background)return step(title,[null],function(){return eventRefreshProjections_(ss,late);});
+    var records,cache={};
+    if(!step(title,names,function(name){
+      if(!records)records=eventData_(ss.getSheetByName(EVENT.raw));
+      return eventRefreshProjections_(ss,late,name,records,cache);
+    }))return false;
+    return step(title+' 범위 밖',EVENT.groups,function(group){
+      if(!records)records=eventData_(ss.getSheetByName(EVENT.raw));
+      eventProjectionCache_(ss,eventGroupViews_(group),cache);
+      return eventRepairOrphans_(ss,cache,records,[group],late);
+    });
+  }
+  return eventWithLock_(ss,function(){
+    if(recordCompletion&&eventSyncIsCurrent_(props))return true;
+    state=(background&&JSON.parse(props.getProperty('EVENT_SYNC_PROGRESS')||'null'))||
+      {generation:props.getProperty('EVENT_SYNC_DIRTY')||'initial',phase:0,next:0};
+    var numberView=ss.real?eventPlainWrap_(ss.real):ss;
+    if(!step('순번',names,function(name){eventPlainNumbers_(numberView,[name]);}))return false;
+    var urgent=props.getProperty('EVENT_UNSAVED_REQUEST');
+    if(urgent){
+      label='신규·누락 복구';
+      if(late())return false;
+      if(props.getProperty('EVENT_UNSAVED_PHASE')!=='fresh'){
+        var restored=eventRestoreMissing_(ss,20000);
+        if(restored.complete)props.deleteProperty('EVENT_UNSAVED_MISSING');else props.setProperty('EVENT_UNSAVED_MISSING','1');
+        if(restored.processed){props.setProperty('EVENT_UNSAVED_PHASE','fresh');props.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());return false;}
+      }
+      if(late())return false;
+      var urgentResult=eventDrainUnsaved_(ss,20000);
+      props.deleteProperty('EVENT_UNSAVED_PHASE');
+      if(urgentResult.complete&&props.getProperty('EVENT_UNSAVED_MISSING')!=='1'&&props.getProperty('EVENT_UNSAVED_REQUEST')===urgent)props.deleteProperty('EVENT_UNSAVED_REQUEST');
+      if(urgentResult.processed||!urgentResult.complete||props.getProperty('EVENT_UNSAVED_MISSING')==='1'){props.setProperty('EVENT_SYNC_DIRTY',Utilities.getUuid());return false;}
+    }
+    if(!step('카드 분리',[null],function(){eventSeparateCards_(ss);}))return false;
+    // 군 수정은 전체 화면 복구보다 먼저 저장한다.
+    if(!step('군 변경',[null],function(){
+      if(eventPendingGroupMoves_(ss,background,late)){if(!late())eventPlainLabels_(ss,true);return false;}
+    }))return false;
+    if(!step('입력 공간',names,function(name){eventEnsureCapacity_(ss.getSheetByName(name));}))return false;
+    if(!step('편집값 복구',[null],function(){journal=eventReplayEdits_(ss);}))return false;
+    if(!projection('저장된 명단 복구'))return false;
+    if(!step('대기 입력',[null],function(){return eventRepairPending_(ss,props,background,late,journal);}))return false;
+    if(!step('안내 메모',[null],function(){eventRefreshHealth_(ss);}))return false;
+    if(!projection('최신 명단 맞춤'))return false;
+    if(!step('순번·서식',names,function(name){return eventPlainLabels_(ss,false,true,[name],late);}))return false;
+    if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
+    return true;
+  },background?1000:60000,!!background,background?function(complete){
+    if(!state)return;
+    if(complete){
+      if(recordCompletion){
+        props.setProperty('EVENT_CAPACITY_REV','reserve5-add10');
+        props.setProperty('EVENT_REPAIR_REV','slice-v1');
+        props.setProperty('EVENT_SYNC_DONE',state.generation);
+        props.setProperty('EVENT_SYNC_LAST',String(Date.now()));
+      }
+      props.deleteProperty('EVENT_SYNC_PROGRESS');
+      console.log('행축 대기 입력 자동 확인 완료: '+(Date.now()-startedAt)+'ms');
+    }else{
+      props.setProperty('EVENT_SYNC_PROGRESS',JSON.stringify(state));
+      console.log('행축 자동 확인: 다음 회차에 계속 ('+label+', '+(Date.now()-startedAt)+'ms)');
+    }
+  }:null);
+}
+
+function eventRepairPending_(ss,props,background,late,journal){
+    journal=journal||eventReplayEdits_(ss);
+    var complete=true,jobs=[];
     // Google 편집 이벤트가 빠졌거나 잠금을 기다린 입력을 먼저 처리한다.
     eventViews_().forEach(function(name){var sheet=ss.getSheetByName(name);eventData_(sheet).forEach(function(row,i){
       row=eventSplitAssignmentPending_(ss,sheet,i+2,row);
@@ -296,20 +371,22 @@ function eventRepair(silent,background) {
     jobs.sort(function(a,b){return Number(!a.fresh)-Number(!b.fresh)||a.last-b.last||a.first-b.first;});
     var started=Date.now(),processed=0;
     for(var step=0;step<jobs.length;step++){
-      if(background&&processed&&(Date.now()-started>=20000||late())){complete=false;break;}
+      if(background&&(late()||(processed&&Date.now()-started>=20000))){complete=false;break;}
       var job=jobs[step],sheet=ss.getSheetByName(job.name);
       props.setProperty('EVENT_REPAIR_AT_'+job.key,String(Date.now()));processed++;
-      try{var fresh=sheet.getRange(job.row,1,1,22).getValues()[0];if(sheet.plainMap&&fresh[0]&&!eventText_(fresh[5]))eventPlainClear_(ss,sheet,job.row,sheet.plainMap);else eventProcessRow_(ss,sheet,job.row,job.cols,undefined,false);}catch(err){complete=false;sheet.getRange(job.row,19).setValue('입력 확인: '+err.message);}
+      try{
+        var fresh=sheet.getRange(job.row,1,1,22).getValues()[0];
+        if(job.key!==job.name+'|'+(fresh[0]||('row:'+job.row))){complete=false;continue;}
+        if(sheet.plainMap&&fresh[0]&&!eventText_(fresh[5]))eventPlainClear_(ss,sheet,job.row,sheet.plainMap);
+        else eventProcessRow_(ss,sheet,job.row,job.cols,undefined,false);
+      }catch(err){complete=false;sheet.getRange(job.row,19).setValue('입력 확인: '+err.message);}
     }
-    if(late())complete=false;
-    else{eventRefreshHealth_(ss);if(!eventRefreshProjections_(ss,late))complete=false;if(late())complete=false;else eventPlainLabels_(ss,false,true);}
-    if(!silent)ss.toast('명단을 다시 연결했습니다.','입력 확인',5);
-    if(complete)journal.forEach(function(k){PropertiesService.getScriptProperties().deleteProperty(k);});
+    // 편집 보관값은 목적지로 쓰기가 확정된 다음에만 지운다.
+    if(complete&&journal.length){SpreadsheetApp.flush();journal.forEach(function(k){props.deleteProperty(k);});}
     return complete;
-  },background?15000:60000,!!background);
 }
 /** 군 칸만 먼저 처리하고, 다른 대기 입력과 카드 종류는 유지한다. */
-function eventPendingGroupMoves_(ss,background){
+function eventPendingGroupMoves_(ss,background,stop){
   var names=eventGroupViews_('기타').concat(eventViews_().filter(function(n){return eventGroup_(n)!=='기타';})),props=PropertiesService.getScriptProperties(),pending=false;
   var views=names.map(function(name){var sheet=ss.getSheetByName(name),rows=eventData_(sheet);
     rows.forEach(function(row,i){if(!row[0]&&eventText_(row[5])){pending=true;var key='EVENT_REPAIR_SEEN_'+name+'|row:'+(i+2);if(!props.getProperty(key))props.setProperty(key,String(Date.now()));}});
@@ -324,7 +401,7 @@ function eventPendingGroupMoves_(ss,background){
       if(!row[0]||!base||!eventText_(row[5])||/^충돌:/.test(eventText_(row[18]))||eventEqual_(row[2],base[2]))continue;
       var target=eventStoredGroup_(eventText_(row[2])||eventGroup_(views[v].name)||'기타');
       if(EVENT.groups.indexOf(target)<0)continue;
-      if(background&&processed&&Date.now()-started>=20000)return true;
+      if((stop&&stop())||(background&&processed&&Date.now()-started>=20000))return true;
       var found=eventFind_(sheet,row[0]);if(found.length!==1)continue;
       try{eventProcessRow_(ss,sheet,found[0].row,[2],undefined,false);processed++;}
       catch(err){sheet.getRange(found[0].row,19).setValue('입력 확인: '+err.message);}
@@ -515,33 +592,44 @@ function eventOnEditBody_(e) {
 }
 
 /** 파생 표시만 정리한다. 행 순서와 입력값·내부 연결값은 이동하지 않는다. */
-function eventPlainLabels_(ss,onlyTouched,verifyRules) {
-  (onlyTouched?Object.keys(ss.labelNames||{}):eventViews_()).forEach(function(name){
-    var sheet=ss.getSheetByName(name),map=sheet.plainMap;
-    if(!map)return;
+function eventPlainLabels_(ss,onlyTouched,verifyRules,names,stop) {
+  var views=names||(onlyTouched?Object.keys(ss.labelNames||{}):eventViews_());
+  for(var v=0;v<views.length;v++){
+    if(stop&&stop())return false;
+    var sheet=ss.getSheetByName(views[v]),map=sheet.plainMap;
+    if(!map)continue;
     eventEnsureCapacity_(sheet);
     eventDuplicateRule_(sheet,verifyRules);
     if(map.registered)eventRouteDropdown_(sheet,verifyRules);
     var physical=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,physical.getLastRow()-start+1));
-    if(!count)return;
+    if(!count)continue;
     var visible=physical.getRange(start,1,count,11).getValues();
     eventWriteNumbers_(physical,start,visible);
-    visible.forEach(function(row,i){
-      var hasName=!!eventText_(row[2]);
-      if(hasName&&row[8]!==eventDisplayGroup_(row[8])&&eventEqual_(physical.getRange(start+i,9).getValues()[0][0],row[8])){
-        eventStructureGuard_(physical);physical.getRange(start+i,9).setValue(eventDisplayGroup_(row[8]));
+    for(var i=0;i<visible.length;i++){
+      var row=visible[i];
+      if(!eventText_(row[2]))continue;
+      var group=eventDisplayGroup_(row[8]);
+      if(row[8]!==group){
+        if(stop&&stop())return false;
+        if(eventEqual_(physical.getRange(start+i,9).getValues()[0][0],row[8])){
+          eventStructureGuard_(physical);physical.getRange(start+i,9).setValue(group);
+        }
       }
-      if(!map.registered&&hasName&&row[10]!=='-'&&eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2])){
-        eventStructureGuard_(physical);physical.getRange(start+i,11).setValue('-');
+      if(!map.registered&&row[10]!=='-'){
+        if(stop&&stop())return false;
+        if(eventEqual_(physical.getRange(start+i,3).getValues()[0][0],row[2])){
+          eventStructureGuard_(physical);physical.getRange(start+i,11).setValue('-');
+        }
       }
-    });
-  });
+    }
+  }
+  return true;
 }
 
 /** 긴 동기화 전에 모든 화면의 번호만 확인한다. 입력·범위·서식은 쓰지 않는다. */
-function eventPlainNumbers_(ss){
-  var labels=ss.real?eventPlainWrap_(ss.real):ss;
-  eventViews_().forEach(function(name){
+function eventPlainNumbers_(ss,names){
+  var labels=!names&&ss.real?eventPlainWrap_(ss.real):ss;
+  (names||eventViews_()).forEach(function(name){
     var sheet=labels.getSheetByName(name),map=sheet.plainMap;if(!map)return;
     var p=sheet.physical,start=map.offset+2,count=Math.min(map.limit-1,Math.max(0,p.getLastRow()-start+1));
     if(count)eventWriteNumbers_(p,start,p.getRange(start,1,count,3).getValues());
@@ -559,25 +647,27 @@ function eventWriteNumbers_(physical,start,visible){
 
 /** 시간 기반 실행. 잠금 대기·실패 뒤에도 새 편집 없이 재시도한다. */
 var EVENT_ARMY_BASIS_EXEC=false;
-function eventAutoSync(){EVENT_ARMY_BASIS_EXEC=true;EVENT_EXEC_STARTED=Date.now();try{return eventAutoSyncInternal_();}finally{EVENT_ARMY_BASIS_EXEC=false;EVENT_EXEC_STARTED=0;}}
+function eventAutoSync(){
+  EVENT_ARMY_BASIS_EXEC=true;EVENT_EXEC_STARTED=Date.now();
+  try{return eventAutoSyncInternal_();}
+  catch(error){console.log('행축 자동 확인: 오류 후 재시도 ('+(Date.now()-EVENT_EXEC_STARTED)+'ms)');throw error;}
+  finally{EVENT_ARMY_BASIS_EXEC=false;EVENT_EXEC_STARTED=0;}
+}
 function eventAutoSyncInternal_() {
   var props=PropertiesService.getScriptProperties();
   if(props.getProperty('EVENT_COUNTS_REV')!=='visible-v1')eventRefreshCounts();
   // 최초 자동 확인에서 기존 메모에도 색을 적용한다.
   if(props.getProperty('EVENT_STATUS_REV')!=='font-v1')eventRefreshStatusDisplay();
   if(eventStructureHasChanges_(SpreadsheetApp.getActive()))props.setProperty('EVENT_SYNC_DIRTY',String(Date.now())+'-rows');
-  var generation=props.getProperty('EVENT_SYNC_DIRTY')||'initial';
-  var done=props.getProperty('EVENT_SYNC_DONE');
-  var last=Number(props.getProperty('EVENT_SYNC_LAST')||0);
-  if(!props.getProperty('EVENT_UNSAVED_REQUEST')&&done===generation&&Date.now()-last<15*60*1000&&props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10'&&props.getProperty('EVENT_REPAIR_REV')==='chunk-v1')return;
-  // 완료 표시는 처리한 세대만 남긴다. 처리 중 들어온 새 편집 표시를 지우지 않는다.
-  if(eventRepair(true,true)){
-    props.setProperty('EVENT_CAPACITY_REV','reserve5-add10');
-    props.setProperty('EVENT_REPAIR_REV','chunk-v1');
-    props.setProperty('EVENT_SYNC_DONE',generation);
-    props.setProperty('EVENT_SYNC_LAST',String(Date.now()));
-    console.log('행축 대기 입력 자동 확인 완료');
-  }
+  if(eventSyncIsCurrent_(props))return;
+  return eventRepair(true,true,true);
+}
+
+function eventSyncIsCurrent_(props){
+  return !props.getProperty('EVENT_UNSAVED_REQUEST')&&!props.getProperty('EVENT_SYNC_PROGRESS')&&
+    props.getProperty('EVENT_SYNC_DONE')===(props.getProperty('EVENT_SYNC_DIRTY')||'initial')&&
+    Date.now()-Number(props.getProperty('EVENT_SYNC_LAST')||0)<15*60*1000&&
+    props.getProperty('EVENT_CAPACITY_REV')==='reserve5-add10'&&props.getProperty('EVENT_REPAIR_REV')==='slice-v1';
 }
 
 function eventRouteDropdown_(sheet,verify){
@@ -668,7 +758,9 @@ function eventReplayEdits_(ss){
   var props=PropertiesService.getScriptProperties();if(!props.getProperties)return [];
   var all=props.getProperties(),keys=Object.keys(all).filter(function(k){return k.indexOf('EVENT_EDIT_')===0;}),latest={};
   keys.forEach(function(k){var x=JSON.parse(all[k]),key=x.id+'|'+x.col;if(!latest[key]||latest[key].time<=x.time)latest[key]=x;});
-  Object.keys(latest).forEach(function(k){var x=latest[k],raw=eventData_(ss.getSheetByName(EVENT.raw)).filter(function(r){return r[0]===x.id;})[0];
+  if(!keys.length)return keys;
+  var byId={};eventData_(ss.getSheetByName(EVENT.raw)).forEach(function(r){byId[r[0]]=r;});
+  Object.keys(latest).forEach(function(k){var x=latest[k],raw=byId[x.id];
     if(!raw||raw[21]||eventEqual_(raw[x.col],x.value))return;
     var sh=ss.getSheetByName(x.view),found=eventFind_(sh,x.id);if(found.length!==1)return;
     var item=found[0];try{var patch={};patch[x.col]=x.value;x.value=eventApplyPatch_(raw,null,patch,x.view,false).row[x.col];}catch(_){}if(eventEqual_(item.values[x.col],x.value))return;
@@ -730,31 +822,47 @@ function eventRefreshStatusDisplay(){
   },1,true);
 }
 
-function eventRefreshProjections_(ss,stop){
-    var cache={};eventViews_().forEach(function(name){var data=eventData_(ss.getSheetByName(name)),byId={};data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});cache[name]={byId:byId,nextRow:data.length+2};});
-    var rawRows=eventData_(ss.getSheetByName(EVENT.raw));
-    for(var r=0;r<rawRows.length;r++){var row=rawRows[r],needs=eventViews_().some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20])||base[18]!==row[18];});
-      if(!needs)continue;if(stop&&stop())return false;eventProject_(ss,row,'','*',cache);}
-    eventRepairOrphans_(ss,cache,rawRows);return true;
+function eventProjectionCache_(ss,names,cache){
+  cache=cache||{};
+  names.forEach(function(name){
+    if(cache[name])return;
+    var data=eventData_(ss.getSheetByName(name)),byId={};
+    data.forEach(function(r,i){if(r[0]){byId[r[0]]=byId[r[0]]||[];byId[r[0]].push({row:i+2,values:r});}});
+    cache[name]={byId:byId,nextRow:data.length+2};
+  });
+  return cache;
+}
+function eventRefreshProjections_(ss,stop,view,records,existingCache){
+  var names=view?[view]:eventViews_(),cache=eventProjectionCache_(ss,names,existingCache);
+  var rawRows=records||eventData_(ss.getSheetByName(EVENT.raw));
+  for(var r=0;r<rawRows.length;r++){
+    var row=rawRows[r],needs=names.some(function(name){var matches=cache[name].byId[row[0]]||[];if(!eventMember_(row,name))return matches.length>0;if(matches.length!==1)return true;var base=eventBaseline_(matches[0].values);return !base||Number(base[20])!==Number(row[20])||base[18]!==row[18];});
+    if(!needs)continue;
+    if(stop&&stop())return false;
+    eventProject_(ss,row,'','*',cache,names);
+  }
+  if(!view)eventRepairOrphans_(ss,cache,rawRows);
+  return true;
 }
 
 /** 이전 구역 밖에 남은, 수정되지 않은 중복 화면만 이력과 함께 정리한다. */
-function eventRepairOrphans_(ss,cache,records){
+function eventRepairOrphans_(ss,cache,records,groups,stop){
   var byId={};records.forEach(function(r){byId[r[0]]=r;});
-  EVENT.groups.forEach(function(g){var views=eventGroupViews_(g).map(function(n){return ss.getSheetByName(n);}),p=views[0].physical;if(!p)return;
-    var count=p.getLastRow()-1;if(count<1)return;
+  return (groups||EVENT.groups).every(function(g){var views=eventGroupViews_(g).map(function(n){return ss.getSheetByName(n);}),p=views[0].physical;if(!p)return true;
+    var count=p.getLastRow()-1;if(count<1)return true;
     var data=p.getRange(2,1,count,32).getValues();
-    views.forEach(function(sh){var m=sh.plainMap;data.forEach(function(row,i){var physicalRow=i+2,id=row[m.meta-1],canonical=byId[id];
-      if(!canonical||canonical[21]||canonical[2]!==g||!canonical[m.registered?14:13])return;
-      if(physicalRow>=m.offset+2&&physicalRow<=m.offset+m.limit)return;
-      if(row[(m.registered?29:31)-1])return;
-      if(!(cache[m.name].byId[id]||[]).length)return;
-      var n=physicalRow-m.offset,before=sh.getRange(n,1,1,22).getValues()[0],base=eventBaseline_(before);if(!base||base[0]!==id)return;
+    return views.every(function(sh){var m=sh.plainMap;return data.every(function(row,i){var physicalRow=i+2,id=row[m.meta-1],canonical=byId[id];
+      if(!canonical||canonical[21]||canonical[2]!==g||!canonical[m.registered?14:13])return true;
+      if(physicalRow>=m.offset+2&&physicalRow<=m.offset+m.limit)return true;
+      if(row[(m.registered?29:31)-1])return true;
+      if(!(cache[m.name].byId[id]||[]).length)return true;
+      if(stop&&stop())return false;
+      var n=physicalRow-m.offset,before=sh.getRange(n,1,1,22).getValues()[0],base=eventBaseline_(before);if(!base||base[0]!==id)return true;
       var dirty=m.cols.some(function(c){return c>=0&&(m.registered||c!==4)&&!eventEqual_(before[c],base[c]);});
-      if(dirty){sh.getRange(n,19).setValue('입력 확인: 입력 범위 밖 중복 행에 수정이 남아 있습니다. 확인 전까지 보존합니다.');return;}
+      if(dirty){sh.getRange(n,19).setValue('입력 확인: 입력 범위 밖 중복 행에 수정이 남아 있습니다. 확인 전까지 보존합니다.');return true;}
       eventAudit_(ss,'범위 밖 중복 화면 정리',m.name,before,canonical,'원본과 입력 범위 안의 기록을 유지함');
-      var fresh=sh.getRange(n,1,1,22).getValues()[0];if(JSON.stringify(fresh)!==JSON.stringify(before))return;
-      sh.getRange(n,1,1,22).clearContent();
+      var fresh=sh.getRange(n,1,1,22).getValues()[0];if(JSON.stringify(fresh)===JSON.stringify(before))sh.getRange(n,1,1,22).clearContent();
+      return true;
     });});
   });
 }
